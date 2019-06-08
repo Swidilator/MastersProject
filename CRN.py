@@ -5,35 +5,71 @@ import numpy
 
 
 class RefinementModule(modules.Module):
+    r"""
+    One 3 layer module making up a segment of a CRN
+
+
+
+
+    """
     def __init__(
-        self, parent_module, output_number, semantic_layer_number, w_res=0, h_res=0
+        self,
+        input_channel_number: int,
+        output_channel_number: int,
+        semantic_layer_channel_count: int,
+        input_size: torch.Size,
+        is_final_module: bool = False,
     ):
         super(RefinementModule, self).__init__()
 
-        self.w_res = w_res
-        self.h_res = h_res
-        self.input_number = parent_module.output_number + semantic_layer_number
-        self.output_number = output_number
-
-        if self.parent_module is not None:
-            self.w_res = parent_module.w_res * 2
-            self.h_res = parent_module.h_res * 2
+        self.input_size: torch.Size = input_size
+        self.input_number: int = (
+            input_channel_number + semantic_layer_channel_count
+        )
+        self.output_channel_number: int = output_channel_number
+        self.is_final_module: bool = False
 
         self.conv_1 = nn.Conv2d(
-            self.input_number, self.output_number, kernel_size=3, stride=1, padding=1
+            self.input_number, self.output_channel_number, kernel_size=3, stride=1, padding=1
         )
-        ############
-        self.layer_norm_1 = nn.LayerNorm(input.size()[1:])
-        ############
-        self.conv_2 = tnn.Conv2d(
-            self.output_number, self.output_number, kernel_size=3, stride=1, padding=1
-        )
-        self.conv_3 = nn.Conv2d(
-            self.output_number, self.output_number, kernel_size=3, stride=1, padding=1
+        self.layer_norm_1 = nn.LayerNorm(
+            change_output_channel_size(input_size, self.output_channel_number)
         )
 
-    def forward(self, input):
-        return sparseLinear(input, self.weight, self.bias)
+        self.conv_2 = nn.Conv2d(
+            self.output_channel_number, self.output_channel_number, kernel_size=3, stride=1, padding=1
+        )
+        self.layer_norm_2 = nn.LayerNorm(
+            change_output_channel_size(input_size, self.output_channel_number)
+        )
+
+        self.conv_3 = nn.Conv2d(
+            self.output_channel_number, self.output_channel_number, kernel_size=3, stride=1, padding=1
+        )
+        if not is_final_module:
+            self.layer_norm_3 = nn.LayerNorm(
+                change_output_channel_size(input_size, self.output_channel_number)
+            )
+
+        self.leakyReLU = nn.LeakyReLU()
+
+    def forward(self, x):
+        x = self.conv_1(x)
+        print(x.size())
+        x = self.layer_norm_1(x)
+        x = self.leakyReLU(x)
+
+        x = self.conv_2(x)
+        print(x.size())
+        x = self.layer_norm_2(x)
+        x = self.leakyReLU(x)
+
+        x = self.conv_3(x)
+        print(x.size())
+        if not self.is_final_module:
+            x = self.layer_norm_1(x)
+            x = self.leakyReLU(x)
+        return x
 
 
 class CRN(torch.nn.Module):
@@ -69,3 +105,10 @@ class CRN(torch.nn.Module):
         x = x.view(x.size(0), 256 * 6 * 6)
         x = self.classifier(x)
         return x
+
+
+def change_output_channel_size(input_size: torch.Size, output_channel_number: int):
+    size_list = list(input_size[2:])
+    size_list.insert(0, output_channel_number)
+    print(size_list)
+    return torch.Size(size_list)
