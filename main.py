@@ -10,7 +10,6 @@ if __name__ == "__main__":
     input_test = torch.FloatTensor(4, 6, 32, 32).uniform_(0, 255)
     output_test = rm(input_test)
 
-
     plt.figure(0)
     plt.imshow(input_test[0, 0, :].numpy())
     plt.show()
