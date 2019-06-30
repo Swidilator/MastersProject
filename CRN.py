@@ -7,10 +7,6 @@ import numpy
 class RefinementModule(modules.Module):
     r"""
     One 3 layer module making up a segment of a CRN
-
-
-
-
     """
     def __init__(
         self,
