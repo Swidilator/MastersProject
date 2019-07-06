@@ -1,55 +1,70 @@
 import torch
 import torch.nn as nn
 import torch.nn.modules as modules
-import numpy
+import torchvision.transforms as transforms
 
 
 class RefinementModule(modules.Module):
     r"""
-    One 3 layer module making up a segment of a CRN
+    One 3 layer module making up a segment of a CRN.
+
+    Args:
+        prior_layer_channel_count(int): number of input channels from previous layer
+        semantic_input_channel_count(int): number of input channels from semantic annotation
+        output_channel_count(int): number of output channels
+        input_height_width(tuple(int)): input image height and width
+        is_final_module(bool): is this the final module in the network
     """
     def __init__(
         self,
-        input_channel_number: int,
-        output_channel_number: int,
-        semantic_layer_channel_count: int,
-        input_size: torch.Size,
-        is_final_module: bool = False,
+        prior_layer_channel_count: int,
+        semantic_input_channel_count: int,
+        output_channel_count: int,
+        input_height_width: tuple,
+        is_final_module: bool = False
     ):
         super(RefinementModule, self).__init__()
 
-        self.input_size: torch.Size = input_size
-        self.input_number: int = (
-            input_channel_number + semantic_layer_channel_count
+        self.transformer = transforms.Compose(
+            [
+                transforms.Resize(input_height_width),
+                transforms.ToTensor()
+            ]
         )
-        self.output_channel_number: int = output_channel_number
+
+        self.input_width_height: tuple = input_height_width
+        self.total_input_channel_count: int = (
+            prior_layer_channel_count + semantic_input_channel_count
+        )
+        self.output_channel_count: int = output_channel_count
         self.is_final_module: bool = False
 
         self.conv_1 = nn.Conv2d(
-            self.input_number, self.output_channel_number, kernel_size=3, stride=1, padding=1
+            self.total_input_channel_count, self.output_channel_count, kernel_size=3, stride=1, padding=1
         )
         self.layer_norm_1 = nn.LayerNorm(
-            change_output_channel_size(input_size, self.output_channel_number)
+            change_output_channel_size(input_height_width, self.output_channel_count)
         )
 
         self.conv_2 = nn.Conv2d(
-            self.output_channel_number, self.output_channel_number, kernel_size=3, stride=1, padding=1
+            self.output_channel_count, self.output_channel_count, kernel_size=3, stride=1, padding=1
         )
         self.layer_norm_2 = nn.LayerNorm(
-            change_output_channel_size(input_size, self.output_channel_number)
+            change_output_channel_size(input_height_width, self.output_channel_count)
         )
 
         self.conv_3 = nn.Conv2d(
-            self.output_channel_number, self.output_channel_number, kernel_size=3, stride=1, padding=1
+            self.output_channel_count, self.output_channel_count, kernel_size=3, stride=1, padding=1
         )
         if not is_final_module:
             self.layer_norm_3 = nn.LayerNorm(
-                change_output_channel_size(input_size, self.output_channel_number)
+                change_output_channel_size(input_height_width, self.output_channel_count)
             )
 
         self.leakyReLU = nn.LeakyReLU()
 
     def forward(self, x):
+        #x = self.transformer(x)
         x = self.conv_1(x)
         print(x.size())
         x = self.layer_norm_1(x)
@@ -103,8 +118,8 @@ class CRN(torch.nn.Module):
         return x
 
 
-def change_output_channel_size(input_size: torch.Size, output_channel_number: int):
-    size_list = list(input_size[2:])
+def change_output_channel_size(input_height_width: tuple, output_channel_number: int):
+    size_list = list(input_height_width)
     size_list.insert(0, output_channel_number)
     print(size_list)
     return torch.Size(size_list)
