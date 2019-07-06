@@ -21,7 +21,6 @@ if __name__ == "__main__":
     )
     a, b = data_set[0]
 
-    print(size)
 
     data_loader = torch.utils.data.DataLoader(data_set,
                                               batch_size=1,
