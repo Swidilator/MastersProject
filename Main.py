@@ -17,8 +17,12 @@ if __name__ == "__main__":
         max_input_height_width=(32, 64),
         root="C:\\CityScapes Samples\\Train\\",
         split="train",
+        num_classes=35
     )
     a, b = data_set[0]
+
+    print(b[0].detach().numpy())
+    out = torch.nn.functional.one_hot(b[2][0], 24)
 
     # data_loader: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
     #     data_set, batch_size=1, shuffle=True, num_workers=1
