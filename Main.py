@@ -7,39 +7,70 @@ from CRN import CRN
 from CRN import RefinementModule
 
 if __name__ == "__main__":
-    max_input_height_width: tuple = (16, 32)
+    MAX_INPUT_HEIGHT_WIDTH: tuple = (128, 256)
+    INPUT_TENSOR_SIZE: tuple = (4, 8)
+    NUM_OUTPUT_IMAGES: int = 1
+    NUM_CLASSES: int = 35
+    BATCH_SIZE: int = 1
+    PREFER_CUDA: bool = True
+
+    if PREFER_CUDA == 1:
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            print('Device: CUDA')
+        else:
+            device = torch.device("cpu")
+            print('Device: CPU')
+    else:
+        device = torch.device("cpu")
+        print('Device: CPU')
 
     data_set_standard = torchvision.datasets.Cityscapes(
         root="../CityScapes Samples/Train/", split="train", mode="fine", target_type="semantic"
     )
 
     data_set = CRNDataset(
-        max_input_height_width=max_input_height_width,
+        max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
         root="../CityScapes Samples/Train/",
         split="train",
-        num_classes=35
+        num_classes=NUM_CLASSES
     )
     a, b = data_set[0]
     print(a.shape, b.shape)
 
     data_loader: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
-        data_set, batch_size=1, shuffle=True, num_workers=2
+        data_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=2
     )
 
-    image, smnt = next(iter(data_loader))
-    print(smnt.shape)
+    image, msk = next(iter(data_loader))
+    print(msk.shape)
 
     crn = CRN(
-        final_image_size=max_input_height_width,
-        num_output_images=3,
-        num_classes=35
+        input_tensor_size=INPUT_TENSOR_SIZE,
+        final_image_size=MAX_INPUT_HEIGHT_WIDTH,
+        num_output_images=NUM_OUTPUT_IMAGES,
+        num_classes=NUM_CLASSES
     )
 
-    out = crn(smnt)
+    noise: torch.Tensor = torch.randn(BATCH_SIZE, 1, INPUT_TENSOR_SIZE[0], INPUT_TENSOR_SIZE[1], device=device)
+
+    crn = crn.to(device)
+    msk = msk.to(device)
+    noise.to(device)
+
+    out = crn(
+        mask=msk,
+        noise=noise,
+        batch_size=BATCH_SIZE
+    )
+    out.sum().backward()
     to_image = torchvision.transforms.ToPILImage()
     plt.figure(0)
-    plt.imshow(to_image(out[0, 3:6]))
+    plt.imshow(to_image(out[0, 0:3].cpu()))
     plt.show()
+    del out, crn, msk, noise
+    torch.cuda.empty_cache()
+    quit()
 
     # plt.imshow(torchvision.transforms.ToPILImage(image[0].detach().numpy()))
     # plt.show()
