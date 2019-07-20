@@ -5,31 +5,32 @@ import torchvision
 from torchvision.transforms import Resize
 from copy import copy
 
+
 class PerceptualDifference(torch.autograd.Function):
     @staticmethod
     def forward(ctx, a, b):
         result = (a - b).abs().sum()
         return result
 
-
     @staticmethod
     def backward(ctx, grad_output):
         return grad_output
+
 
 class PerceptualLossNetwork(modules.Module):
     def __init__(self):
         super(PerceptualLossNetwork, self).__init__()
 
         vgg = torchvision.models.vgg19(pretrained=True, progress=True)
-        self.vgg_1 = copy(vgg.features[2])
+        self.vgg_1 = copy(vgg.features[2])  # 64
         self.vgg_1.requires_grad = False
-        self.vgg_2 = copy(vgg.features[7])
+        self.vgg_2 = copy(vgg.features[7])  # 128
         self.vgg_2.requires_grad = False
-        self.vgg_3 = copy(vgg.features[12])
+        self.vgg_3 = copy(vgg.features[12])  # 256
         self.vgg_3.requires_grad = False
-        self.vgg_4 = copy(vgg.features[21])
+        self.vgg_4 = copy(vgg.features[21])  # 512
         self.vgg_4.requires_grad = False
-        self.vgg_5 = copy(vgg.features[30])
+        self.vgg_5 = copy(vgg.features[30])  # 512
         self.vgg_5.requires_grad = False
         del vgg
 
