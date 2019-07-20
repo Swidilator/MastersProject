@@ -9,7 +9,7 @@ from math import log2
 
 class RefinementModule(modules.Module):
     r"""
-    One 3 layer module making up a segment of a CRN. Mask input tensor is of correct size, prior layers get resized.
+    One 3 layer module making up a segment of a CRN. Mask input tensor & prior layers get resized.
 
     Args:
         prior_layer_channel_count(int): number of input channels from previous layer
@@ -35,40 +35,6 @@ class RefinementModule(modules.Module):
         )
         self.output_channel_count: int = output_channel_count
         self.is_final_module: bool = False
-
-        # self.input_resize_transform = transforms.Compose(
-        #     [
-        #         transforms.Resize(
-        #             self.input_height_width,
-        #             Image.NEAREST,  # NEAREST as the values are categories and are not continuous
-        #         ),
-        #         transforms.ToTensor(),
-        #     ]
-        # )
-        #
-        self.prior_layer_resize_transform = transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.Resize(
-                    self.input_height_width,
-                    Image.NEAREST,  # NEAREST as the values are categories and are not continuous
-                ),
-                transforms.ToTensor(),
-            ]
-        )
-        #
-        # self.mask_resize_transform = transforms.Compose(
-        #     [
-        #         transforms.ToPILImage(),
-        #         transforms.Resize(
-        #             self.input_height_width,
-        #             Image.NEAREST,  # NEAREST as the values are categories and are not continuous
-        #         ),
-        #         transforms.ToTensor(),
-        #         transforms.Lambda(lambda x: (x * 255).long()[0]),
-        #         transforms.Lambda(lambda x: one_hot(x, num_classes)),
-        #     ]
-        # )
 
         # Module architecture
         self.conv_1 = nn.Conv2d(
@@ -110,14 +76,20 @@ class RefinementModule(modules.Module):
         self.leakyReLU = nn.LeakyReLU()
 
     def forward(self, mask: torch.Tensor, prior_layers: torch.Tensor):
-        if prior_layers is not None:
-            # prior_layers = self.prior_layer_resize_transform(prior_layers)
-            prior_layers2 = torch.stack([
-                self.prior_layer_resize_transform(x_i) for i, x_i in enumerate(torch.unbind(prior_layers, dim=1))
-            ], dim=1)
-            x = torch.cat((mask, prior_layers2), dim=1)
-        else:
-            x = mask
+        mask = torch.nn.functional.interpolate(
+            input=mask,
+            size=self.input_height_width,
+            mode='nearest'
+        )
+
+        prior_layers = torch.nn.functional.interpolate(
+            input=prior_layers,
+            size=self.input_height_width,
+            mode='bilinear'
+        )
+
+        x = torch.cat((mask, prior_layers), dim=1)
+
         x = self.conv_1(x)
         # print(x.size())
         x = self.layer_norm_1(x)
@@ -138,29 +110,39 @@ class RefinementModule(modules.Module):
 
 # TODO Fill with actual code, currently old network
 class CRN(torch.nn.Module):
-    def __init__(self, final_image_size: tuple, num_output_images: int = 1, num_classes: int = 35):
+    def __init__(
+            self,
+            input_tensor_size: tuple,
+            final_image_size: tuple,
+            num_output_images: int,
+            num_classes: int
+    ):
         super(CRN, self).__init__()
 
-        self.num_output_images = num_output_images
-        self.final_image_size = final_image_size
-        self.num_classes = num_classes
+        self.input_tensor_size: tuple = input_tensor_size
+        self.final_image_size: tuple = final_image_size
+        self.num_output_images: int = num_output_images
+        self.num_classes: int = num_classes
+
+        self.__NUM_NOISE_CHANNELS__: int = 1
+        self.__NUM_OUTPUT_IMAGE_CHANNELS__: int = 3
 
         self.num_rms: int = int(log2(final_image_size[0])) - 1
 
-        self.rms: list = []
+        self.rms_list: list = []
 
-        self.rms.append(
+        self.rms_list.append(
             RefinementModule(
-                prior_layer_channel_count=1,
+                prior_layer_channel_count=self.__NUM_NOISE_CHANNELS__,
                 semantic_input_channel_count=num_classes,
                 output_channel_count=1024,
-                input_height_width=(4, 8),
+                input_height_width=input_tensor_size,
                 is_final_module=False
             )
         )
 
         for i in range(1, self.num_rms - 1):
-            self.rms.append(
+            self.rms_list.append(
                 RefinementModule(
                     prior_layer_channel_count=1024,
                     semantic_input_channel_count=num_classes,
@@ -170,30 +152,25 @@ class CRN(torch.nn.Module):
                 )
             )
 
-        self.rms.append(
+        self.rms_list.append(
             RefinementModule(
                 prior_layer_channel_count=1024,
                 semantic_input_channel_count=num_classes,
-                output_channel_count=3 * num_output_images,
+                output_channel_count=self.__NUM_OUTPUT_IMAGE_CHANNELS__ * num_output_images,
                 input_height_width=final_image_size,
                 is_final_module=True
             )
         )
 
-    def forward(self, masks: torch.Tensor):
-        sizes: tuple = self.rms[0].input_height_width
-        mask_view: torch.Tensor = masks[:, 0:self.num_classes, 0:sizes[0], 0:sizes[1]]
-        mask_view_shape = mask_view.shape
-        # print(masks[:, 0:self.num_classes, 0:sizes[0], 0:sizes[1]].shape)
-        noise: torch.Tensor = torch.randn(mask_view_shape[2], mask_view_shape[3]).unsqueeze(0).unsqueeze(0)
-        x: torch.Tensor = self.rms[0](mask_view, noise)
+        self.rms = nn.Sequential(*self.rms_list)
 
+    def __del__(self):
+        del self.rms
+
+    def forward(self, mask: torch.Tensor, noise: torch.Tensor, batch_size: int):
+        x: torch.Tensor = self.rms[0](mask, noise)
         for i in range(1, self.num_rms):
-            sizes: tuple = self.rms[i].input_height_width
-            mask_view = masks[:, i * self.num_classes: (i + 1) * self.num_classes, 0:sizes[0], 0:sizes[1]]
-            x = self.rms[i](
-                mask_view, x
-            )
+            x = self.rms[i](mask, x)
         return x
 
 
