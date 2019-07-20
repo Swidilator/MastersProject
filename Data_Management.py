@@ -49,12 +49,9 @@ class CRNDataset(Dataset):
                 ),
                 transforms.ToTensor(),
                 transforms.Lambda(lambda x: (x * 255).long()[0]),
-                transforms.Lambda(
-                    lambda x: one_hot(
-                        x,
-                        self.num_classes
-                    ).transpose(0, 2).transpose(1, 2)
-                ),
+                transforms.Lambda(lambda x: one_hot(x, self.num_classes)),
+                transforms.Lambda(lambda x: x.transpose(0, 2).transpose(1, 2)),
+                transforms.Lambda(lambda x: x.float()),
             ]
         )
 
