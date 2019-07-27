@@ -3,8 +3,32 @@ import torch
 from matplotlib import pyplot as plt
 from Data_Management import CRNDataset
 from CRN import CRN
+from Perceptual_Loss import PerceptualLossNetwork
+from torchviz import make_dot
 
-from CRN import RefinementModule
+
+def __single_channel_normalise__(channel: torch.Tensor, params: tuple) -> torch.Tensor:
+    # channel = [H ,W]   params = (mean, std)
+    return (channel - params[0]) / params[1]
+
+
+def __single_image_normalise__(image: torch.Tensor, mean, std) -> torch.Tensor:
+    for i in range(3):
+        image[i] = __single_channel_normalise__(image[i], (mean[i], std[i]))
+    return image
+
+
+def normalise(input: torch.Tensor) -> torch.Tensor:
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+
+    if len(input.shape) == 4:
+        for i in range(input.shape[0]):
+            input[i] = __single_image_normalise__(input[i], mean, std)
+    else:
+        input = __single_image_normalise__(input, mean, std)
+    return input
+
 
 if __name__ == "__main__":
     MAX_INPUT_HEIGHT_WIDTH: tuple = (128, 256)
@@ -14,7 +38,7 @@ if __name__ == "__main__":
     BATCH_SIZE: int = 1
     PREFER_CUDA: bool = True
 
-    if PREFER_CUDA == 1:
+    if PREFER_CUDA:
         if torch.cuda.is_available():
             device = torch.device("cuda")
             print('Device: CUDA')
@@ -25,25 +49,16 @@ if __name__ == "__main__":
         device = torch.device("cpu")
         print('Device: CPU')
 
-    data_set_standard = torchvision.datasets.Cityscapes(
-        root="../CityScapes Samples/Train/", split="train", mode="fine", target_type="semantic"
-    )
-
     data_set = CRNDataset(
         max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
         root="../CityScapes Samples/Train/",
         split="train",
         num_classes=NUM_CLASSES
     )
-    a, b = data_set[0]
-    print(a.shape, b.shape)
 
     data_loader: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
-        data_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=2
+        data_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
     )
-
-    image, msk = next(iter(data_loader))
-    print(msk.shape)
 
     crn = CRN(
         input_tensor_size=INPUT_TENSOR_SIZE,
@@ -51,26 +66,44 @@ if __name__ == "__main__":
         num_output_images=NUM_OUTPUT_IMAGES,
         num_classes=NUM_CLASSES
     )
-
-    noise: torch.Tensor = torch.randn(BATCH_SIZE, 1, INPUT_TENSOR_SIZE[0], INPUT_TENSOR_SIZE[1], device=device)
-
     crn = crn.to(device)
-    msk = msk.to(device)
-    noise.to(device)
 
-    out = crn(
-        mask=msk,
-        noise=noise,
-        batch_size=BATCH_SIZE
-    )
-    out.sum().backward()
-    to_image = torchvision.transforms.ToPILImage()
-    plt.figure(0)
-    plt.imshow(to_image(out[0, 0:3].cpu()))
-    plt.show()
-    del out, crn, msk, noise
+    optimizer = torch.optim.SGD(crn.parameters(), lr=0.01, momentum=0.9)
+    loss_net: PerceptualLossNetwork = PerceptualLossNetwork()
+    loss_net = loss_net.to(device)
+
+    for batch_idx, (img, msk) in enumerate(data_loader):
+        optimizer.zero_grad()
+        img = img.to(device)
+        msk = msk.to(device)
+        noise: torch.Tensor = torch.randn(BATCH_SIZE, 1, INPUT_TENSOR_SIZE[0], INPUT_TENSOR_SIZE[1], device=device)
+        moise = noise.to(device)
+
+        out = crn(
+            inputs=[msk, noise, BATCH_SIZE]
+        )
+
+        out = normalise(out)
+
+        loss: torch.Tensor = loss_net(
+            [
+                out,
+                img
+            ]
+        )
+        loss.backward()
+        optimizer.step()
+        del loss, msk, noise, img
+
     torch.cuda.empty_cache()
-    quit()
+
+    # to_image = torchvision.transforms.ToPILImage()
+    # plt.figure(0)
+    # plt.imshow(to_image(out[0, 0:3].cpu()))
+    # plt.show()
+    # #del out, crn, msk, noise
+    # torch.cuda.empty_cache()
+
 
     # plt.imshow(torchvision.transforms.ToPILImage(image[0].detach().numpy()))
     # plt.show()
