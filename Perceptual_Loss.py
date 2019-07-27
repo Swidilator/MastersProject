@@ -27,7 +27,11 @@ class PerceptualLossNetwork(modules.Module):
     def __init__(self):
         super(PerceptualLossNetwork, self).__init__()
 
-        self.vgg = torchvision.models.vgg19(pretrained=True, progress=True)
+        self.vgg: torch.nn.Module = torchvision.models.vgg19(pretrained=True, progress=True)
+        self.vgg.eval()
+        del self.vgg.classifier, self.vgg.avgpool
+        for i in self.vgg.features:
+            i.requires_grad = False
 
         self.loss_layer_numbers: tuple = (2, 7, 12, 21, 30)
 
