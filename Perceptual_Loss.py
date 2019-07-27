@@ -16,7 +16,10 @@ from copy import copy
 #     def backward(ctx, grad_output):
 #         return grad_output, None
 
-def get_layer_values(self: torch.nn.modules.conv.Conv2d, input: tuple, output: torch.Tensor) -> None:
+
+def get_layer_values(
+    self: torch.nn.modules.conv.Conv2d, input: tuple, output: torch.Tensor
+) -> None:
     # input is a tuple of packed inputs
     # output is a Tensor. output.data is the Tensor we are interested
     self.stored_output: torch.Tensor = output
@@ -26,7 +29,9 @@ class PerceptualLossNetwork(modules.Module):
     def __init__(self):
         super(PerceptualLossNetwork, self).__init__()
 
-        self.vgg: torch.nn.Module = torchvision.models.vgg19(pretrained=True, progress=True)
+        self.vgg: torch.nn.Module = torchvision.models.vgg19(
+            pretrained=True, progress=True
+        )
         self.vgg.eval()
         del self.vgg.classifier, self.vgg.avgpool
         for i in self.vgg.features:
@@ -38,7 +43,9 @@ class PerceptualLossNetwork(modules.Module):
 
         for i, num in enumerate(self.loss_layer_numbers):
             self.vgg.features[num].register_forward_hook(get_layer_values)
-            self.loss_layer_coefficients[i] = 1.0 / self.vgg.features[num].weight.data.numel()
+            self.loss_layer_coefficients[i] = (
+                1.0 / self.vgg.features[num].weight.data.numel()
+            )
 
         print("loss_coefficients:", self.loss_layer_coefficients)
         self.norm = torch.nn.modules.normalization
@@ -63,7 +70,9 @@ class PerceptualLossNetwork(modules.Module):
 
         # TODO Implement correct loss
         for i in range(len(result_gen)):
-            res = (result_truth[i] - result_gen[i]).norm() * self.loss_layer_coefficients[i]
+            res = (
+                result_truth[i] - result_gen[i]
+            ).norm() * self.loss_layer_coefficients[i]
             total_loss += res
 
         del result_gen, result_truth

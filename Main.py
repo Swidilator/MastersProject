@@ -41,19 +41,19 @@ if __name__ == "__main__":
     if PREFER_CUDA:
         if torch.cuda.is_available():
             device = torch.device("cuda")
-            print('Device: CUDA')
+            print("Device: CUDA")
         else:
             device = torch.device("cpu")
-            print('Device: CPU')
+            print("Device: CPU")
     else:
         device = torch.device("cpu")
-        print('Device: CPU')
+        print("Device: CPU")
 
     data_set = CRNDataset(
         max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
         root="../CityScapes Samples/Train/",
         split="train",
-        num_classes=NUM_CLASSES
+        num_classes=NUM_CLASSES,
     )
 
     data_loader: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         input_tensor_size=INPUT_TENSOR_SIZE,
         final_image_size=MAX_INPUT_HEIGHT_WIDTH,
         num_output_images=NUM_OUTPUT_IMAGES,
-        num_classes=NUM_CLASSES
+        num_classes=NUM_CLASSES,
     )
     crn = crn.to(device)
 
@@ -76,21 +76,16 @@ if __name__ == "__main__":
         optimizer.zero_grad()
         img = img.to(device)
         msk = msk.to(device)
-        noise: torch.Tensor = torch.randn(BATCH_SIZE, 1, INPUT_TENSOR_SIZE[0], INPUT_TENSOR_SIZE[1], device=device)
+        noise: torch.Tensor = torch.randn(
+            BATCH_SIZE, 1, INPUT_TENSOR_SIZE[0], INPUT_TENSOR_SIZE[1], device=device
+        )
         moise = noise.to(device)
 
-        out = crn(
-            inputs=[msk, noise, BATCH_SIZE]
-        )
+        out = crn(inputs=[msk, noise, BATCH_SIZE])
 
         out = normalise(out)
 
-        loss: torch.Tensor = loss_net(
-            [
-                out,
-                img
-            ]
-        )
+        loss: torch.Tensor = loss_net([out, img])
         loss.backward()
         optimizer.step()
         del loss, msk, noise, img
@@ -103,7 +98,6 @@ if __name__ == "__main__":
     # plt.show()
     # #del out, crn, msk, noise
     # torch.cuda.empty_cache()
-
 
     # plt.imshow(torchvision.transforms.ToPILImage(image[0].detach().numpy()))
     # plt.show()
@@ -124,4 +118,3 @@ if __name__ == "__main__":
     # plt.figure(1)
     # plt.imshow(output_test[0].detach().numpy())
     # plt.show()
-
