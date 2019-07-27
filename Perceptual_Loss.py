@@ -6,21 +6,20 @@ from torchvision.transforms import Resize
 from copy import copy
 
 
+# class PerceptualDifference(torch.autograd.Function):
+#     @staticmethod
+#     def forward(ctx, img, trth):
+#         result = (img - trth).abs().sum()
+#         return result
+#
+#     @staticmethod
+#     def backward(ctx, grad_output):
+#         return grad_output, None
+
 def get_layer_values(self: torch.nn.modules.conv.Conv2d, input: tuple, output: torch.Tensor) -> None:
     # input is a tuple of packed inputs
     # output is a Tensor. output.data is the Tensor we are interested
     self.stored_output: torch.Tensor = output
-
-
-class PerceptualDifference(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, a, b):
-        result = (a - b).abs().sum()
-        return result
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        return grad_output
 
 
 class PerceptualLossNetwork(modules.Module):
@@ -35,27 +34,38 @@ class PerceptualLossNetwork(modules.Module):
 
         self.loss_layer_numbers: tuple = (2, 7, 12, 21, 30)
 
+        self.loss_layer_coefficients = [0.0, 0.0, 0.0, 0.0, 0.0]
+
         for i, num in enumerate(self.loss_layer_numbers):
             self.vgg.features[num].register_forward_hook(get_layer_values)
-            self.vgg.features[num].requires_grad = False
+            self.loss_layer_coefficients[i] = 1.0 / self.vgg.features[num].weight.data.numel()
 
-        # self.vgg_1 = copy(vgg.features[2])  # 64
-        # self.vgg_1.requires_grad = False
-        # self.vgg_2 = copy(vgg.features[7])  # 128
-        # self.vgg_2.requires_grad = False
-        # self.vgg_3 = copy(vgg.features[12])  # 256
-        # self.vgg_3.requires_grad = False
-        # self.vgg_4 = copy(vgg.features[21])  # 512
-        # self.vgg_4.requires_grad = False
-        # self.vgg_5 = copy(vgg.features[30])  # 512
-        # self.vgg_5.requires_grad = False
-        # del vgg
+        print("loss_coefficients:", self.loss_layer_coefficients)
+        self.norm = torch.nn.modules.normalization
 
-    def forward(self, input, truth):
-        result_1 = PerceptualDifference(self.vgg_1(input), self.vgg_1(truth))
-        result_2 = PerceptualDifference(self.vgg_2(input), self.vgg_2(truth))
-        result_3 = PerceptualDifference(self.vgg_3(input), self.vgg_3(truth))
-        result_4 = PerceptualDifference(self.vgg_4(input), self.vgg_4(truth))
-        result_5 = PerceptualDifference(self.vgg_5(input), self.vgg_5(truth))
-        return result_1, result_2, result_3, result_4, result_5
+    def forward(self, inputs: list):
+        input: torch.Tensor = inputs[0]
+        truth: torch.Tensor = inputs[1]
+        self.vgg.features(input)
+        result_gen: list = []
+        for i, num in enumerate(self.loss_layer_numbers):
+            result_gen.append(self.vgg.features[num].stored_output)
 
+        self.vgg.features(truth)
+        result_truth: list = []
+        for i, num in enumerate(self.loss_layer_numbers):
+            result_truth.append(self.vgg.features[num].stored_output)
+
+        device = self.vgg.features[0].weight.device
+        total_loss = torch.zeros(1).float().to(device)
+
+        # perceptual_difference = PerceptualDifference.apply
+
+        # TODO Implement correct loss
+        for i in range(len(result_gen)):
+            res = (result_truth[i] - result_gen[i]).norm() * self.loss_layer_coefficients[i]
+            total_loss += res
+
+        del result_gen, result_truth
+        print(total_loss.device)
+        return total_loss
