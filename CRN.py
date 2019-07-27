@@ -75,7 +75,9 @@ class RefinementModule(modules.Module):
 
         self.leakyReLU = nn.LeakyReLU()
 
-    def forward(self, mask: torch.Tensor, prior_layers: torch.Tensor):
+    def forward(self, inputs: list):
+        mask: torch.Tensor = inputs[0]
+        prior_layers: torch.Tensor = inputs[1]
         mask = torch.nn.functional.interpolate(
             input=mask,
             size=self.input_height_width,
@@ -167,10 +169,13 @@ class CRN(torch.nn.Module):
     def __del__(self):
         del self.rms
 
-    def forward(self, mask: torch.Tensor, noise: torch.Tensor, batch_size: int):
-        x: torch.Tensor = self.rms[0](mask, noise)
+    def forward(self, inputs: list):
+        mask: torch.Tensor = inputs[0]
+        noise: torch.Tensor = inputs[1]
+        batch_size: int = inputs[2]
+        x: torch.Tensor = self.rms[0]([mask, noise])
         for i in range(1, self.num_rms):
-            x = self.rms[i](mask, x)
+            x = self.rms[i]([mask, x])
         return x
 
 
