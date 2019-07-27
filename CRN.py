@@ -20,18 +20,18 @@ class RefinementModule(modules.Module):
     """
 
     def __init__(
-            self,
-            prior_layer_channel_count: int,
-            semantic_input_channel_count: int,
-            output_channel_count: int,
-            input_height_width: tuple,
-            is_final_module: bool = False,
+        self,
+        prior_layer_channel_count: int,
+        semantic_input_channel_count: int,
+        output_channel_count: int,
+        input_height_width: tuple,
+        is_final_module: bool = False,
     ):
         super(RefinementModule, self).__init__()
 
         self.input_height_width: tuple = input_height_width
         self.total_input_channel_count: int = (
-                prior_layer_channel_count + semantic_input_channel_count
+            prior_layer_channel_count + semantic_input_channel_count
         )
         self.output_channel_count: int = output_channel_count
         self.is_final_module: bool = False
@@ -75,17 +75,15 @@ class RefinementModule(modules.Module):
 
         self.leakyReLU = nn.LeakyReLU()
 
-    def forward(self, mask: torch.Tensor, prior_layers: torch.Tensor):
+    def forward(self, inputs: list):
+        mask: torch.Tensor = inputs[0]
+        prior_layers: torch.Tensor = inputs[1]
         mask = torch.nn.functional.interpolate(
-            input=mask,
-            size=self.input_height_width,
-            mode='nearest'
+            input=mask, size=self.input_height_width, mode="nearest"
         )
 
         prior_layers = torch.nn.functional.interpolate(
-            input=prior_layers,
-            size=self.input_height_width,
-            mode='bilinear'
+            input=prior_layers, size=self.input_height_width, mode="bilinear"
         )
 
         x = torch.cat((mask, prior_layers), dim=1)
@@ -111,11 +109,11 @@ class RefinementModule(modules.Module):
 # TODO Fill with actual code, currently old network
 class CRN(torch.nn.Module):
     def __init__(
-            self,
-            input_tensor_size: tuple,
-            final_image_size: tuple,
-            num_output_images: int,
-            num_classes: int
+        self,
+        input_tensor_size: tuple,
+        final_image_size: tuple,
+        num_output_images: int,
+        num_classes: int,
     ):
         super(CRN, self).__init__()
 
@@ -137,7 +135,7 @@ class CRN(torch.nn.Module):
                 semantic_input_channel_count=num_classes,
                 output_channel_count=1024,
                 input_height_width=input_tensor_size,
-                is_final_module=False
+                is_final_module=False,
             )
         )
 
@@ -148,7 +146,7 @@ class CRN(torch.nn.Module):
                     semantic_input_channel_count=num_classes,
                     output_channel_count=1024,
                     input_height_width=(2 ** (i + 2), 2 ** (i + 3)),
-                    is_final_module=False
+                    is_final_module=False,
                 )
             )
 
@@ -156,9 +154,10 @@ class CRN(torch.nn.Module):
             RefinementModule(
                 prior_layer_channel_count=1024,
                 semantic_input_channel_count=num_classes,
-                output_channel_count=self.__NUM_OUTPUT_IMAGE_CHANNELS__ * num_output_images,
+                output_channel_count=self.__NUM_OUTPUT_IMAGE_CHANNELS__
+                * num_output_images,
                 input_height_width=final_image_size,
-                is_final_module=True
+                is_final_module=True,
             )
         )
 
@@ -167,10 +166,13 @@ class CRN(torch.nn.Module):
     def __del__(self):
         del self.rms
 
-    def forward(self, mask: torch.Tensor, noise: torch.Tensor, batch_size: int):
-        x: torch.Tensor = self.rms[0](mask, noise)
+    def forward(self, inputs: list):
+        mask: torch.Tensor = inputs[0]
+        noise: torch.Tensor = inputs[1]
+        batch_size: int = inputs[2]
+        x: torch.Tensor = self.rms[0]([mask, noise])
         for i in range(1, self.num_rms):
-            x = self.rms[i](mask, x)
+            x = self.rms[i]([mask, x])
         return x
 
 
