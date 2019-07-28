@@ -7,7 +7,7 @@ import torchvision
 from typing import List
 from abc import ABC, abstractmethod
 
-train_output = List[float, torch.Tensor]
+epoch_output = List[float, torch.Tensor]
 
 
 class MastersModel(ABC):
@@ -57,9 +57,17 @@ class MastersModel(ABC):
         pass
 
     @abstractmethod
-    def train(self) -> train_output:
+    def train(self) -> epoch_output:
         r"""
         Perform one training epoch.
-        :return: train_output
+        :return: epoch_output
+        """
+        pass
+
+    @abstractmethod
+    def eval(self) -> epoch_output:
+        r"""
+        Evaluate model on test_dataset
+        :return: epoch_output
         """
         pass
