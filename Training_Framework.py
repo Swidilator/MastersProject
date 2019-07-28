@@ -4,21 +4,17 @@ import torch.utils as utils
 import torch.nn.modules as modules
 import torchvision
 
-from typing import List
-from abc import ABC, abstractmethod
 
-epoch_output = List[float, torch.Tensor]
+from Data_Types import epoch_output
+from abc import ABC, abstractmethod
 
 
 class MastersModel(ABC):
-    def __init__(self, device: torch.device, data_path: str):
+    def __init__(self, device: torch.device):
         super(MastersModel, self).__init__()
 
         self.device: torch.device = device
         self.data_loader: utils.data.DataLoader = None
-
-        self.__set_data_loader__(data_path)
-        self.__set_model__()
 
     @abstractmethod
     def __set_data_loader__(self, data_path: str) -> None:
