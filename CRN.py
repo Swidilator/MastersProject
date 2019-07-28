@@ -47,7 +47,7 @@ class CRNFramework(MastersModel):
     ):
         self.__data_set__ = CRNDataset(
             max_input_height_width=max_input_height_width,
-            root="../CityScapes Samples/Train/",
+            root=data_path,
             split="train",
             num_classes=num_classes,
         )
