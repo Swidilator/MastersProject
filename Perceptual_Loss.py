@@ -76,5 +76,4 @@ class PerceptualLossNetwork(modules.Module):
             total_loss += res
 
         del result_gen, result_truth
-        print(total_loss.device)
         return total_loss
