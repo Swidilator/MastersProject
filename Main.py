@@ -37,6 +37,7 @@ if __name__ == "__main__":
 
     crn_frame.train()
     quit()
+
     # data_set = CRNDataset(
     #     max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
     #     root="../CityScapes Samples/Train/",

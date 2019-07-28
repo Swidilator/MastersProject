@@ -75,9 +75,11 @@ class CRNFramework(MastersModel):
         self.loss_net = self.loss_net.to(self.device)
 
     def save_model(self, model_dir: str) -> None:
+        # TODO implement save_model
         pass
 
     def load_model(self, model_dir: str, model_name: str) -> None:
+        # TODO implement load_model
         pass
 
     def train(self) -> epoch_output:
@@ -109,6 +111,7 @@ class CRNFramework(MastersModel):
         return loss_sum, None
 
     def eval(self) -> epoch_output:
+        # TODO implement eval
         pass
 
     @staticmethod
