@@ -1,9 +1,5 @@
 import torch
-import torch.nn as nn
 import torch.utils as utils
-import torch.nn.modules as modules
-import torchvision
-
 
 from Data_Types import epoch_output
 from abc import ABC, abstractmethod
