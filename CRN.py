@@ -45,7 +45,9 @@ class RefinementModule(modules.Module):
             padding=1,
         )
         self.layer_norm_1 = nn.LayerNorm(
-            change_output_channel_size(input_height_width, self.output_channel_count)
+            RefinementModule.change_output_channel_size(
+                input_height_width, self.output_channel_count
+            )
         )
 
         self.conv_2 = nn.Conv2d(
@@ -56,7 +58,9 @@ class RefinementModule(modules.Module):
             padding=1,
         )
         self.layer_norm_2 = nn.LayerNorm(
-            change_output_channel_size(input_height_width, self.output_channel_count)
+            RefinementModule.change_output_channel_size(
+                input_height_width, self.output_channel_count
+            )
         )
 
         self.conv_3 = nn.Conv2d(
@@ -68,12 +72,21 @@ class RefinementModule(modules.Module):
         )
         if not is_final_module:
             self.layer_norm_3 = nn.LayerNorm(
-                change_output_channel_size(
+                RefinementModule.change_output_channel_size(
                     input_height_width, self.output_channel_count
                 )
             )
 
         self.leakyReLU = nn.LeakyReLU()
+
+    @staticmethod
+    def change_output_channel_size(
+        input_height_width: tuple, output_channel_number: int
+    ):
+        size_list = list(input_height_width)
+        size_list.insert(0, output_channel_number)
+        # print(size_list)
+        return torch.Size(size_list)
 
     def forward(self, inputs: list):
         mask: torch.Tensor = inputs[0]
@@ -174,10 +187,3 @@ class CRN(torch.nn.Module):
         for i in range(1, self.num_rms):
             x = self.rms[i]([mask, x])
         return x
-
-
-def change_output_channel_size(input_height_width: tuple, output_channel_number: int):
-    size_list = list(input_height_width)
-    size_list.insert(0, output_channel_number)
-    # print(size_list)
-    return torch.Size(size_list)
