@@ -254,7 +254,6 @@ class RefinementModule(modules.Module):
         return x
 
 
-# TODO Fill with actual code, currently old network
 class CRN(torch.nn.Module):
     def __init__(
         self,
