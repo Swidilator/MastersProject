@@ -1,5 +1,8 @@
 import torch
+from matplotlib import pyplot as plt
+
 from CRN import CRNFramework
+from Data_Types import *
 
 # from torchviz import make_dot
 
@@ -36,9 +39,13 @@ if __name__ == "__main__":
         num_loader_workers=NUM_LOADER_WORKERS,
     )
 
+    img_list: sample_output = crn_frame.sample(2)
     # crn_frame.save_model(MODEL_PATH)
     # crn_frame.load_model(MODEL_PATH)
-
+    for i, img in enumerate(img_list):
+        plt.figure(i)
+        plt.imshow(img)
+        plt.show()
     # crn_frame.train()
     quit()
 
