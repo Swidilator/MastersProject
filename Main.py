@@ -12,6 +12,7 @@ if __name__ == "__main__":
     PREFER_CUDA: bool = True
     NUM_LOADER_WORKERS: int = 2
     DATA_PATH: str = "../CityScapes Samples/Train/"
+    MODEL_PATH: str = "./Models/"
 
     if PREFER_CUDA:
         if torch.cuda.is_available():
@@ -35,7 +36,10 @@ if __name__ == "__main__":
         num_loader_workers=NUM_LOADER_WORKERS,
     )
 
-    crn_frame.train()
+    # crn_frame.save_model(MODEL_PATH)
+    # crn_frame.load_model(MODEL_PATH)
+
+    # crn_frame.train()
     quit()
 
     # data_set = CRNDataset(

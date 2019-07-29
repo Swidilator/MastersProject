@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.modules as modules
 from torch.nn.functional import one_hot
 from math import log2
+import time
 
 from Data_Types import image_size, epoch_output
 from Data_Management import CRNDataset
@@ -25,6 +26,8 @@ class CRNFramework(MastersModel):
         super(CRNFramework, self).__init__(device=device)
         self.batch_size = batch_size
         self.input_tensor_size = input_tensor_size
+
+        self.model_name: str = "CRN_Latest.pt"
 
         self.__set_data_loader__(
             data_path,
@@ -75,12 +78,23 @@ class CRNFramework(MastersModel):
         self.loss_net = self.loss_net.to(self.device)
 
     def save_model(self, model_dir: str) -> None:
-        # TODO implement save_model
-        pass
+        localtime: time.localtime() = time.localtime(time.time())
+        model_snapshot: str = "CRN" + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_year) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_mon) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_mday) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_hour) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_min) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_sec) + ".pt"
 
-    def load_model(self, model_dir: str, model_name: str) -> None:
-        # TODO implement load_model
-        pass
+        torch.save(self.crn.state_dict(), model_dir + model_snapshot)
+        torch.save(self.crn.state_dict(), model_dir + self.model_name)
+
+    def load_model(self, model_dir: str, model_snapshot: str = None) -> None:
+        if model_snapshot is not None:
+            self.crn.load_state_dict(torch.load(model_dir + model_snapshot))
+        else:
+            self.crn.load_state_dict(torch.load(model_dir + self.model_name))
 
     def train(self) -> epoch_output:
         self.crn.train()
@@ -254,7 +268,6 @@ class RefinementModule(modules.Module):
         return x
 
 
-# TODO Fill with actual code, currently old network
 class CRN(torch.nn.Module):
     def __init__(
         self,
