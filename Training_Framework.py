@@ -1,7 +1,7 @@
 import torch
 import torch.utils as utils
 
-from Data_Types import epoch_output
+from Data_Types import epoch_output, sample_output
 from abc import ABC, abstractmethod
 
 
@@ -61,5 +61,13 @@ class MastersModel(ABC):
         r"""
         Evaluate model on test_dataset
         :return: epoch_output
+        """
+        pass
+
+    @abstractmethod
+    def sample(self, k: int) -> sample_output:
+        r"""
+        Sample k random images from dataset, forward through network
+        :return: sample_output
         """
         pass

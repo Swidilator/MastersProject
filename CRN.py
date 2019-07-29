@@ -1,11 +1,14 @@
 import torch
+from torchvision import transforms
 import torch.nn as nn
 import torch.nn.modules as modules
 from torch.nn.functional import one_hot
 from math import log2
 import time
+import random
+from PIL import Image
 
-from Data_Types import image_size, epoch_output
+from Data_Types import image_size, epoch_output, sample_output
 from Data_Management import CRNDataset
 from Perceptual_Loss import PerceptualLossNetwork
 from Training_Framework import MastersModel
@@ -113,7 +116,7 @@ class CRNFramework(MastersModel):
             )
             noise = noise.to(self.device)
 
-            out = self.crn(inputs=[msk, noise, self.batch_size])
+            out: torch.Tensor = self.crn(inputs=[msk, noise, self.batch_size])
 
             out = CRNFramework.__normalise__(out)
 
@@ -127,6 +130,28 @@ class CRNFramework(MastersModel):
     def eval(self) -> epoch_output:
         # TODO implement eval
         pass
+
+    def sample(self, k: int) -> sample_output:
+        sample_list: list = random.sample(range(self.__data_set__.__len__()), k)
+        outputs: sample_output = []
+        noise: torch.Tensor = torch.randn(
+            1,
+            1,
+            self.input_tensor_size[0],
+            self.input_tensor_size[1],
+            device=self.device,
+        )
+        transform: transforms.ToPILImage = transforms.ToPILImage()
+        for i, val in enumerate(sample_list):
+            img, msk = self.__data_set__[val]
+            msk = msk.to(self.device).unsqueeze(0)
+            img_out: torch.Tensor = self.crn(inputs=[msk, noise, self.batch_size])
+            img_out = img_out.cpu()[0]
+            outputs.append(transform(img_out))
+            del img, msk
+
+        return outputs
+
 
     @staticmethod
     def __single_channel_normalise__(
