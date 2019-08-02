@@ -22,6 +22,7 @@ class CRNFramework(MastersModel):
         input_tensor_size: image_size,
         max_input_height_width: image_size,
         num_output_images: int,
+        num_inner_channels: int,
         num_classes: int,
         batch_size: int,
         num_loader_workers: int,
@@ -40,7 +41,7 @@ class CRNFramework(MastersModel):
             num_loader_workers,
         )
         self.__set_model__(
-            input_tensor_size, max_input_height_width, num_output_images, num_classes
+            input_tensor_size, max_input_height_width, num_output_images, num_classes, num_inner_channels
         )
 
     def __set_data_loader__(
@@ -66,13 +67,14 @@ class CRNFramework(MastersModel):
         )
 
     def __set_model__(
-        self, input_tensor_size, max_input_height_width, num_output_images, num_classes
+        self, input_tensor_size, max_input_height_width, num_output_images, num_classes, num_inner_channels
     ) -> None:
         self.crn: CRN = CRN(
             input_tensor_size=input_tensor_size,
             final_image_size=max_input_height_width,
             num_output_images=num_output_images,
             num_classes=num_classes,
+            num_inner_channels=num_inner_channels,
         )
         self.crn = self.crn.to(self.device)
 
@@ -311,6 +313,7 @@ class CRN(torch.nn.Module):
         final_image_size: image_size,
         num_output_images: int,
         num_classes: int,
+        num_inner_channels: int = 1024
     ):
         super(CRN, self).__init__()
 
@@ -318,6 +321,7 @@ class CRN(torch.nn.Module):
         self.final_image_size: image_size = final_image_size
         self.num_output_images: int = num_output_images
         self.num_classes: int = num_classes
+        self.num_inner_channels: int = num_inner_channels
 
         self.__NUM_NOISE_CHANNELS__: int = 1
         self.__NUM_OUTPUT_IMAGE_CHANNELS__: int = 3
@@ -330,7 +334,7 @@ class CRN(torch.nn.Module):
             RefinementModule(
                 prior_layer_channel_count=self.__NUM_NOISE_CHANNELS__,
                 semantic_input_channel_count=num_classes,
-                output_channel_count=1024,
+                output_channel_count=self.num_inner_channels,
                 input_height_width=input_tensor_size,
                 is_final_module=False,
             )
@@ -339,9 +343,9 @@ class CRN(torch.nn.Module):
         for i in range(1, self.num_rms - 1):
             self.rms_list.append(
                 RefinementModule(
-                    prior_layer_channel_count=1024,
+                    prior_layer_channel_count=self.num_inner_channels,
                     semantic_input_channel_count=num_classes,
-                    output_channel_count=1024,
+                    output_channel_count=self.num_inner_channels,
                     input_height_width=(2 ** (i + 2), 2 ** (i + 3)),
                     is_final_module=False,
                 )
@@ -349,9 +353,9 @@ class CRN(torch.nn.Module):
 
         self.rms_list.append(
             RefinementModule(
-                prior_layer_channel_count=1024,
+                prior_layer_channel_count=self.num_inner_channels,
                 semantic_input_channel_count=num_classes,
-                output_channel_count=1024,
+                output_channel_count=self.num_inner_channels,
                 input_height_width=final_image_size,
                 is_final_module=True,
                 final_channel_count=self.__NUM_OUTPUT_IMAGE_CHANNELS__
