@@ -208,7 +208,7 @@ class RefinementModule(modules.Module):
             prior_layer_channel_count + semantic_input_channel_count
         )
         self.output_channel_count: int = output_channel_count
-        self.is_final_module: bool = False
+        self.is_final_module: bool = is_final_module
         self.final_channel_count = final_channel_count
 
         # Module architecture
@@ -245,7 +245,7 @@ class RefinementModule(modules.Module):
             stride=1,
             padding=1,
         )
-        if not is_final_module:
+        if not self.is_final_module:
             self.layer_norm_3 = nn.LayerNorm(
                 RefinementModule.change_output_channel_size(
                     input_height_width, self.output_channel_count
