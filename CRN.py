@@ -152,7 +152,6 @@ class CRNFramework(MastersModel):
 
         return outputs
 
-
     @staticmethod
     def __single_channel_normalise__(
         channel: torch.Tensor, params: tuple
@@ -200,6 +199,7 @@ class RefinementModule(modules.Module):
         output_channel_count: int,
         input_height_width: tuple,
         is_final_module: bool = False,
+        final_channel_count: int = 3,
     ):
         super(RefinementModule, self).__init__()
 
@@ -209,6 +209,7 @@ class RefinementModule(modules.Module):
         )
         self.output_channel_count: int = output_channel_count
         self.is_final_module: bool = False
+        self.final_channel_count = final_channel_count
 
         # Module architecture
         self.conv_1 = nn.Conv2d(
@@ -250,6 +251,14 @@ class RefinementModule(modules.Module):
                     input_height_width, self.output_channel_count
                 )
             )
+        else:
+            self.final_conv = nn.Conv2d(
+                self.output_channel_count,
+                self.final_channel_count,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+            )
 
         self.leakyReLU = nn.LeakyReLU()
 
@@ -290,6 +299,8 @@ class RefinementModule(modules.Module):
         if not self.is_final_module:
             x = self.layer_norm_1(x)
             x = self.leakyReLU(x)
+        else:
+            x = self.final_conv(x)
         return x
 
 
@@ -340,10 +351,11 @@ class CRN(torch.nn.Module):
             RefinementModule(
                 prior_layer_channel_count=1024,
                 semantic_input_channel_count=num_classes,
-                output_channel_count=self.__NUM_OUTPUT_IMAGE_CHANNELS__
-                * num_output_images,
+                output_channel_count=1024,
                 input_height_width=final_image_size,
                 is_final_module=True,
+                final_channel_count=self.__NUM_OUTPUT_IMAGE_CHANNELS__
+                * num_output_images,
             )
         )
 
