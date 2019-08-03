@@ -76,10 +76,14 @@ class CRNFramework(MastersModel):
             num_classes=num_classes,
             num_inner_channels=num_inner_channels,
         )
+        IMAGE_CHANNELS = 3
         self.crn = self.crn.to(self.device)
 
         self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
-        self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork()
+        # TODO Create better input parameter
+        self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork(
+            (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1])
+        )
         self.loss_net = self.loss_net.to(self.device)
 
     def save_model(self, model_dir: str) -> None:
