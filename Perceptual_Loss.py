@@ -26,7 +26,7 @@ def get_layer_values(
 
 
 class PerceptualLossNetwork(modules.Module):
-    def __init__(self):
+    def __init__(self, input_image_size: tuple):
         super(PerceptualLossNetwork, self).__init__()
 
         self.vgg: torch.nn.Module = torchvision.models.vgg19(
@@ -38,8 +38,13 @@ class PerceptualLossNetwork(modules.Module):
             i.requires_grad = False
 
         self.loss_layer_numbers: tuple = (2, 7, 12, 21, 30)
-
         self.loss_layer_coefficients = [0.0, 0.0, 0.0, 0.0, 0.0]
+
+        num_elements_input = 1
+        for val in input_image_size:
+            num_elements_input *= val
+
+        self.loss_direct_coefficient: float = 1.0/num_elements_input
 
         for i, num in enumerate(self.loss_layer_numbers):
             self.vgg.features[num].register_forward_hook(get_layer_values)
@@ -50,7 +55,7 @@ class PerceptualLossNetwork(modules.Module):
         print("loss_coefficients:", self.loss_layer_coefficients)
         self.norm = torch.nn.modules.normalization
 
-    def forward(self, inputs: list):
+    def forward(self, inputs: tuple):
         input: torch.Tensor = inputs[0]
         truth: torch.Tensor = inputs[1]
         self.vgg.features(input)
@@ -68,12 +73,18 @@ class PerceptualLossNetwork(modules.Module):
 
         # perceptual_difference = PerceptualDifference.apply
 
-        # TODO Implement correct loss
-        for i in range(len(result_gen)):
-            res = (
-                result_truth[i] - result_gen[i]
-            ).norm() * self.loss_layer_coefficients[i]
-            total_loss += res
+        batch_size = input.shape[0]
+        for b in range(batch_size):
+
+            # TODO Implement correct loss
+            for i in range(len(result_gen)):
+                res = (
+                    result_truth[i][b] - result_gen[i][b]
+                ).norm() * self.loss_layer_coefficients[i]
+                total_loss += res
+
+            total_loss += (input[b] - truth[b]).norm() * self.loss_direct_coefficient
 
         del result_gen, result_truth
-        return total_loss
+        # total loss reduction = mean
+        return total_loss/batch_size
