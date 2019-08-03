@@ -41,7 +41,11 @@ class CRNFramework(MastersModel):
             num_loader_workers,
         )
         self.__set_model__(
-            input_tensor_size, max_input_height_width, num_output_images, num_classes, num_inner_channels
+            input_tensor_size,
+            max_input_height_width,
+            num_output_images,
+            num_classes,
+            num_inner_channels,
         )
 
     def __set_data_loader__(
@@ -67,7 +71,12 @@ class CRNFramework(MastersModel):
         )
 
     def __set_model__(
-        self, input_tensor_size, max_input_height_width, num_output_images, num_classes, num_inner_channels
+        self,
+        input_tensor_size,
+        max_input_height_width,
+        num_output_images,
+        num_classes,
+        num_inner_channels,
     ) -> None:
         self.crn: CRN = CRN(
             input_tensor_size=input_tensor_size,
@@ -122,11 +131,12 @@ class CRNFramework(MastersModel):
             )
             noise = noise.to(self.device)
 
-            out: torch.Tensor = self.crn(inputs=[msk, noise, self.batch_size])
+            out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
 
+            img = CRNFramework.__normalise__(img)
             out = CRNFramework.__normalise__(out)
 
-            loss: torch.Tensor = self.loss_net([out, img])
+            loss: torch.Tensor = self.loss_net((out, img))
             loss.backward()
             loss_sum += loss.item()
             self.optimizer.step()
@@ -151,7 +161,7 @@ class CRNFramework(MastersModel):
         for i, val in enumerate(sample_list):
             img, msk = self.__data_set__[val]
             msk = msk.to(self.device).unsqueeze(0)
-            img_out: torch.Tensor = self.crn(inputs=[msk, noise, self.batch_size])
+            img_out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
             img_out = img_out.cpu()[0]
             outputs.append(transform(img_out))
             del img, msk
@@ -277,7 +287,7 @@ class RefinementModule(modules.Module):
         # print(size_list)
         return torch.Size(size_list)
 
-    def forward(self, inputs: list):
+    def forward(self, inputs: tuple):
         mask: torch.Tensor = inputs[0]
         prior_layers: torch.Tensor = inputs[1]
         mask = torch.nn.functional.interpolate(
@@ -317,7 +327,7 @@ class CRN(torch.nn.Module):
         final_image_size: image_size,
         num_output_images: int,
         num_classes: int,
-        num_inner_channels: int = 1024
+        num_inner_channels: int,
     ):
         super(CRN, self).__init__()
 
