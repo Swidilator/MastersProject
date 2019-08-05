@@ -1,4 +1,5 @@
 import torch
+import os
 from matplotlib import pyplot as plt
 
 from CRN import CRNFramework
@@ -14,8 +15,12 @@ if __name__ == "__main__":
     BATCH_SIZE: int = 1
     PREFER_CUDA: bool = True
     NUM_LOADER_WORKERS: int = 2
-    DATA_PATH: str = "../CityScapes Samples/Train/"
     MODEL_PATH: str = "./Models/"
+
+    CITYSCAPES_PATH: str = os.environ['CITYSCAPES_PATH']
+    print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
+
+    DATA_PATH: str = CITYSCAPES_PATH
 
     if PREFER_CUDA:
         if torch.cuda.is_available():
