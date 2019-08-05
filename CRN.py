@@ -89,12 +89,12 @@ class CRNFramework(MastersModel):
         self.__data_set_val__ = CRNDataset(
             max_input_height_width=max_input_height_width,
             root=data_path,
-            split="test",
+            split="val",
             num_classes=num_classes,
         )
 
         self.data_loader_val: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
-            self.__data_set_test__,
+            self.__data_set_val__,
             batch_size=batch_size,
             shuffle=True,
             num_workers=num_loader_workers,
