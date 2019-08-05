@@ -119,6 +119,7 @@ class CRNFramework(MastersModel):
         self.crn.train()
         torch.cuda.empty_cache()
         loss_sum: float = 0.0
+        loss_total: float = 0.0
         for batch_idx, (img, msk) in enumerate(self.data_loader):
             self.optimizer.zero_grad()
             img: torch.Tensor = img.to(self.device)
@@ -140,6 +141,10 @@ class CRNFramework(MastersModel):
             loss: torch.Tensor = self.loss_net((out, img))
             loss.backward()
             loss_sum += loss.item()
+            loss_total += loss.item()
+            if batch_idx % 200 == 199:
+                print("Batch: {batch}\nLoss: {loss_val}".format(batch=batch_idx, loss_val=loss_sum))
+                loss_sum = 0
             self.optimizer.step()
             del loss, msk, noise, img
         return loss_sum, None
