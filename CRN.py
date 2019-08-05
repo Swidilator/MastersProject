@@ -56,15 +56,43 @@ class CRNFramework(MastersModel):
         batch_size,
         num_loader_workers,
     ):
-        self.__data_set__ = CRNDataset(
+        self.__data_set_train__ = CRNDataset(
             max_input_height_width=max_input_height_width,
             root=data_path,
             split="train",
             num_classes=num_classes,
         )
 
-        self.data_loader: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
-            self.__data_set__,
+        self.data_loader_train: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
+            self.__data_set_train__,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_loader_workers,
+        )
+
+        self.__data_set_test__ = CRNDataset(
+            max_input_height_width=max_input_height_width,
+            root=data_path,
+            split="test",
+            num_classes=num_classes,
+        )
+
+        self.data_loader_test: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
+            self.__data_set_test__,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_loader_workers,
+        )
+
+        self.__data_set_val__ = CRNDataset(
+            max_input_height_width=max_input_height_width,
+            root=data_path,
+            split="test",
+            num_classes=num_classes,
+        )
+
+        self.data_loader_val: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
+            self.__data_set_test__,
             batch_size=batch_size,
             shuffle=True,
             num_workers=num_loader_workers,
@@ -119,7 +147,8 @@ class CRNFramework(MastersModel):
         self.crn.train()
         torch.cuda.empty_cache()
         loss_sum: float = 0.0
-        for batch_idx, (img, msk) in enumerate(self.data_loader):
+        loss_total: float = 0.0
+        for batch_idx, (img, msk) in enumerate(self.data_loader_train):
             self.optimizer.zero_grad()
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
@@ -140,16 +169,42 @@ class CRNFramework(MastersModel):
             loss: torch.Tensor = self.loss_net((out, img))
             loss.backward()
             loss_sum += loss.item()
+            loss_total += loss.item()
+            if batch_idx % 200 == 199:
+                print("Batch: {batch}\nLoss: {loss_val}".format(batch=batch_idx, loss_val=loss_sum))
+                loss_sum = 0
             self.optimizer.step()
             del loss, msk, noise, img
-        return loss_sum, None
+        return loss_total, None
 
     def eval(self) -> epoch_output:
-        # TODO implement eval
-        pass
+        self.crn.eval()
+        loss_total: float = 0.0
+        for batch_idx, (img, msk) in enumerate(self.data_loader_val):
+            img: torch.Tensor = img.to(self.device)
+            msk: torch.Tensor = msk.to(self.device)
+            noise: torch.Tensor = torch.randn(
+                self.batch_size,
+                1,
+                self.input_tensor_size[0],
+                self.input_tensor_size[1],
+                device=self.device,
+            )
+            noise = noise.to(self.device)
+
+            out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+
+            img = CRNFramework.__normalise__(img)
+            out = CRNFramework.__normalise__(out)
+
+            loss: torch.Tensor = self.loss_net((out, img))
+            loss_total += loss.item()
+            del loss, msk, noise, img
+        return loss_total, None
 
     def sample(self, k: int) -> sample_output:
-        sample_list: list = random.sample(range(self.__data_set__.__len__()), k)
+        self.crn.eval()
+        sample_list: list = random.sample(range(self.__data_set_test__.__len__()), k)
         outputs: sample_output = []
         noise: torch.Tensor = torch.randn(
             1,
@@ -160,13 +215,12 @@ class CRNFramework(MastersModel):
         )
         transform: transforms.ToPILImage = transforms.ToPILImage()
         for i, val in enumerate(sample_list):
-            img, msk = self.__data_set__[val]
+            img, msk = self.__data_set_test__[val]
             msk = msk.to(self.device).unsqueeze(0)
             img_out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
             img_out = img_out.cpu()[0]
             outputs.append(transform(img_out))
             del img, msk
-
         return outputs
 
     @staticmethod
