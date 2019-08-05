@@ -175,14 +175,36 @@ class CRNFramework(MastersModel):
                 loss_sum = 0
             self.optimizer.step()
             del loss, msk, noise, img
-        return loss_sum, None
+        return loss_total, None
 
     def eval(self) -> epoch_output:
-        # TODO implement eval
-        pass
+        self.crn.eval()
+        loss_total: float = 0.0
+        for batch_idx, (img, msk) in enumerate(self.data_loader_val):
+            img: torch.Tensor = img.to(self.device)
+            msk: torch.Tensor = msk.to(self.device)
+            noise: torch.Tensor = torch.randn(
+                self.batch_size,
+                1,
+                self.input_tensor_size[0],
+                self.input_tensor_size[1],
+                device=self.device,
+            )
+            noise = noise.to(self.device)
+
+            out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+
+            img = CRNFramework.__normalise__(img)
+            out = CRNFramework.__normalise__(out)
+
+            loss: torch.Tensor = self.loss_net((out, img))
+            loss_total += loss.item()
+            del loss, msk, noise, img
+        return loss_total, None
 
     def sample(self, k: int) -> sample_output:
-        sample_list: list = random.sample(range(self.__data_set__.__len__()), k)
+        self.crn.eval()
+        sample_list: list = random.sample(range(self.__data_set_test__.__len__()), k)
         outputs: sample_output = []
         noise: torch.Tensor = torch.randn(
             1,
