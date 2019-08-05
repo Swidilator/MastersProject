@@ -95,7 +95,7 @@ class CRNFramework(MastersModel):
         )
         self.loss_net = self.loss_net.to(self.device)
 
-    def save_model(self, model_dir: str) -> None:
+    def save_model(self, model_dir: str, snapshot: bool = False) -> None:
         localtime: time.localtime() = time.localtime(time.time())
         model_snapshot: str = "CRN" + "_"
         model_snapshot = model_snapshot + str(localtime.tm_year) + "_"
@@ -105,7 +105,8 @@ class CRNFramework(MastersModel):
         model_snapshot = model_snapshot + str(localtime.tm_min) + "_"
         model_snapshot = model_snapshot + str(localtime.tm_sec) + ".pt"
 
-        torch.save(self.crn.state_dict(), model_dir + model_snapshot)
+        if snapshot:
+            torch.save(self.crn.state_dict(), model_dir + model_snapshot)
         torch.save(self.crn.state_dict(), model_dir + self.model_name)
 
     def load_model(self, model_dir: str, model_snapshot: str = None) -> None:
