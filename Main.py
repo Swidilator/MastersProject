@@ -12,7 +12,9 @@ if __name__ == "__main__":
     INPUT_TENSOR_SIZE: tuple = (4, 8)
     NUM_OUTPUT_IMAGES: int = 1
     NUM_CLASSES: int = 35
-    BATCH_SIZE: int = 1
+    NUM_INNER_CHANNELS = 128
+    BATCH_SIZE: int = 8
+
     PREFER_CUDA: bool = True
     NUM_LOADER_WORKERS: int = 2
     MODEL_PATH: str = "./Models/"
@@ -39,6 +41,7 @@ if __name__ == "__main__":
         input_tensor_size=INPUT_TENSOR_SIZE,
         max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
         num_output_images=NUM_OUTPUT_IMAGES,
+        num_inner_channels=NUM_INNER_CHANNELS,
         num_classes=NUM_CLASSES,
         batch_size=BATCH_SIZE,
         num_loader_workers=NUM_LOADER_WORKERS,
