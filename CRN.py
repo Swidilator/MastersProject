@@ -155,7 +155,7 @@ class CRNFramework(MastersModel):
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
             noise: torch.Tensor = torch.randn(
-                self.batch_size,
+                msk.shape[0],
                 1,
                 self.input_tensor_size[0],
                 self.input_tensor_size[1],
@@ -187,7 +187,7 @@ class CRNFramework(MastersModel):
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
             noise: torch.Tensor = torch.randn(
-                self.batch_size,
+                msk.shape[0],
                 1,
                 self.input_tensor_size[0],
                 self.input_tensor_size[1],
@@ -397,6 +397,8 @@ class CRN(torch.nn.Module):
 
         self.__NUM_NOISE_CHANNELS__: int = 1
         self.__NUM_OUTPUT_IMAGE_CHANNELS__: int = 3
+
+
 
         self.num_rms: int = int(log2(final_image_size[0])) - 1
 
