@@ -14,7 +14,7 @@ from Perceptual_Loss import PerceptualLossNetwork
 from Training_Framework import MastersModel
 
 import wandb
-wandb.init(project="crn")
+
 
 class CRNFramework(MastersModel):
     def __init__(
@@ -146,10 +146,9 @@ class CRNFramework(MastersModel):
             self.crn.load_state_dict(torch.load(model_dir + self.model_name))
 
     def train(self) -> epoch_output:
-        wandb.watch(self.crn)
         self.crn.train()
         torch.cuda.empty_cache()
-        loss_sum: float = 0.0
+        loss_ave: float = 0.0
         loss_total: float = 0.0
         for batch_idx, (img, msk) in enumerate(self.data_loader_train):
             self.optimizer.zero_grad()
@@ -171,15 +170,14 @@ class CRNFramework(MastersModel):
 
             loss: torch.Tensor = self.loss_net((out, img))
             loss.backward()
-            loss_sum += loss.item()
+            loss_ave += loss.item()
             loss_total += loss.item()
-            if batch_idx % 200 == 199:
-                print("Batch: {batch}\nLoss: {loss_val}".format(batch=batch_idx, loss_val=loss_sum))
-                wandb.log({"200 Loss": loss_sum})
-                loss_sum = 0
+            if batch_idx * self.batch_size % 120 == 112:
+                print("Batch: {batch}\nLoss: {loss_val}".format(batch=batch_idx, loss_val=loss_ave*self.batch_size))
+                wandb.log({"40 Loss": loss_ave * self.batch_size})
+                loss_ave = 0
             self.optimizer.step()
             del loss, msk, noise, img
-        wandb.log({"Epoch Loss": loss_total})
         return loss_total, None
 
     def eval(self) -> epoch_output:
