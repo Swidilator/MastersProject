@@ -285,6 +285,8 @@ class RefinementModule(modules.Module):
         self.is_final_module: bool = is_final_module
         self.final_channel_count = final_channel_count
 
+        self.dropout = nn.Dropout2d(p=0.1)
+
         # Module architecture
         self.conv_1 = nn.Conv2d(
             self.total_input_channel_count,
@@ -373,6 +375,7 @@ class RefinementModule(modules.Module):
         if not self.is_final_module:
             x = self.layer_norm_1(x)
             x = self.leakyReLU(x)
+            x = self.dropout(x)
         else:
             x = self.final_conv(x)
         return x
