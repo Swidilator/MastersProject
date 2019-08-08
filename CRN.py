@@ -173,8 +173,12 @@ class CRNFramework(MastersModel):
             loss_ave += loss.item()
             loss_total += loss.item()
             if batch_idx * self.batch_size % 120 == 112:
-                print("Batch: {batch}\nLoss: {loss_val}".format(batch=batch_idx, loss_val=loss_ave*self.batch_size))
-                wandb.log({"40 Loss": loss_ave * self.batch_size})
+                print(
+                    "Batch: {batch}\nLoss: {loss_val}".format(
+                        batch=batch_idx, loss_val=loss_ave * self.batch_size
+                    )
+                )
+                wandb.log({"Batch Loss": loss_ave * self.batch_size})
                 loss_ave = 0
             self.optimizer.step()
             del loss, msk, noise, img
@@ -400,8 +404,6 @@ class CRN(torch.nn.Module):
 
         self.__NUM_NOISE_CHANNELS__: int = 1
         self.__NUM_OUTPUT_IMAGE_CHANNELS__: int = 3
-
-
 
         self.num_rms: int = int(log2(final_image_size[0])) - 1
 
