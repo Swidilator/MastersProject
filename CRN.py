@@ -14,7 +14,7 @@ from Perceptual_Loss import PerceptualLossNetwork
 from Training_Framework import MastersModel
 
 import wandb
-wandb.init(project="crn")
+
 
 class CRNFramework(MastersModel):
     def __init__(
@@ -146,17 +146,16 @@ class CRNFramework(MastersModel):
             self.crn.load_state_dict(torch.load(model_dir + self.model_name))
 
     def train(self) -> epoch_output:
-        wandb.watch(self.crn)
         self.crn.train()
         torch.cuda.empty_cache()
-        loss_sum: float = 0.0
+        loss_ave: float = 0.0
         loss_total: float = 0.0
         for batch_idx, (img, msk) in enumerate(self.data_loader_train):
             self.optimizer.zero_grad()
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
             noise: torch.Tensor = torch.randn(
-                self.batch_size,
+                msk.shape[0],
                 1,
                 self.input_tensor_size[0],
                 self.input_tensor_size[1],
@@ -171,15 +170,14 @@ class CRNFramework(MastersModel):
 
             loss: torch.Tensor = self.loss_net((out, img))
             loss.backward()
-            loss_sum += loss.item()
+            loss_ave += loss.item()
             loss_total += loss.item()
-            if batch_idx % 200 == 199:
-                print("Batch: {batch}\nLoss: {loss_val}".format(batch=batch_idx, loss_val=loss_sum))
-                wandb.log({"200 Loss": loss_sum})
-                loss_sum = 0
+            if batch_idx * self.batch_size % 120 == 112:
+                print("Batch: {batch}\nLoss: {loss_val}".format(batch=batch_idx, loss_val=loss_ave*self.batch_size))
+                wandb.log({"40 Loss": loss_ave * self.batch_size})
+                loss_ave = 0
             self.optimizer.step()
             del loss, msk, noise, img
-        wandb.log({"Epoch Loss": loss_total})
         return loss_total, None
 
     def eval(self) -> epoch_output:
@@ -189,7 +187,7 @@ class CRNFramework(MastersModel):
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
             noise: torch.Tensor = torch.randn(
-                self.batch_size,
+                msk.shape[0],
                 1,
                 self.input_tensor_size[0],
                 self.input_tensor_size[1],
@@ -287,6 +285,8 @@ class RefinementModule(modules.Module):
         self.is_final_module: bool = is_final_module
         self.final_channel_count = final_channel_count
 
+        self.dropout = nn.Dropout2d(p=0.1)
+
         # Module architecture
         self.conv_1 = nn.Conv2d(
             self.total_input_channel_count,
@@ -375,6 +375,7 @@ class RefinementModule(modules.Module):
         if not self.is_final_module:
             x = self.layer_norm_1(x)
             x = self.leakyReLU(x)
+            x = self.dropout(x)
         else:
             x = self.final_conv(x)
         return x
@@ -399,6 +400,8 @@ class CRN(torch.nn.Module):
 
         self.__NUM_NOISE_CHANNELS__: int = 1
         self.__NUM_OUTPUT_IMAGE_CHANNELS__: int = 3
+
+
 
         self.num_rms: int = int(log2(final_image_size[0])) - 1
 

@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 from CRN import CRNFramework
 from Data_Types import *
-
+import wandb
 # from torchviz import make_dot
 
 if __name__ == "__main__":
@@ -47,19 +47,21 @@ if __name__ == "__main__":
         num_loader_workers=NUM_LOADER_WORKERS,
     )
 
-    #crn_frame.load_model(MODEL_PATH)
-    img_list: sample_output = crn_frame.sample(10)
+    crn_frame.load_model(MODEL_PATH)
 
-    for i, img in enumerate(img_list):
-        print(img_list[i])
-        plt.figure(i)
-        plt.imshow(img)
-        plt.show()
+    # img_list: sample_output = crn_frame.sample(10)
+    # for i, img in enumerate(img_list):
+    #     print(img_list[i])
+    #     plt.figure(i)
+    #     plt.imshow(img)
+    #     plt.show()
 
-    # for i in range(100):
-    #     loss, _ = crn_frame.train()
-    #     print(i, loss)
-    #     crn_frame.save_model(MODEL_PATH)
-    # crn_frame.save_model(MODEL_PATH)
+    wandb.init(project="crn", config={"Batch Size": BATCH_SIZE, "Inner Channels": NUM_INNER_CHANNELS, "Output Size": MAX_INPUT_HEIGHT_WIDTH})
+    wandb.watch(crn_frame.crn)
+    for i in range(100):
+        loss, _ = crn_frame.train()
+        wandb.log({"Epoch Loss": loss * BATCH_SIZE, "Epoch": i})
+        print(i, loss)
+        crn_frame.save_model(MODEL_PATH)
     quit()
 
