@@ -182,7 +182,9 @@ class CRNFramework(MastersModel):
                         batch=batch_idx, loss_val=loss_ave * self.batch_size
                     )
                 )
-                #wandb.log({"Batch Loss": loss_ave * self.batch_size})
+                # WandB logging, if WandB disabled this should skip the logging without error
+                no_except(wandb.log, {"Batch Loss": loss_ave * self.batch_size})
+
                 loss_ave = 0
             self.optimizer.step()
             del loss, msk, noise, img

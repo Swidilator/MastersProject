@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from CRN import CRNFramework
 from Helper_Stuff import *
 import wandb
+
 # from torchviz import make_dot
 
 if __name__ == "__main__":
@@ -49,21 +50,48 @@ if __name__ == "__main__":
         history_len=HISTORY_LEN,
     )
 
-    crn_frame.load_model(MODEL_PATH)
+    TRAIN: tuple = (True, 10)
+    SAMPLE: tuple = (False, 20)
+    WANDB: bool = True
+    SAVE_EVERY_EPOCH: bool = False
+    LOAD_BEFORE_TRAIN: bool = False
 
-    # img_list: sample_output = crn_frame.sample(10)
-    # for i, img in enumerate(img_list):
-    #     print(img_list[i])
-    #     plt.figure(i)
-    #     plt.imshow(img)
-    #     plt.show()
+    # Training
+    if TRAIN[0]:
+        if WANDB:
+            wandb.init(
+                project="crn",
+                config={
+                    "Batch Size": BATCH_SIZE,
+                    "Inner Channels": NUM_INNER_CHANNELS,
+                    "Output Size": MAX_INPUT_HEIGHT_WIDTH,
+                },
+            )
 
-    wandb.init(project="crn", config={"Batch Size": BATCH_SIZE, "Inner Channels": NUM_INNER_CHANNELS, "Output Size": MAX_INPUT_HEIGHT_WIDTH})
-    wandb.watch(crn_frame.crn)
-    for i in range(100):
-        loss, _ = crn_frame.train()
-        wandb.log({"Epoch Loss": loss * BATCH_SIZE, "Epoch": i})
-        print(i, loss)
-        crn_frame.save_model(MODEL_PATH)
-    quit()
+        if LOAD_BEFORE_TRAIN:
+            crn_frame.load_model(MODEL_PATH)
+
+        # Watch if set
+        no_except(wandb.watch, crn_frame.crn)
+
+        for i in range(TRAIN[1]):
+            loss, _ = crn_frame.train
+            no_except(wandb.log, {"Epoch Loss": loss * BATCH_SIZE, "Epoch": i})
+            print(i, loss)
+            if SAVE_EVERY_EPOCH:
+                crn_frame.save_model(MODEL_PATH)
+        if not SAVE_EVERY_EPOCH:
+            crn_frame.save_model(MODEL_PATH)
+        quit()
+
+    # Sampling
+    if SAMPLE[0]:
+        crn_frame.load_model(MODEL_PATH)
+        img_list: sample_output = crn_frame.sample(SAMPLE[1])
+        for i, img in enumerate(img_list):
+            print(img_list[i])
+            plt.figure(i)
+            plt.imshow(img)
+            plt.show()
+
 
