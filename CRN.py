@@ -125,7 +125,7 @@ class CRNFramework(MastersModel):
         # TODO Create better input parameter
         self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork(
             (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
-            history_len
+            history_len,
         )
         self.loss_net: PerceptualLossNetwork = self.loss_net.to(self.device)
 

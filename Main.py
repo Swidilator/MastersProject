@@ -21,7 +21,7 @@ if __name__ == "__main__":
     NUM_LOADER_WORKERS: int = 2
     MODEL_PATH: str = "./Models/"
 
-    CITYSCAPES_PATH: str = os.environ['CITYSCAPES_PATH']
+    CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
     print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
 
     DATA_PATH: str = CITYSCAPES_PATH
@@ -50,9 +50,9 @@ if __name__ == "__main__":
         history_len=HISTORY_LEN,
     )
 
-    TRAIN: tuple = (True, 10)
+    TRAIN: tuple = (True, 100)
     SAMPLE: tuple = (False, 20)
-    WANDB: bool = True
+    WANDB: bool = False
     SAVE_EVERY_EPOCH: bool = False
     LOAD_BEFORE_TRAIN: bool = True
     UPDATE_PL_LAMBDAS: bool = True
@@ -94,5 +94,3 @@ if __name__ == "__main__":
             plt.figure(i)
             plt.imshow(img)
             plt.show()
-
-
