@@ -443,6 +443,7 @@ class CRN(torch.nn.Module):
         )
 
         self.rms = nn.Sequential(*self.rms_list)
+        self.tan_h = nn.Tanh()
 
     def __del__(self):
         del self.rms
@@ -454,4 +455,6 @@ class CRN(torch.nn.Module):
         x: torch.Tensor = self.rms[0]([mask, noise])
         for i in range(1, self.num_rms):
             x = self.rms[i]([mask, x])
+        # TanH for squeezing outputs to [-1, 1]
+        x = self.tan_h(x).clone()
         return x
