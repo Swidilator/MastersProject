@@ -184,8 +184,9 @@ class CRNFramework(MastersModel):
             self.optimizer.zero_grad()
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
+            this_batch_size: int = msk.shape[0]
             noise: torch.Tensor = torch.randn(
-                msk.shape[0],
+                this_batch_size,
                 1,
                 self.input_tensor_size[0],
                 self.input_tensor_size[1],
@@ -205,11 +206,11 @@ class CRNFramework(MastersModel):
             if batch_idx * self.batch_size % 120 == 112:
                 print(
                     "Batch: {batch}\nLoss: {loss_val}".format(
-                        batch=batch_idx, loss_val=loss_ave.item() * self.batch_size
+                        batch=batch_idx, loss_val=loss_ave.item() * this_batch_size
                     )
                 )
                 # WandB logging, if WandB disabled this should skip the logging without error
-                no_except(wandb.log, {"Batch Loss": loss_ave.item() * self.batch_size})
+                no_except(wandb.log, {"Batch Loss": loss_ave.item() * this_batch_size})
 
                 loss_ave[0] = 0.0
             self.optimizer.step()
