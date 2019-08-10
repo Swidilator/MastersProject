@@ -8,7 +8,7 @@ sample_output = List[Any]
 
 def no_except(func, *args, **kwargs):
     try:
-        print(func, str(*args), str(**kwargs))
+        # print(func, str(*args), str(**kwargs))
         func(*args, **kwargs)
     except Exception:
         pass
