@@ -24,6 +24,9 @@ if __name__ == "__main__":
     CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
     print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
 
+    TRAINING_MACHINE: str = os.environ["TRAINING_MACHINE"]
+    print("Training Machine: {machine}".format(machine=TRAINING_MACHINE))
+
     DATA_PATH: str = CITYSCAPES_PATH
 
     if PREFER_CUDA:
@@ -66,6 +69,7 @@ if __name__ == "__main__":
                     "Batch Size": BATCH_SIZE,
                     "Inner Channels": NUM_INNER_CHANNELS,
                     "Output Size": MAX_INPUT_HEIGHT_WIDTH,
+                    "Training Machine": TRAINING_MACHINE,
                 },
             )
 
