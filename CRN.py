@@ -28,6 +28,7 @@ class CRNFramework(MastersModel):
         num_classes: int,
         batch_size: int,
         num_loader_workers: int,
+        history_len: int,
     ):
         super(CRNFramework, self).__init__(device=device)
         self.batch_size = batch_size
@@ -48,6 +49,7 @@ class CRNFramework(MastersModel):
             num_output_images,
             num_classes,
             num_inner_channels,
+            history_len,
         )
 
     def __set_data_loader__(
@@ -107,6 +109,7 @@ class CRNFramework(MastersModel):
         num_output_images,
         num_classes,
         num_inner_channels,
+        history_len,
     ) -> None:
         self.crn: CRN = CRN(
             input_tensor_size=input_tensor_size,
@@ -121,7 +124,8 @@ class CRNFramework(MastersModel):
         self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
         # TODO Create better input parameter
         self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork(
-            (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1])
+            (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
+            history_len
         )
         self.loss_net = self.loss_net.to(self.device)
 
@@ -178,7 +182,7 @@ class CRNFramework(MastersModel):
                         batch=batch_idx, loss_val=loss_ave * self.batch_size
                     )
                 )
-                wandb.log({"Batch Loss": loss_ave * self.batch_size})
+                #wandb.log({"Batch Loss": loss_ave * self.batch_size})
                 loss_ave = 0
             self.optimizer.step()
             del loss, msk, noise, img
@@ -379,7 +383,7 @@ class RefinementModule(modules.Module):
         if not self.is_final_module:
             x = self.layer_norm_1(x)
             x = self.leakyReLU(x)
-            x = self.dropout(x)
+            # x = self.dropout(x)
         else:
             x = self.final_conv(x)
         return x

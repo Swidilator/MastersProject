@@ -17,6 +17,26 @@ from copy import copy
 #         return grad_output, None
 
 
+class CircularList:
+    def __init__(self, input: int):
+        self.len = input
+        self.data: list = [0.0 for x in range(input)]
+        self.pointer: int = 0
+
+    def update(self, input: float) -> None:
+        self.data[self.pointer] = input
+        if self.pointer + 1 == self.len:
+            self.pointer = 0
+        else:
+            self.pointer += 1
+
+    def sum(self) -> float:
+        return sum(self.data)
+
+    def avg(self) -> float:
+        return sum(self.data)/self.len
+
+
 def get_layer_values(
     self: torch.nn.modules.conv.Conv2d, input: tuple, output: torch.Tensor
 ) -> None:
@@ -26,7 +46,7 @@ def get_layer_values(
 
 
 class PerceptualLossNetwork(modules.Module):
-    def __init__(self, input_image_size: tuple):
+    def __init__(self, input_image_size: tuple, history_len: int):
         super(PerceptualLossNetwork, self).__init__()
 
         self.vgg: torch.nn.Module = torchvision.models.vgg19(

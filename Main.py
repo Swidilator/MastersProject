@@ -13,7 +13,8 @@ if __name__ == "__main__":
     NUM_OUTPUT_IMAGES: int = 1
     NUM_CLASSES: int = 35
     NUM_INNER_CHANNELS = 128
-    BATCH_SIZE: int = 8
+    BATCH_SIZE: int = 4
+    HISTORY_LEN: int = 20
 
     PREFER_CUDA: bool = True
     NUM_LOADER_WORKERS: int = 2
@@ -45,6 +46,7 @@ if __name__ == "__main__":
         num_classes=NUM_CLASSES,
         batch_size=BATCH_SIZE,
         num_loader_workers=NUM_LOADER_WORKERS,
+        history_len=HISTORY_LEN,
     )
 
     crn_frame.load_model(MODEL_PATH)
