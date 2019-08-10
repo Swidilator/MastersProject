@@ -54,7 +54,8 @@ if __name__ == "__main__":
     SAMPLE: tuple = (False, 20)
     WANDB: bool = True
     SAVE_EVERY_EPOCH: bool = False
-    LOAD_BEFORE_TRAIN: bool = False
+    LOAD_BEFORE_TRAIN: bool = True
+    UPDATE_PL_LAMBDAS: bool = True
 
     # Training
     if TRAIN[0]:
@@ -75,9 +76,9 @@ if __name__ == "__main__":
         no_except(wandb.watch, crn_frame.crn)
 
         for i in range(TRAIN[1]):
-            loss, _ = crn_frame.train
+            loss, _ = crn_frame.train(UPDATE_PL_LAMBDAS)
             no_except(wandb.log, {"Epoch Loss": loss * BATCH_SIZE, "Epoch": i})
-            print(i, loss)
+            print(i, loss, crn_frame.loss_net.loss_layer_scales)
             if SAVE_EVERY_EPOCH:
                 crn_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:

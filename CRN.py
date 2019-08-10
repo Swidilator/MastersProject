@@ -127,7 +127,7 @@ class CRNFramework(MastersModel):
             (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
             history_len
         )
-        self.loss_net = self.loss_net.to(self.device)
+        self.loss_net: PerceptualLossNetwork = self.loss_net.to(self.device)
 
     def save_model(self, model_dir: str, snapshot: bool = False) -> None:
         localtime: time.localtime() = time.localtime(time.time())
@@ -149,11 +149,14 @@ class CRNFramework(MastersModel):
         else:
             self.crn.load_state_dict(torch.load(model_dir + self.model_name))
 
-    def train(self) -> epoch_output:
+    def train(self, update_lambdas: bool) -> epoch_output:
         self.crn.train()
         torch.cuda.empty_cache()
         loss_ave: float = 0.0
         loss_total: float = 0.0
+
+        if update_lambdas:
+            self.loss_net.update_lambdas()
         for batch_idx, (img, msk) in enumerate(self.data_loader_train):
             self.optimizer.zero_grad()
             img: torch.Tensor = img.to(self.device)
