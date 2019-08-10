@@ -21,21 +21,21 @@ from copy import copy
 class CircularList:
     def __init__(self, input: int):
         self.len = input
-        self.data: list = [1.0 for x in range(input)]
+        self.data: torch.Tensor = torch.full([input], 1.0, requires_grad=False)
         self.pointer: int = 0
 
-    def update(self, input: float) -> None:
+    def update(self, input: torch.Tensor) -> None:
         self.data[self.pointer] = input
         if self.pointer + 1 == self.len:
             self.pointer = 0
         else:
             self.pointer += 1
 
-    def sum(self) -> float:
-        return sum(self.data)
+    def sum(self) -> torch.Tensor:
+        return self.data.sum().item()
 
-    def avg(self) -> float:
-        return sum(self.data) / self.len
+    def mean(self) -> torch.Tensor:
+        return self.data.mean().item()
 
 
 def get_layer_values(
@@ -67,7 +67,8 @@ class PerceptualLossNetwork(modules.Module):
         # self.loss_direct_input_coefficient_base = [0.0]
         # self.loss_layer_coefficients: list = [0.0, 0.0, 0.0, 0.0, 0.0]
         self.loss_layer_history: list = []
-        self.loss_layer_scales: list = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        self.loss_layer_scales: torch.Tensor = torch.Tensor([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        self.loss_layer_scales.requires_grad = False
 
         # Network input element count
         # num_elements_input = 1
@@ -76,7 +77,7 @@ class PerceptualLossNetwork(modules.Module):
         # self.loss_direct_input_coefficient_base: float = 1.0 / num_elements_input
 
         # History
-        for i in range(len(self.loss_layer_scales)):
+        for i in range(self.loss_layer_scales.__len__()):
             self.loss_layer_history.append(CircularList(history_len))
 
         # Loss layer coefficient base calculations
@@ -93,7 +94,7 @@ class PerceptualLossNetwork(modules.Module):
 
     def update_lambdas(self):
         avg_list: list = [
-            self.loss_layer_history[i].avg()
+            self.loss_layer_history[i].mean()
             for i in range(len(self.loss_layer_history))
         ]
         avg_total: float = sum(avg_list) / len(avg_list)
@@ -134,11 +135,11 @@ class PerceptualLossNetwork(modules.Module):
                 res = (result_truth[i][b] - result_gen[i][b]).norm() * (
                     1.0 / result_truth[i][b].numel()
                 )
-                self.loss_layer_history[i].update(res.item())
+                self.loss_layer_history[i].update(res)
                 total_loss += res / self.loss_layer_scales[i]
 
             input_loss: torch.Tensor = (input[b] - truth[b]).norm() / input[b].numel()
-            self.loss_layer_history[-1].update(input_loss.item())
+            self.loss_layer_history[-1].update(input_loss)
             total_loss += input_loss / self.loss_layer_scales[-1]
 
         del result_gen, result_truth
