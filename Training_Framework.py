@@ -1,7 +1,7 @@
 import torch
 import torch.utils as utils
 
-from Data_Types import epoch_output, sample_output
+from Helper_Stuff import epoch_output, sample_output
 from abc import ABC, abstractmethod
 
 

@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.modules as modules
 import torchvision
+
 from torchvision.transforms import Resize
 from copy import copy
 
@@ -17,19 +18,39 @@ from copy import copy
 #         return grad_output, None
 
 
+class CircularList:
+    def __init__(self, input: int):
+        self.len = input
+        self.data: torch.Tensor = torch.full([input], 1.0, requires_grad=False)
+        self.pointer: int = 0
+
+    def update(self, input: torch.Tensor) -> None:
+        self.data[self.pointer] = input
+        if self.pointer + 1 == self.len:
+            self.pointer = 0
+        else:
+            self.pointer += 1
+
+    def sum(self) -> torch.Tensor:
+        return self.data.sum().item()
+
+    def mean(self) -> torch.Tensor:
+        return self.data.mean().item()
+
+
 def get_layer_values(
     self: torch.nn.modules.conv.Conv2d, input: tuple, output: torch.Tensor
 ) -> None:
     # input is a tuple of packed inputs
     # output is a Tensor. output.data is the Tensor we are interested
-    self.stored_output: torch.Tensor = output
+    self.stored_output = output
 
 
 class PerceptualLossNetwork(modules.Module):
-    def __init__(self, input_image_size: tuple):
+    def __init__(self, input_image_size: tuple, history_len: int):
         super(PerceptualLossNetwork, self).__init__()
 
-        self.vgg: torch.nn.Module = torchvision.models.vgg19(
+        self.vgg: torchvision.models.VGG = torchvision.models.vgg19(
             pretrained=True, progress=True
         )
         self.vgg.eval()
@@ -37,23 +58,56 @@ class PerceptualLossNetwork(modules.Module):
         for i in self.vgg.features:
             i.requires_grad = False
 
+        self.norm = torch.nn.modules.normalization
+
+        # self.loss_layer_numel = [0, 0, 0, 0, 0]
+
         self.loss_layer_numbers: tuple = (2, 7, 12, 21, 30)
-        self.loss_layer_coefficients = [0.0, 0.0, 0.0, 0.0, 0.0]
+        # self.loss_layer_coefficient_bases = [0.0, 0.0, 0.0, 0.0, 0.0]
+        # self.loss_direct_input_coefficient_base = [0.0]
+        # self.loss_layer_coefficients: list = [0.0, 0.0, 0.0, 0.0, 0.0]
+        self.loss_layer_history: list = []
+        self.loss_layer_scales: torch.Tensor = torch.Tensor([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        self.loss_layer_scales.requires_grad = False
 
-        num_elements_input = 1
-        for val in input_image_size:
-            num_elements_input *= val
+        # Network input element count
+        # num_elements_input = 1
+        # for val in input_image_size:
+        #     num_elements_input *= val
+        # self.loss_direct_input_coefficient_base: float = 1.0 / num_elements_input
 
-        self.loss_direct_coefficient: float = 1.0/num_elements_input
+        # History
+        for i in range(self.loss_layer_scales.__len__()):
+            self.loss_layer_history.append(CircularList(history_len))
 
+        # Loss layer coefficient base calculations
         for i, num in enumerate(self.loss_layer_numbers):
             self.vgg.features[num].register_forward_hook(get_layer_values)
-            self.loss_layer_coefficients[i] = (
-                1.0 / self.vgg.features[num].weight.data.numel()
-            )
+            # self.loss_layer_coefficient_bases[i] = (
+            #     1.0 / self.vgg.features[num].weight.data.numel()
+            # )
 
-        print("loss_coefficients:", self.loss_layer_coefficients)
-        self.norm = torch.nn.modules.normalization
+        # Set initial loss layer coefficients
+        # self.loss_layer_coefficients = self.loss_layer_coefficient_bases
+        # self.loss_direct_input_coefficient = self.loss_direct_input_coefficient_base
+        # print("loss_coefficients:", self.loss_layer_coefficients)
+
+    def update_lambdas(self):
+        avg_list: list = [
+            self.loss_layer_history[i].mean()
+            for i in range(len(self.loss_layer_history))
+        ]
+        avg_total: float = sum(avg_list) / len(avg_list)
+        # for i, val in enumerate(avg_list):
+        #     scale_factor: float = val / avg_total
+        #     try:
+        #         self.loss_layer_coefficients[i] = self.loss_layer_coefficient_bases[i]/scale_factor
+        #     except Exception:
+        #         self.loss_direct_input_coefficient = self.loss_direct_input_coefficient_base/scale_factor
+        for i, val in enumerate(avg_list):
+            scale_factor: float = val / avg_total
+            self.loss_layer_scales[i] = 1.0 / scale_factor
+        pass
 
     def forward(self, inputs: tuple):
         input: torch.Tensor = inputs[0]
@@ -78,13 +132,16 @@ class PerceptualLossNetwork(modules.Module):
 
             # TODO Implement correct loss
             for i in range(len(result_gen)):
-                res = (
-                    result_truth[i][b] - result_gen[i][b]
-                ).norm() * self.loss_layer_coefficients[i]
-                total_loss += res
+                res = (result_truth[i][b] - result_gen[i][b]).norm() * (
+                    1.0 / result_truth[i][b].numel()
+                )
+                self.loss_layer_history[i].update(res)
+                total_loss += res / self.loss_layer_scales[i]
 
-            total_loss += (input[b] - truth[b]).norm() * self.loss_direct_coefficient
+            input_loss: torch.Tensor = (input[b] - truth[b]).norm() / input[b].numel()
+            self.loss_layer_history[-1].update(input_loss)
+            total_loss += input_loss / self.loss_layer_scales[-1]
 
         del result_gen, result_truth
         # total loss reduction = mean
-        return total_loss/batch_size
+        return total_loss / batch_size

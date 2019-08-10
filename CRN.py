@@ -8,7 +8,7 @@ import time
 import random
 from PIL import Image
 
-from Data_Types import image_size, epoch_output, sample_output
+from Helper_Stuff import *
 from Data_Management import CRNDataset
 from Perceptual_Loss import PerceptualLossNetwork
 from Training_Framework import MastersModel
@@ -28,6 +28,7 @@ class CRNFramework(MastersModel):
         num_classes: int,
         batch_size: int,
         num_loader_workers: int,
+        history_len: int,
     ):
         super(CRNFramework, self).__init__(device=device)
         self.batch_size = batch_size
@@ -48,6 +49,7 @@ class CRNFramework(MastersModel):
             num_output_images,
             num_classes,
             num_inner_channels,
+            history_len,
         )
 
     def __set_data_loader__(
@@ -107,6 +109,7 @@ class CRNFramework(MastersModel):
         num_output_images,
         num_classes,
         num_inner_channels,
+        history_len,
     ) -> None:
         self.crn: CRN = CRN(
             input_tensor_size=input_tensor_size,
@@ -121,9 +124,10 @@ class CRNFramework(MastersModel):
         self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
         # TODO Create better input parameter
         self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork(
-            (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1])
+            (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
+            history_len,
         )
-        self.loss_net = self.loss_net.to(self.device)
+        self.loss_net: PerceptualLossNetwork = self.loss_net.to(self.device)
 
     def save_model(self, model_dir: str, snapshot: bool = False) -> None:
         localtime: time.localtime() = time.localtime(time.time())
@@ -136,20 +140,46 @@ class CRNFramework(MastersModel):
         model_snapshot = model_snapshot + str(localtime.tm_sec) + ".pt"
 
         if snapshot:
-            torch.save(self.crn.state_dict(), model_dir + model_snapshot)
-        torch.save(self.crn.state_dict(), model_dir + self.model_name)
+            torch.save(
+                {
+                    "model_state_dict": self.crn.state_dict(),
+                    "loss_layer_scales": self.loss_net.loss_layer_scales,
+                    "loss_history": self.loss_net.loss_layer_history,
+                },
+                model_dir + model_snapshot,
+            )
+        torch.save(
+            {
+                "model_state_dict": self.crn.state_dict(),
+                "loss_layer_scales": self.loss_net.loss_layer_scales,
+                "loss_history": self.loss_net.loss_layer_history,
+            },
+            model_dir + self.model_name,
+        )
 
     def load_model(self, model_dir: str, model_snapshot: str = None) -> None:
         if model_snapshot is not None:
-            self.crn.load_state_dict(torch.load(model_dir + model_snapshot))
+            checkpoint = torch.load(model_dir + model_snapshot)
+            self.crn.load_state_dict(checkpoint["model_state_dict"])
+            self.loss_net.loss_layer_scales = checkpoint["loss_layer_scales"]
+            self.loss_net.loss_layer_history = checkpoint["loss_history"]
         else:
-            self.crn.load_state_dict(torch.load(model_dir + self.model_name))
+            checkpoint = torch.load(model_dir + self.model_name)
+            self.crn.load_state_dict(checkpoint["model_state_dict"])
+            self.loss_net.loss_layer_scales = checkpoint["loss_layer_scales"]
+            self.loss_net.loss_layer_history = checkpoint["loss_history"]
 
-    def train(self) -> epoch_output:
+    def train(self, update_lambdas: bool) -> epoch_output:
         self.crn.train()
-        torch.cuda.empty_cache()
-        loss_ave: float = 0.0
-        loss_total: float = 0.0
+        # torch.cuda.empty_cache()
+
+        loss_ave: torch.Tensor = torch.Tensor([0.0]).to(self.device)
+        loss_ave.requires_grad = False
+        loss_total: torch.Tensor = torch.Tensor([0.0]).to(self.device)
+        loss_total.requires_grad = False
+
+        if update_lambdas:
+            self.loss_net.update_lambdas()
         for batch_idx, (img, msk) in enumerate(self.data_loader_train):
             self.optimizer.zero_grad()
             img: torch.Tensor = img.to(self.device)
@@ -170,23 +200,26 @@ class CRNFramework(MastersModel):
 
             loss: torch.Tensor = self.loss_net((out, img))
             loss.backward()
-            loss_ave += loss.item()
-            loss_total += loss.item()
+            loss_ave = loss_ave + loss
+            loss_total = loss_total + loss
             if batch_idx * self.batch_size % 120 == 112:
                 print(
                     "Batch: {batch}\nLoss: {loss_val}".format(
-                        batch=batch_idx, loss_val=loss_ave * self.batch_size
+                        batch=batch_idx, loss_val=loss_ave.item() * self.batch_size
                     )
                 )
-                wandb.log({"Batch Loss": loss_ave * self.batch_size})
-                loss_ave = 0
+                # WandB logging, if WandB disabled this should skip the logging without error
+                no_except(wandb.log, {"Batch Loss": loss_ave.item() * self.batch_size})
+
+                loss_ave[0] = 0.0
             self.optimizer.step()
             del loss, msk, noise, img
-        return loss_total, None
+        return loss_total.item(), None
 
     def eval(self) -> epoch_output:
         self.crn.eval()
-        loss_total: float = 0.0
+        loss_total: torch.Tensor = torch.Tensor([0.0]).to(self.device)
+        loss_total.requires_grad = False
         for batch_idx, (img, msk) in enumerate(self.data_loader_val):
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
@@ -205,9 +238,9 @@ class CRNFramework(MastersModel):
             out = CRNFramework.__normalise__(out)
 
             loss: torch.Tensor = self.loss_net((out, img))
-            loss_total += loss.item()
+            loss_total = loss_total + loss
             del loss, msk, noise, img
-        return loss_total, None
+        return loss_total.item(), None
 
     def sample(self, k: int) -> sample_output:
         self.crn.eval()
@@ -379,7 +412,7 @@ class RefinementModule(modules.Module):
         if not self.is_final_module:
             x = self.layer_norm_1(x)
             x = self.leakyReLU(x)
-            x = self.dropout(x)
+            # x = self.dropout(x)
         else:
             x = self.final_conv(x)
         return x
@@ -443,6 +476,7 @@ class CRN(torch.nn.Module):
         )
 
         self.rms = nn.Sequential(*self.rms_list)
+        self.tan_h = nn.Tanh()
 
     def __del__(self):
         del self.rms
@@ -454,4 +488,6 @@ class CRN(torch.nn.Module):
         x: torch.Tensor = self.rms[0]([mask, noise])
         for i in range(1, self.num_rms):
             x = self.rms[i]([mask, x])
+        # TanH for squeezing outputs to [-1, 1]
+        x = self.tan_h(x).clone()
         return x
