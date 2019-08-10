@@ -3,7 +3,7 @@ import os
 from matplotlib import pyplot as plt
 
 from CRN import CRNFramework
-from Data_Types import *
+from Helper_Stuff import *
 import wandb
 # from torchviz import make_dot
 

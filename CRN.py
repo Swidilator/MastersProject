@@ -8,7 +8,7 @@ import time
 import random
 from PIL import Image
 
-from Data_Types import image_size, epoch_output, sample_output
+from Helper_Stuff import *
 from Data_Management import CRNDataset
 from Perceptual_Loss import PerceptualLossNetwork
 from Training_Framework import MastersModel
