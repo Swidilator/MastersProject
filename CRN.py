@@ -140,14 +140,34 @@ class CRNFramework(MastersModel):
         model_snapshot = model_snapshot + str(localtime.tm_sec) + ".pt"
 
         if snapshot:
-            torch.save(self.crn.state_dict(), model_dir + model_snapshot)
-        torch.save(self.crn.state_dict(), model_dir + self.model_name)
+            torch.save(
+                {
+                    "model_state_dict": self.crn.state_dict(),
+                    "loss_layer_scales": self.loss_net.loss_layer_scales,
+                    "loss_history": self.loss_net.loss_layer_history,
+                },
+                model_dir + model_snapshot,
+            )
+        torch.save(
+            {
+                "model_state_dict": self.crn.state_dict(),
+                "loss_layer_scales": self.loss_net.loss_layer_scales,
+                "loss_history": self.loss_net.loss_layer_history,
+            },
+            model_dir + self.model_name,
+        )
 
     def load_model(self, model_dir: str, model_snapshot: str = None) -> None:
         if model_snapshot is not None:
-            self.crn.load_state_dict(torch.load(model_dir + model_snapshot))
+            checkpoint = torch.load(model_dir + model_snapshot)
+            self.crn.load_state_dict(checkpoint["model_state_dict"])
+            self.loss_net.loss_layer_scales = checkpoint["loss_layer_scales"]
+            self.loss_net.loss_layer_history = checkpoint["loss_history"]
         else:
-            self.crn.load_state_dict(torch.load(model_dir + self.model_name))
+            checkpoint = torch.load(model_dir + self.model_name)
+            self.crn.load_state_dict(checkpoint["model_state_dict"])
+            self.loss_net.loss_layer_scales = checkpoint["loss_layer_scales"]
+            self.loss_net.loss_layer_history = checkpoint["loss_history"]
 
     def train(self, update_lambdas: bool) -> epoch_output:
         self.crn.train()
