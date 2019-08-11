@@ -9,6 +9,10 @@ import wandb
 # from torchviz import make_dot
 
 if __name__ == "__main__":
+    torch.manual_seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     MAX_INPUT_HEIGHT_WIDTH: tuple = (128, 256)
     INPUT_TENSOR_SIZE: tuple = (4, 8)
     NUM_OUTPUT_IMAGES: int = 1
