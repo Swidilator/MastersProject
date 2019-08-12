@@ -333,6 +333,9 @@ class RefinementModule(modules.Module):
             stride=1,
             padding=1,
         )
+        nn.init.xavier_uniform_(self.conv_1.weight, gain=1)
+        nn.init.constant_(self.conv_1.bias, 0)
+
         self.layer_norm_1 = nn.LayerNorm(
             RefinementModule.change_output_channel_size(
                 input_height_width, self.output_channel_count
@@ -346,21 +349,27 @@ class RefinementModule(modules.Module):
             stride=1,
             padding=1,
         )
-        self.layer_norm_2 = nn.LayerNorm(
-            RefinementModule.change_output_channel_size(
-                input_height_width, self.output_channel_count
-            )
-        )
+        nn.init.xavier_uniform_(self.conv_2.weight, gain=1)
+        nn.init.constant_(self.conv_2.bias, 0)
 
-        self.conv_3 = nn.Conv2d(
-            self.output_channel_count,
-            self.output_channel_count,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-        )
+        # self.layer_norm_2 = nn.LayerNorm(
+        #     RefinementModule.change_output_channel_size(
+        #         input_height_width, self.output_channel_count
+        #     )
+        # )
+        #
+        # self.conv_3 = nn.Conv2d(
+        #     self.output_channel_count,
+        #     self.output_channel_count,
+        #     kernel_size=3,
+        #     stride=1,
+        #     padding=1,
+        # )
+        # nn.init.xavier_uniform(self.conv_3.weight, gain=1)
+        # nn.init.constant(self.conv_3.bias, 0)
+
         if not self.is_final_module:
-            self.layer_norm_3 = nn.LayerNorm(
+            self.layer_norm_2 = nn.LayerNorm(
                 RefinementModule.change_output_channel_size(
                     input_height_width, self.output_channel_count
                 )
@@ -373,8 +382,10 @@ class RefinementModule(modules.Module):
                 stride=1,
                 padding=0,
             )
+            nn.init.xavier_uniform_(self.final_conv.weight, gain=1)
+            nn.init.constant_(self.final_conv.bias, 0)
 
-        self.leakyReLU = nn.LeakyReLU()
+        self.leakyReLU = nn.LeakyReLU(negative_slope=0.2)
 
     @staticmethod
     def change_output_channel_size(
@@ -405,13 +416,13 @@ class RefinementModule(modules.Module):
 
         x = self.conv_2(x)
         # print(x.size())
-        x = self.layer_norm_2(x)
-        x = self.leakyReLU(x)
+        # x = self.layer_norm_2(x)
+        # x = self.leakyReLU(x)
 
-        x = self.conv_3(x)
+        # x = self.conv_3(x)
         # print(x.size())
         if not self.is_final_module:
-            x = self.layer_norm_1(x)
+            x = self.layer_norm_2(x)
             x = self.leakyReLU(x)
             # x = self.dropout(x)
         else:
