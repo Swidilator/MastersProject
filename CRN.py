@@ -171,7 +171,7 @@ class CRNFramework(MastersModel):
 
     def train(self, update_lambdas: bool) -> epoch_output:
         self.crn.train()
-        # torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
 
         loss_ave: torch.Tensor = torch.Tensor([0.0]).to(self.device)
         loss_ave.requires_grad = False
@@ -180,6 +180,7 @@ class CRNFramework(MastersModel):
 
         if update_lambdas:
             self.loss_net.update_lambdas()
+
         for batch_idx, (img, msk) in enumerate(self.data_loader_train):
             self.optimizer.zero_grad()
             img: torch.Tensor = img.to(self.device)
@@ -217,7 +218,9 @@ class CRNFramework(MastersModel):
             self.optimizer.step()
             # del loss, msk, noise, img
             del loss, msk, img
-        return loss_total.item(), None
+        loss_total_item: float = loss_total.item()
+        del loss_total, loss_ave
+        return loss_total_item, None
 
     def eval(self) -> epoch_output:
         self.crn.eval()
@@ -226,23 +229,23 @@ class CRNFramework(MastersModel):
         for batch_idx, (img, msk) in enumerate(self.data_loader_val):
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
-            noise: torch.Tensor = torch.randn(
-                msk.shape[0],
-                1,
-                self.input_tensor_size[0],
-                self.input_tensor_size[1],
-                device=self.device,
-            )
-            noise = noise.to(self.device)
+            # noise: torch.Tensor = torch.randn(
+            #     msk.shape[0],
+            #     1,
+            #     self.input_tensor_size[0],
+            #     self.input_tensor_size[1],
+            #     device=self.device,
+            # )
+            # noise = noise.to(self.device)
 
-            out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+            out: torch.Tensor = self.crn(inputs=(msk, None, self.batch_size))
 
             img = CRNFramework.__normalise__(img)
             out = CRNFramework.__normalise__(out)
 
             loss: torch.Tensor = self.loss_net((out, img))
             loss_total = loss_total + loss
-            del loss, msk, noise, img
+            del loss, msk, img
         return loss_total.item(), None
 
     def sample(self, k: int) -> sample_output:

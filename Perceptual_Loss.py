@@ -62,21 +62,11 @@ class PerceptualLossNetwork(modules.Module):
 
         self.norm = torch.nn.modules.normalization
 
-        # self.loss_layer_numel = [0, 0, 0, 0, 0]
-
         self.loss_layer_numbers: tuple = (2, 7, 12, 21, 30)
-        # self.loss_layer_coefficient_bases = [0.0, 0.0, 0.0, 0.0, 0.0]
-        # self.loss_direct_input_coefficient_base = [0.0]
-        # self.loss_layer_coefficients: list = [0.0, 0.0, 0.0, 0.0, 0.0]
+
         self.loss_layer_history: list = []
         self.loss_layer_scales: torch.Tensor = torch.Tensor([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         self.loss_layer_scales.requires_grad = False
-
-        # Network input element count
-        # num_elements_input = 1
-        # for val in input_image_size:
-        #     num_elements_input *= val
-        # self.loss_direct_input_coefficient_base: float = 1.0 / num_elements_input
 
         # History
         for i in range(self.loss_layer_scales.__len__()):
@@ -85,14 +75,7 @@ class PerceptualLossNetwork(modules.Module):
         # Loss layer coefficient base calculations
         for i, num in enumerate(self.loss_layer_numbers):
             self.vgg.features[num].register_forward_hook(get_layer_values)
-            # self.loss_layer_coefficient_bases[i] = (
-            #     1.0 / self.vgg.features[num].weight.data.numel()
-            # )
 
-        # Set initial loss layer coefficients
-        # self.loss_layer_coefficients = self.loss_layer_coefficient_bases
-        # self.loss_direct_input_coefficient = self.loss_direct_input_coefficient_base
-        # print("loss_coefficients:", self.loss_layer_coefficients)
 
     def update_lambdas(self):
         avg_list: list = [
@@ -100,12 +83,7 @@ class PerceptualLossNetwork(modules.Module):
             for i in range(len(self.loss_layer_history))
         ]
         avg_total: float = sum(avg_list) / len(avg_list)
-        # for i, val in enumerate(avg_list):
-        #     scale_factor: float = val / avg_total
-        #     try:
-        #         self.loss_layer_coefficients[i] = self.loss_layer_coefficient_bases[i]/scale_factor
-        #     except Exception:
-        #         self.loss_direct_input_coefficient = self.loss_direct_input_coefficient_base/scale_factor
+
         for i, val in enumerate(avg_list):
             scale_factor: float = val / avg_total
             self.loss_layer_scales[i] = 1.0 / scale_factor
@@ -127,23 +105,33 @@ class PerceptualLossNetwork(modules.Module):
         device = self.vgg.features[0].weight.device
         total_loss: torch.Tensor = torch.zeros(1).float().to(device)
 
-        # perceptual_difference = PerceptualDifference.apply
+        loss_contributions: torch.Tensor = torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        loss_contributions.requires_grad = False
 
         batch_size = input.shape[0]
         for b in range(batch_size):
 
             # TODO Implement correct loss
             for i in range(len(result_gen)):
-                res = (result_truth[i][b] - result_gen[i][b]).norm() * (
+                res: torch.Tensor = (result_truth[i][b] - result_gen[i][b]).norm() * (
                     1.0 / result_truth[i][b].numel()
                 )
-                self.loss_layer_history[i].update(res)
+                # self.loss_layer_history[i].update(res)
+                loss_contributions[i] += res
                 total_loss += res / self.loss_layer_scales[i]
+                del res
 
             input_loss: torch.Tensor = (input[b] - truth[b]).norm() / input[b].numel()
-            self.loss_layer_history[-1].update(input_loss)
+            input_loss.requires_grad = False
+            # self.loss_layer_history[-1].update(input_loss)
+            loss_contributions[-1] += input_loss
             total_loss += input_loss / self.loss_layer_scales[-1]
+            del input_loss
 
-        del result_gen, result_truth
+        loss_contributions = loss_contributions / batch_size
+        for i, val in enumerate(loss_contributions):
+            self.loss_layer_history[i].update(val)
+
+        del result_gen, result_truth, loss_contributions, batch_size
         # total loss reduction = mean
         return total_loss / batch_size

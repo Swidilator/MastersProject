@@ -90,6 +90,7 @@ if __name__ == "__main__":
                 loss, _ = crn_frame.train(False)
             no_except(wandb.log, {"Epoch Loss": loss * BATCH_SIZE, "Epoch": i})
             print(i, loss, crn_frame.loss_net.loss_layer_scales)
+            del loss
             if SAVE_EVERY_EPOCH:
                 crn_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
