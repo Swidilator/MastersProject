@@ -174,10 +174,8 @@ class CRNFramework(MastersModel):
         self.crn.train()
         torch.cuda.empty_cache()
 
-        loss_ave: torch.Tensor = torch.Tensor([0.0]).to(self.device)
-        loss_ave.requires_grad = False
-        loss_total: torch.Tensor = torch.Tensor([0.0]).to(self.device)
-        loss_total.requires_grad = False
+        loss_ave: float = 0.0
+        loss_total: float = 0.0
 
         if update_lambdas:
             self.loss_net.update_lambdas()
@@ -204,24 +202,23 @@ class CRNFramework(MastersModel):
 
             loss: torch.Tensor = self.loss_net((out, img))
             loss.backward()
-            loss_ave = loss_ave + loss
-            loss_total = loss_total + loss
+            loss_ave += loss.item()
+            loss_total += loss.item()
             if batch_idx * self.batch_size % 120 == 112:
                 print(
                     "Batch: {batch}\nLoss: {loss_val}".format(
-                        batch=batch_idx, loss_val=loss_ave.item() * this_batch_size
+                        batch=batch_idx, loss_val=loss_ave * this_batch_size
                     )
                 )
                 # WandB logging, if WandB disabled this should skip the logging without error
-                no_except(wandb.log, {"Batch Loss": loss_ave.item() * this_batch_size})
+                no_except(wandb.log, {"Batch Loss": loss_ave * this_batch_size})
 
-                loss_ave[0] = 0.0
+                loss_ave = 0.0
             self.optimizer.step()
             # del loss, msk, noise, img
             del loss, msk, img
-        loss_total_item: float = loss_total.item()
-        del loss_total, loss_ave
-        return loss_total_item, None
+        del loss_ave
+        return loss_total, None
 
     def eval(self) -> epoch_output:
         self.crn.eval()
