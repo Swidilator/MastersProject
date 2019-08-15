@@ -122,7 +122,7 @@ class PerceptualLossNetwork(modules.Module):
                 del res
 
             input_loss: torch.Tensor = (input[b] - truth[b]).norm() / input[b].numel()
-            input_loss.requires_grad = False
+            # input_loss.requires_grad = False
             # self.loss_layer_history[-1].update(input_loss)
             loss_contributions[-1] += input_loss
             total_loss += input_loss / self.loss_layer_scales[-1]
@@ -132,6 +132,6 @@ class PerceptualLossNetwork(modules.Module):
         for i, val in enumerate(loss_contributions):
             self.loss_layer_history[i].update(val)
 
-        del result_gen, result_truth, loss_contributions, batch_size
+        del result_gen, result_truth, loss_contributions
         # total loss reduction = mean
         return total_loss / batch_size
