@@ -121,14 +121,22 @@ class CRNFramework(MastersModel):
         IMAGE_CHANNELS = 3
         self.crn = self.crn.to(self.device)
 
-        # self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
-        self.optimizer = torch.optim.Adam(self.crn.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
         # TODO Create better input parameter
         self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork(
             (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
             history_len,
         )
         self.loss_net: PerceptualLossNetwork = self.loss_net.to(self.device)
+
+        # self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
+
+        self.optimizer = torch.optim.Adam(
+            self.crn.parameters(),
+            lr=0.0001,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+        )
 
     def save_model(self, model_dir: str, snapshot: bool = False) -> None:
         localtime: time.localtime() = time.localtime(time.time())
@@ -248,7 +256,7 @@ class CRNFramework(MastersModel):
 
     def sample(self, k: int) -> sample_output:
         self.crn.eval()
-        sample_list: list = random.sample(range(self.__data_set_test__.__len__()), k)
+        sample_list: list = random.sample(range(len(self.__data_set_test__)), k)
         outputs: sample_output = []
         # noise: torch.Tensor = torch.randn(
         #     1,
