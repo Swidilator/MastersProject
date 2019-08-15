@@ -121,7 +121,8 @@ class CRNFramework(MastersModel):
         IMAGE_CHANNELS = 3
         self.crn = self.crn.to(self.device)
 
-        self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
+        # self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
+        self.optimizer = torch.optim.Adam(self.crn.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
         # TODO Create better input parameter
         self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork(
             (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
