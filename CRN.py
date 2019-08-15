@@ -185,16 +185,17 @@ class CRNFramework(MastersModel):
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
             this_batch_size: int = msk.shape[0]
-            noise: torch.Tensor = torch.randn(
-                this_batch_size,
-                1,
-                self.input_tensor_size[0],
-                self.input_tensor_size[1],
-                device=self.device,
-            )
-            noise = noise.to(self.device)
+            # noise: torch.Tensor = torch.randn(
+            #     this_batch_size,
+            #     1,
+            #     self.input_tensor_size[0],
+            #     self.input_tensor_size[1],
+            #     device=self.device,
+            # )
+            # noise = noise.to(self.device)
 
-            out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+            # out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+            out: torch.Tensor = self.crn(inputs=(msk, None, self.batch_size))
 
             img = CRNFramework.__normalise__(img)
             out = CRNFramework.__normalise__(out)
@@ -214,7 +215,8 @@ class CRNFramework(MastersModel):
 
                 loss_ave[0] = 0.0
             self.optimizer.step()
-            del loss, msk, noise, img
+            # del loss, msk, noise, img
+            del loss, msk, img
         return loss_total.item(), None
 
     def eval(self) -> epoch_output:
@@ -247,18 +249,18 @@ class CRNFramework(MastersModel):
         self.crn.eval()
         sample_list: list = random.sample(range(self.__data_set_test__.__len__()), k)
         outputs: sample_output = []
-        noise: torch.Tensor = torch.randn(
-            1,
-            1,
-            self.input_tensor_size[0],
-            self.input_tensor_size[1],
-            device=self.device,
-        )
+        # noise: torch.Tensor = torch.randn(
+        #     1,
+        #     1,
+        #     self.input_tensor_size[0],
+        #     self.input_tensor_size[1],
+        #     device=self.device,
+        # )
         transform: transforms.ToPILImage = transforms.ToPILImage()
         for i, val in enumerate(sample_list):
             img, msk = self.__data_set_test__[val]
             msk = msk.to(self.device).unsqueeze(0)
-            img_out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+            img_out: torch.Tensor = self.crn(inputs=(msk, None, self.batch_size))
             img_out = img_out.cpu()[0]
             outputs.append(transform(img_out))
             del img, msk
@@ -402,12 +404,14 @@ class RefinementModule(modules.Module):
         mask = torch.nn.functional.interpolate(
             input=mask, size=self.input_height_width, mode="nearest"
         )
+        if prior_layers is not None:
+            prior_layers = torch.nn.functional.interpolate(
+                input=prior_layers, size=self.input_height_width, mode="bilinear"
+            )
 
-        prior_layers = torch.nn.functional.interpolate(
-            input=prior_layers, size=self.input_height_width, mode="bilinear"
-        )
-
-        x = torch.cat((mask, prior_layers), dim=1)
+            x = torch.cat((mask, prior_layers), dim=1)
+        else:
+            x = mask
 
         x = self.conv_1(x)
         # print(x.size())
@@ -447,7 +451,7 @@ class CRN(torch.nn.Module):
         self.num_classes: int = num_classes
         self.num_inner_channels: int = num_inner_channels
 
-        self.__NUM_NOISE_CHANNELS__: int = 1
+        self.__NUM_NOISE_CHANNELS__: int = 0
         self.__NUM_OUTPUT_IMAGE_CHANNELS__: int = 3
 
         self.num_rms: int = int(log2(final_image_size[0])) - 1
