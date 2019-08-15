@@ -121,13 +121,22 @@ class CRNFramework(MastersModel):
         IMAGE_CHANNELS = 3
         self.crn = self.crn.to(self.device)
 
-        self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
         # TODO Create better input parameter
         self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork(
             (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
             history_len,
         )
-        self.loss_net: PerceptualLossNetwork = self.loss_net.to(self.device)
+        self.loss_net = self.loss_net.to(self.device)
+
+        # self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
+
+        self.optimizer = torch.optim.Adam(
+            self.crn.parameters(),
+            lr=0.0001,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+        )
 
     def save_model(self, model_dir: str, snapshot: bool = False) -> None:
         localtime: time.localtime() = time.localtime(time.time())
@@ -171,51 +180,52 @@ class CRNFramework(MastersModel):
 
     def train(self, update_lambdas: bool) -> epoch_output:
         self.crn.train()
-        # torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
 
-        loss_ave: torch.Tensor = torch.Tensor([0.0]).to(self.device)
-        loss_ave.requires_grad = False
-        loss_total: torch.Tensor = torch.Tensor([0.0]).to(self.device)
-        loss_total.requires_grad = False
+        loss_ave: float = 0.0
+        loss_total: float = 0.0
 
         if update_lambdas:
             self.loss_net.update_lambdas()
+
         for batch_idx, (img, msk) in enumerate(self.data_loader_train):
             self.optimizer.zero_grad()
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
             this_batch_size: int = msk.shape[0]
-            noise: torch.Tensor = torch.randn(
-                this_batch_size,
-                1,
-                self.input_tensor_size[0],
-                self.input_tensor_size[1],
-                device=self.device,
-            )
-            noise = noise.to(self.device)
+            # noise: torch.Tensor = torch.randn(
+            #     this_batch_size,
+            #     1,
+            #     self.input_tensor_size[0],
+            #     self.input_tensor_size[1],
+            #     device=self.device,
+            # )
+            # noise = noise.to(self.device)
 
-            out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+            # out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+            out: torch.Tensor = self.crn(inputs=(msk, None, self.batch_size))
 
             img = CRNFramework.__normalise__(img)
             out = CRNFramework.__normalise__(out)
 
             loss: torch.Tensor = self.loss_net((out, img))
             loss.backward()
-            loss_ave = loss_ave + loss
-            loss_total = loss_total + loss
+            loss_ave += loss.item()
+            loss_total += loss.item()
             if batch_idx * self.batch_size % 120 == 112:
                 print(
                     "Batch: {batch}\nLoss: {loss_val}".format(
-                        batch=batch_idx, loss_val=loss_ave.item() * this_batch_size
+                        batch=batch_idx, loss_val=loss_ave * this_batch_size
                     )
                 )
                 # WandB logging, if WandB disabled this should skip the logging without error
-                no_except(wandb.log, {"Batch Loss": loss_ave.item() * this_batch_size})
-
-                loss_ave[0] = 0.0
+                no_except(wandb.log, {"Batch Loss": loss_ave * this_batch_size})
+                loss_ave = 0.0
             self.optimizer.step()
-            del loss, msk, noise, img
-        return loss_total.item(), None
+            # del loss, msk, noise, img
+            del loss, msk, img
+        del loss_ave
+        return loss_total, None
 
     def eval(self) -> epoch_output:
         self.crn.eval()
@@ -224,41 +234,41 @@ class CRNFramework(MastersModel):
         for batch_idx, (img, msk) in enumerate(self.data_loader_val):
             img: torch.Tensor = img.to(self.device)
             msk: torch.Tensor = msk.to(self.device)
-            noise: torch.Tensor = torch.randn(
-                msk.shape[0],
-                1,
-                self.input_tensor_size[0],
-                self.input_tensor_size[1],
-                device=self.device,
-            )
-            noise = noise.to(self.device)
+            # noise: torch.Tensor = torch.randn(
+            #     msk.shape[0],
+            #     1,
+            #     self.input_tensor_size[0],
+            #     self.input_tensor_size[1],
+            #     device=self.device,
+            # )
+            # noise = noise.to(self.device)
 
-            out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+            out: torch.Tensor = self.crn(inputs=(msk, None, self.batch_size))
 
             img = CRNFramework.__normalise__(img)
             out = CRNFramework.__normalise__(out)
 
             loss: torch.Tensor = self.loss_net((out, img))
             loss_total = loss_total + loss
-            del loss, msk, noise, img
+            del loss, msk, img
         return loss_total.item(), None
 
     def sample(self, k: int) -> sample_output:
         self.crn.eval()
-        sample_list: list = random.sample(range(self.__data_set_test__.__len__()), k)
+        sample_list: list = random.sample(range(len(self.__data_set_test__)), k)
         outputs: sample_output = []
-        noise: torch.Tensor = torch.randn(
-            1,
-            1,
-            self.input_tensor_size[0],
-            self.input_tensor_size[1],
-            device=self.device,
-        )
+        # noise: torch.Tensor = torch.randn(
+        #     1,
+        #     1,
+        #     self.input_tensor_size[0],
+        #     self.input_tensor_size[1],
+        #     device=self.device,
+        # )
         transform: transforms.ToPILImage = transforms.ToPILImage()
         for i, val in enumerate(sample_list):
             img, msk = self.__data_set_test__[val]
             msk = msk.to(self.device).unsqueeze(0)
-            img_out: torch.Tensor = self.crn(inputs=(msk, noise, self.batch_size))
+            img_out: torch.Tensor = self.crn(inputs=(msk, None, self.batch_size))
             img_out = img_out.cpu()[0]
             outputs.append(transform(img_out))
             del img, msk
@@ -333,6 +343,9 @@ class RefinementModule(modules.Module):
             stride=1,
             padding=1,
         )
+        nn.init.xavier_uniform_(self.conv_1.weight, gain=1)
+        nn.init.constant_(self.conv_1.bias, 0)
+
         self.layer_norm_1 = nn.LayerNorm(
             RefinementModule.change_output_channel_size(
                 input_height_width, self.output_channel_count
@@ -346,21 +359,27 @@ class RefinementModule(modules.Module):
             stride=1,
             padding=1,
         )
-        self.layer_norm_2 = nn.LayerNorm(
-            RefinementModule.change_output_channel_size(
-                input_height_width, self.output_channel_count
-            )
-        )
+        nn.init.xavier_uniform_(self.conv_2.weight, gain=1)
+        nn.init.constant_(self.conv_2.bias, 0)
 
-        self.conv_3 = nn.Conv2d(
-            self.output_channel_count,
-            self.output_channel_count,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-        )
+        # self.layer_norm_2 = nn.LayerNorm(
+        #     RefinementModule.change_output_channel_size(
+        #         input_height_width, self.output_channel_count
+        #     )
+        # )
+        #
+        # self.conv_3 = nn.Conv2d(
+        #     self.output_channel_count,
+        #     self.output_channel_count,
+        #     kernel_size=3,
+        #     stride=1,
+        #     padding=1,
+        # )
+        # nn.init.xavier_uniform(self.conv_3.weight, gain=1)
+        # nn.init.constant(self.conv_3.bias, 0)
+
         if not self.is_final_module:
-            self.layer_norm_3 = nn.LayerNorm(
+            self.layer_norm_2 = nn.LayerNorm(
                 RefinementModule.change_output_channel_size(
                     input_height_width, self.output_channel_count
                 )
@@ -373,8 +392,10 @@ class RefinementModule(modules.Module):
                 stride=1,
                 padding=0,
             )
+            nn.init.xavier_uniform_(self.final_conv.weight, gain=1)
+            nn.init.constant_(self.final_conv.bias, 0)
 
-        self.leakyReLU = nn.LeakyReLU()
+        self.leakyReLU = nn.LeakyReLU(negative_slope=0.2)
 
     @staticmethod
     def change_output_channel_size(
@@ -391,12 +412,14 @@ class RefinementModule(modules.Module):
         mask = torch.nn.functional.interpolate(
             input=mask, size=self.input_height_width, mode="nearest"
         )
+        if prior_layers is not None:
+            prior_layers = torch.nn.functional.interpolate(
+                input=prior_layers, size=self.input_height_width, mode="bilinear"
+            )
 
-        prior_layers = torch.nn.functional.interpolate(
-            input=prior_layers, size=self.input_height_width, mode="bilinear"
-        )
-
-        x = torch.cat((mask, prior_layers), dim=1)
+            x = torch.cat((mask, prior_layers), dim=1)
+        else:
+            x = mask
 
         x = self.conv_1(x)
         # print(x.size())
@@ -405,13 +428,13 @@ class RefinementModule(modules.Module):
 
         x = self.conv_2(x)
         # print(x.size())
-        x = self.layer_norm_2(x)
-        x = self.leakyReLU(x)
+        # x = self.layer_norm_2(x)
+        # x = self.leakyReLU(x)
 
-        x = self.conv_3(x)
+        # x = self.conv_3(x)
         # print(x.size())
         if not self.is_final_module:
-            x = self.layer_norm_1(x)
+            x = self.layer_norm_2(x)
             x = self.leakyReLU(x)
             # x = self.dropout(x)
         else:
@@ -436,7 +459,7 @@ class CRN(torch.nn.Module):
         self.num_classes: int = num_classes
         self.num_inner_channels: int = num_inner_channels
 
-        self.__NUM_NOISE_CHANNELS__: int = 1
+        self.__NUM_NOISE_CHANNELS__: int = 0
         self.__NUM_OUTPUT_IMAGE_CHANNELS__: int = 3
 
         self.num_rms: int = int(log2(final_image_size[0])) - 1

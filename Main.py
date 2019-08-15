@@ -17,12 +17,12 @@ if __name__ == "__main__":
     INPUT_TENSOR_SIZE: tuple = (4, 8)
     NUM_OUTPUT_IMAGES: int = 1
     NUM_CLASSES: int = 35
-    NUM_INNER_CHANNELS = 128
-    BATCH_SIZE: int = 4
-    HISTORY_LEN: int = 20
+    NUM_INNER_CHANNELS = 512
+    BATCH_SIZE: int = 2
+    HISTORY_LEN: int = 100
 
     PREFER_CUDA: bool = True
-    NUM_LOADER_WORKERS: int = 2
+    NUM_LOADER_WORKERS: int = 6
     MODEL_PATH: str = "./Models/"
 
     CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
@@ -59,9 +59,9 @@ if __name__ == "__main__":
 
     TRAIN: tuple = (True, 100)
     SAMPLE: tuple = (False, 20)
-    WANDB: bool = False
-    SAVE_EVERY_EPOCH: bool = False
-    LOAD_BEFORE_TRAIN: bool = True
+    WANDB: bool = True
+    SAVE_EVERY_EPOCH: bool = True
+    LOAD_BEFORE_TRAIN: bool = False
     UPDATE_PL_LAMBDAS: bool = True
 
     # Training
@@ -84,14 +84,18 @@ if __name__ == "__main__":
         no_except(wandb.watch, crn_frame.crn)
 
         for i in range(TRAIN[1]):
-            loss, _ = crn_frame.train(UPDATE_PL_LAMBDAS)
-            no_except(wandb.log, {"Epoch Loss": loss * BATCH_SIZE, "Epoch": i})
-            print(i, loss, crn_frame.loss_net.loss_layer_scales)
+            if i % 5 == 0:
+                loss_total, _ = crn_frame.train(UPDATE_PL_LAMBDAS)
+            else:
+                loss_total, _ = crn_frame.train(False)
+            no_except(wandb.log, {"Epoch Loss": loss_total * BATCH_SIZE, "Epoch": i})
+            print(i, loss_total, crn_frame.loss_net.loss_layer_scales)
+            del loss_total
             if SAVE_EVERY_EPOCH:
                 crn_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
             crn_frame.save_model(MODEL_PATH)
-        quit()
+        # quit()
 
     # Sampling
     if SAMPLE[0]:
