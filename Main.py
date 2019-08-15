@@ -85,17 +85,17 @@ if __name__ == "__main__":
 
         for i in range(TRAIN[1]):
             if i % 5 == 0:
-                loss, _ = crn_frame.train(UPDATE_PL_LAMBDAS)
+                loss_total, _ = crn_frame.train(UPDATE_PL_LAMBDAS)
             else:
-                loss, _ = crn_frame.train(False)
-            no_except(wandb.log, {"Epoch Loss": loss * BATCH_SIZE, "Epoch": i})
-            print(i, loss, crn_frame.loss_net.loss_layer_scales)
-            del loss
+                loss_total, _ = crn_frame.train(False)
+            no_except(wandb.log, {"Epoch Loss": loss_total * BATCH_SIZE, "Epoch": i})
+            print(i, loss_total, crn_frame.loss_net.loss_layer_scales)
+            del loss_total
             if SAVE_EVERY_EPOCH:
                 crn_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
             crn_frame.save_model(MODEL_PATH)
-        #quit()
+        # quit()
 
     # Sampling
     if SAMPLE[0]:

@@ -126,7 +126,7 @@ class CRNFramework(MastersModel):
             (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
             history_len,
         )
-        self.loss_net: PerceptualLossNetwork = self.loss_net.to(self.device)
+        self.loss_net = self.loss_net.to(self.device)
 
         # self.optimizer = torch.optim.SGD(self.crn.parameters(), lr=0.01, momentum=0.9)
 
@@ -220,7 +220,6 @@ class CRNFramework(MastersModel):
                 )
                 # WandB logging, if WandB disabled this should skip the logging without error
                 no_except(wandb.log, {"Batch Loss": loss_ave * this_batch_size})
-
                 loss_ave = 0.0
             self.optimizer.step()
             # del loss, msk, noise, img
