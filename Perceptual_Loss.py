@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.modules as modules
 import torchvision
+from Helper_Stuff import *
+import wandb
 
 from torchvision.transforms import Resize
 from copy import copy
@@ -107,7 +109,7 @@ class PerceptualLossNetwork(modules.Module):
         for i, val in enumerate(avg_list):
             scale_factor: float = val / avg_total
             self.loss_layer_scales[i] = 1.0 / scale_factor
-        pass
+        no_except(wandb.log, {"Loss scales": self.loss_layer_scales.cpu().numpy()})
 
     def forward(self, inputs: tuple):
         input: torch.Tensor = inputs[0]
@@ -123,7 +125,7 @@ class PerceptualLossNetwork(modules.Module):
             result_truth.append(self.vgg.features[num].stored_output)
 
         device = self.vgg.features[0].weight.device
-        total_loss = torch.zeros(1).float().to(device)
+        total_loss: torch.Tensor = torch.zeros(1).float().to(device)
 
         # perceptual_difference = PerceptualDifference.apply
 
