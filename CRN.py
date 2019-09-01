@@ -167,12 +167,12 @@ class CRNFramework(MastersModel):
 
     def load_model(self, model_dir: str, model_snapshot: str = None) -> None:
         if model_snapshot is not None:
-            checkpoint = torch.load(model_dir + model_snapshot)
+            checkpoint = torch.load(model_dir + model_snapshot, map_location=self.device)
             self.crn.load_state_dict(checkpoint["model_state_dict"])
             self.loss_net.loss_layer_scales = checkpoint["loss_layer_scales"]
             self.loss_net.loss_layer_history = checkpoint["loss_history"]
         else:
-            checkpoint = torch.load(model_dir + self.model_name)
+            checkpoint = torch.load(model_dir + self.model_name, map_location=self.device)
             self.crn.load_state_dict(checkpoint["model_state_dict"])
             self.loss_net.loss_layer_scales = checkpoint["loss_layer_scales"]
             self.loss_net.loss_layer_history = checkpoint["loss_history"]
