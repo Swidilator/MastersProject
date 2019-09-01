@@ -121,7 +121,6 @@ class CRNFramework(MastersModel):
         IMAGE_CHANNELS = 3
         self.crn = self.crn.to(self.device)
 
-        # TODO Create better input parameter
         self.loss_net: PerceptualLossNetwork = PerceptualLossNetwork(
             (IMAGE_CHANNELS, max_input_height_width[0], max_input_height_width[1]),
             history_len,
@@ -333,7 +332,7 @@ class RefinementModule(modules.Module):
         self.is_final_module: bool = is_final_module
         self.final_channel_count = final_channel_count
 
-        self.dropout = nn.Dropout2d(p=0.1)
+        # self.dropout = nn.Dropout2d(p=0.1)
 
         # Module architecture
         self.conv_1 = nn.Conv2d(
