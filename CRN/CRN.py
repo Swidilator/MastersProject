@@ -6,11 +6,10 @@ from torch.nn.functional import one_hot
 from math import log2
 import time
 import random
-from PIL import Image
 
 from Helper_Stuff import *
 from Data_Management import CRNDataset
-from Perceptual_Loss import PerceptualLossNetwork
+from CRN.Perceptual_Loss import PerceptualLossNetwork
 from Training_Framework import MastersModel
 
 import wandb
@@ -51,6 +50,10 @@ class CRNFramework(MastersModel):
             num_inner_channels,
             history_len,
         )
+
+    @property
+    def wandb_trainable_model(self):
+        return self.crn
 
     def __set_data_loader__(
         self,

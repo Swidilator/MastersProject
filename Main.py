@@ -2,7 +2,7 @@ import torch
 import os
 from matplotlib import pyplot as plt
 
-from CRN import CRNFramework
+from CRN.CRN import CRNFramework
 from Helper_Stuff import *
 import wandb
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
         device = torch.device("cpu")
         print("Device: CPU")
 
-    crn_frame: CRNFramework = CRNFramework(
+    model_frame: CRNFramework = CRNFramework(
         device=device,
         data_path=DATA_PATH,
         input_tensor_size=INPUT_TENSOR_SIZE,
@@ -62,6 +62,8 @@ if __name__ == "__main__":
     WANDB: bool = True
     SAVE_EVERY_EPOCH: bool = True
     LOAD_BEFORE_TRAIN: bool = False
+
+    # CRN
     UPDATE_PL_LAMBDAS: bool = True
 
     # Training
@@ -78,29 +80,29 @@ if __name__ == "__main__":
             )
 
         if LOAD_BEFORE_TRAIN:
-            crn_frame.load_model(MODEL_PATH)
+            model_frame.load_model(MODEL_PATH)
 
         # Watch if set
-        no_except(wandb.watch, crn_frame.crn)
+        no_except(wandb.watch, model_frame.wandb_trainable_model)
 
         for i in range(TRAIN[1]):
             if i % 5 == 0:
-                loss_total, _ = crn_frame.train(UPDATE_PL_LAMBDAS)
+                loss_total, _ = model_frame.train(UPDATE_PL_LAMBDAS)
             else:
-                loss_total, _ = crn_frame.train(False)
+                loss_total, _ = model_frame.train(False)
             no_except(wandb.log, {"Epoch Loss": loss_total * BATCH_SIZE, "Epoch": i})
-            print(i, loss_total, crn_frame.loss_net.loss_layer_scales)
+            # print(i, loss_total, model_frame.loss_net.loss_layer_scales)
             del loss_total
             if SAVE_EVERY_EPOCH:
-                crn_frame.save_model(MODEL_PATH)
+                model_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
-            crn_frame.save_model(MODEL_PATH)
+            model_frame.save_model(MODEL_PATH)
         # quit()
 
     # Sampling
     if SAMPLE[0]:
-        crn_frame.load_model(MODEL_PATH)
-        img_list: sample_output = crn_frame.sample(SAMPLE[1])
+        model_frame.load_model(MODEL_PATH)
+        img_list: sample_output = model_frame.sample(SAMPLE[1])
         for i, img in enumerate(img_list):
             print(img_list[i])
             plt.figure(i)
