@@ -1,53 +1,108 @@
-import torchvision
 import torch
+import os
 from matplotlib import pyplot as plt
-from Data_Management import CRNDataset
 
-from CRN import RefinementModule
+from CRN import CRNFramework
+from Helper_Stuff import *
+import wandb
+
+# from torchviz import make_dot
 
 if __name__ == "__main__":
+    torch.manual_seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
-    # data_set = torchvision.datasets.Cityscapes(root="C:\CityScapes Samples\Train",
-    #                                            split="train",
-    #                                            mode="fine",
-    #                                            target_type="semantic",
-    #                                            # target_transform=transforms
-    #                                            )
-    data_set = CRNDataset(
-        max_input_height_width=(32, 64),
-        root="C:\\CityScapes Samples\\Train\\",
-        split="train",
-        num_classes=35
+    MAX_INPUT_HEIGHT_WIDTH: tuple = (128, 256)
+    INPUT_TENSOR_SIZE: tuple = (4, 8)
+    NUM_OUTPUT_IMAGES: int = 1
+    NUM_CLASSES: int = 35
+    NUM_INNER_CHANNELS = 512
+    BATCH_SIZE: int = 2
+    HISTORY_LEN: int = 100
+
+    PREFER_CUDA: bool = True
+    NUM_LOADER_WORKERS: int = 6
+    MODEL_PATH: str = "./Models/"
+
+    CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
+    print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
+
+    TRAINING_MACHINE: str = os.environ["TRAINING_MACHINE"]
+    print("Training Machine: {machine}".format(machine=TRAINING_MACHINE))
+
+    DATA_PATH: str = CITYSCAPES_PATH
+
+    if PREFER_CUDA:
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            print("Device: CUDA")
+        else:
+            device = torch.device("cpu")
+            print("Device: CPU")
+    else:
+        device = torch.device("cpu")
+        print("Device: CPU")
+
+    crn_frame: CRNFramework = CRNFramework(
+        device=device,
+        data_path=DATA_PATH,
+        input_tensor_size=INPUT_TENSOR_SIZE,
+        max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
+        num_output_images=NUM_OUTPUT_IMAGES,
+        num_inner_channels=NUM_INNER_CHANNELS,
+        num_classes=NUM_CLASSES,
+        batch_size=BATCH_SIZE,
+        num_loader_workers=NUM_LOADER_WORKERS,
+        history_len=HISTORY_LEN,
     )
-    a, b = data_set[0]
 
-    print(b[0].detach().numpy())
-    out = torch.nn.functional.one_hot(b[2][0], 24)
+    TRAIN: tuple = (True, 100)
+    SAMPLE: tuple = (False, 20)
+    WANDB: bool = True
+    SAVE_EVERY_EPOCH: bool = True
+    LOAD_BEFORE_TRAIN: bool = False
+    UPDATE_PL_LAMBDAS: bool = True
 
-    # data_loader: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
-    #     data_set, batch_size=1, shuffle=True, num_workers=1
-    # )
+    # Training
+    if TRAIN[0]:
+        if WANDB:
+            wandb.init(
+                project="crn",
+                config={
+                    "Batch Size": BATCH_SIZE,
+                    "Inner Channels": NUM_INNER_CHANNELS,
+                    "Output Size": MAX_INPUT_HEIGHT_WIDTH,
+                    "Training Machine": TRAINING_MACHINE,
+                },
+            )
 
-    # image, smnt = next(iter(data_loader))
-    # print(type(image))
+        if LOAD_BEFORE_TRAIN:
+            crn_frame.load_model(MODEL_PATH)
 
-    # plt.imshow(torchvision.transforms.ToPILImage(image[0].detach().numpy()))
-    # plt.show()
+        # Watch if set
+        no_except(wandb.watch, crn_frame.crn)
 
-    # rm = RefinementModule(
-    #     prior_layer_channel_count=0,
-    #     semantic_input_channel_count=3,
-    #     output_channel_count=3,
-    #     input_height_width=(32, 64),
-    #     is_final_module=False,
-    # )
+        for i in range(TRAIN[1]):
+            if i % 5 == 0:
+                loss_total, _ = crn_frame.train(UPDATE_PL_LAMBDAS)
+            else:
+                loss_total, _ = crn_frame.train(False)
+            no_except(wandb.log, {"Epoch Loss": loss_total * BATCH_SIZE, "Epoch": i})
+            print(i, loss_total, crn_frame.loss_net.loss_layer_scales)
+            del loss_total
+            if SAVE_EVERY_EPOCH:
+                crn_frame.save_model(MODEL_PATH)
+        if not SAVE_EVERY_EPOCH:
+            crn_frame.save_model(MODEL_PATH)
+        # quit()
 
-    # output_test = rm(smnt[5])
-
-    # plt.figure(0)
-    # plt.imshow(torchvision.transforms.ToPILImage(smnt[0]))
-    # plt.show()
-    # plt.figure(1)
-    # plt.imshow(output_test[0].detach().numpy())
-    # plt.show()
-
+    # Sampling
+    if SAMPLE[0]:
+        crn_frame.load_model(MODEL_PATH)
+        img_list: sample_output = crn_frame.sample(SAMPLE[1])
+        for i, img in enumerate(img_list):
+            print(img_list[i])
+            plt.figure(i)
+            plt.imshow(img)
+            plt.show()
