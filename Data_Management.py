@@ -4,15 +4,23 @@ from torch.nn.functional import one_hot
 from torchvision.datasets import Cityscapes
 from torchvision import transforms
 from PIL import Image
+from random import random
 from matplotlib import pyplot as plt
 
 
 class CRNDataset(Dataset):
     def __init__(
-        self, max_input_height_width: tuple, root: str, split: str, num_classes: int
+        self,
+        max_input_height_width: tuple,
+        root: str,
+        split: str,
+        num_classes: int,
+        should_flip: bool,
     ):
         super(CRNDataset, self).__init__()
         self.num_classes = num_classes
+        self.should_flip = should_flip
+
         self.dataset: Cityscapes = Cityscapes(
             root=root, split=split, mode="fine", target_type="semantic"
         )
@@ -41,6 +49,12 @@ class CRNDataset(Dataset):
 
     def __getitem__(self, index):
         img, msk = self.dataset.__getitem__(index)
+
+        flip: bool = random()
+
+        if self.should_flip and flip > 0.5:
+            img = transforms.functional.hflip(img)
+            msk = transforms.functional.hflip(msk)
 
         img = self.image_resize_transform(img)
         msk = self.mask_resize_transform(msk)
