@@ -9,125 +9,126 @@ import random
 
 from Helper_Stuff import *
 from Data_Management import GANDataset
-from CRN.Perceptual_Loss import PerceptualLossNetwork
 from Training_Framework import MastersModel
+from GAN.Generator import *
 
 import wandb
 
 
+class GANFramework(MastersModel):
+    def __init__(
+        self,
+        device: torch.device,
+        data_path: str,
+        max_input_height_width: image_size,
+        num_classes: int,
+        batch_size: int,
+        num_loader_workers: int,
+    ):
+        super(GANFramework, self).__init__(device=device)
+        self.batch_size = batch_size
 
+        self.model_name: str = "GAN_Latest.pt"
 
-
-class Generator(torch.nn.Module):
-    def __init__(self, input_channel_count: int):
-        super(Generator, self).__init__()
-        self.input_channel_count = input_channel_count
-
-        self.global_generator: GlobalGenerator = GlobalGenerator(input_channel_count)
-        self.local_enhancer: LocalEnhancer = LocalEnhancer(input_channel_count)
-
-    def forward(self, inputs: gan_input) -> torch.Tensor:
-        # TODO Check that this is dividing properly
-        half_size: tuple = (int(inputs[0].shape[2] / 2), int(inputs[0].shape[3] / 2))
-
-        smaller_input = torch.nn.functional.interpolate(
-            input=inputs[0],
-            size=half_size,
-            mode="nearest",
+        self.__set_data_loader__(
+            data_path,
+            max_input_height_width,
+            num_classes,
+            batch_size,
+            num_loader_workers,
         )
 
-        global_output: torch.Tensor = self.global_generator(smaller_input)
-        local_output: torch.Tensor = self.local_enhancer((inputs[0], global_output))
+        self.__set_model__(num_classes)
 
-        return local_output
+    @property
+    def wandb_trainable_model(self):
+        pass
 
+    def __set_data_loader__(
+        self,
+        data_path,
+        max_input_height_width,
+        num_classes,
+        batch_size,
+        num_loader_workers,
+    ):
+        self.__data_set_train__ = GANDataset(
+            max_input_height_width=max_input_height_width,
+            root=data_path,
+            split="train",
+            num_classes=num_classes,
+        )
 
+        self.data_loader_train: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
+            self.__data_set_train__,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_loader_workers,
+        )
 
+        self.__data_set_test__ = GANDataset(
+            max_input_height_width=max_input_height_width,
+            root=data_path,
+            split="test",
+            num_classes=num_classes,
+        )
 
+        self.data_loader_test: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
+            self.__data_set_test__,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_loader_workers,
+        )
 
-class GlobalGenerator(torch.nn.Module):
-    def __init__(self, input_channel_count: int) -> None:
-        super(GlobalGenerator, self).__init__()
+        self.__data_set_val__ = GANDataset(
+            max_input_height_width=max_input_height_width,
+            root=data_path,
+            split="val",
+            num_classes=num_classes,
+        )
 
-        # TODO Convert to list
-        self.c1: CCIRBlock = CCIRBlock(64, input_channel_count)
+        self.data_loader_val: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
+            self.__data_set_val__,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_loader_workers,
+        )
 
-        self.d2: DCIRBlock = DCIRBlock(128, self.c1.get_output_filter_count)
-        self.d3: DCIRBlock = DCIRBlock(256, self.d2.get_output_filter_count)
-        self.d4: DCIRBlock = DCIRBlock(512, self.d3.get_output_filter_count)
-        self.d5: DCIRBlock = DCIRBlock(1024, self.d4.get_output_filter_count)
+    def __set_model__(self, num_classes) -> None:
 
-        self.r6: ResidualBlock = ResidualBlock(1024, self.d5.get_output_filter_count)
-        self.r7: ResidualBlock = ResidualBlock(1024, self.r6.get_output_filter_count)
-        self.r8: ResidualBlock = ResidualBlock(1024, self.r7.get_output_filter_count)
-        self.r9: ResidualBlock = ResidualBlock(1024, self.r8.get_output_filter_count)
-        self.r10: ResidualBlock = ResidualBlock(1024, self.r9.get_output_filter_count)
-        self.r11: ResidualBlock = ResidualBlock(1024, self.r10.get_output_filter_count)
-        self.r12: ResidualBlock = ResidualBlock(1024, self.r11.get_output_filter_count)
-        self.r13: ResidualBlock = ResidualBlock(1024, self.r12.get_output_filter_count)
-        self.r14: ResidualBlock = ResidualBlock(1024, self.r13.get_output_filter_count)
+        self.generator: Generator = Generator(num_classes)
+        self.generator = self.generator.to(self.device)
+        pass
 
-        self.u15: UCIRBlock = UCIRBlock(512, self.r14.get_output_filter_count)
-        self.u16: UCIRBlock = UCIRBlock(256, self.u15.get_output_filter_count)
-        self.u17: UCIRBlock = UCIRBlock(128, self.u16.get_output_filter_count)
-        self.u18: UCIRBlock = UCIRBlock(64, self.u17.get_output_filter_count)
+    def save_model(self, model_dir: str) -> None:
+        pass
 
-        self.c19: CCIRBlock = CCIRBlock(3, self.u18.get_output_filter_count)
+    def load_model(self, model_dir: str, model_name: str) -> None:
+        pass
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        out: torch.Tensor = self.c1(input)
+    def train(self) -> epoch_output:
+        pass
 
-        out = self.d2(out)
-        out = self.d3(out)
-        out = self.d4(out)
-        out = self.d5(out)
+    def eval(self) -> epoch_output:
+        pass
 
-        out = self.r6(out)
-        out = self.r7(out)
-        out = self.r8(out)
-        out = self.r9(out)
-        out = self.r10(out)
-        out = self.r11(out)
-        out = self.r12(out)
-        out = self.r13(out)
-        out = self.r14(out)
-
-        out = self.u15(out)
-        out = self.u16(out)
-        out = self.u17(out)
-        out = self.u18(out)
-
-        # out = self.c19(out)
-        return out
-
-
-class LocalEnhancer(torch.nn.Module):
-    def __init__(self, input_channel_count):
-        super(LocalEnhancer, self).__init__()
-
-        self.c1: CCIRBlock = CCIRBlock(64, input_channel_count)
-
-        self.d2: DCIRBlock = DCIRBlock(64, self.c1.get_output_filter_count)
-
-        self.r3: ResidualBlock = ResidualBlock(64, self.d2.get_output_filter_count)
-        self.r4: ResidualBlock = ResidualBlock(64, self.r3.get_output_filter_count)
-        self.r5: ResidualBlock = ResidualBlock(64, self.r4.get_output_filter_count)
-
-        self.u6: UCIRBlock = UCIRBlock(32, self.r5.get_output_filter_count)
-
-        self.u7: UCIRBlock = UCIRBlock(3, self.u6.get_output_filter_count)
-
-    def forward(self, inputs: generator_input) -> torch.Tensor:
-        out: torch.Tensor = self.c1(inputs[0])
-
-        # Add the output of the global generator
-        out = self.d2(out) + inputs[1]
-
-        out = self.r3(out)
-        out = self.r4(out)
-        out = self.r5(out)
-
-        out = self.u6(out)
-        out = self.u7(out)
-
-        return out
+    def sample(self, k: int) -> sample_output:
+        self.generator.eval()
+        sample_list: list = random.sample(range(len(self.__data_set_test__)), k)
+        outputs: sample_output = []
+        # noise: torch.Tensor = torch.randn(
+        #     1,
+        #     1,
+        #     self.input_tensor_size[0],
+        #     self.input_tensor_size[1],
+        #     device=self.device,
+        # )
+        transform: transforms.ToPILImage = transforms.ToPILImage()
+        for i, val in enumerate(sample_list):
+            img, msk = self.__data_set_test__[val]
+            msk = msk.to(self.device).unsqueeze(0)
+            img_out: torch.Tensor = self.generator(inputs=(msk, False))
+            img_out = img_out.cpu()[0]
+            outputs.append(transform(img_out))
+            del img, msk
+        return outputs
