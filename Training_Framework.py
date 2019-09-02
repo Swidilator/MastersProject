@@ -10,7 +10,6 @@ class MastersModel(ABC):
         super(MastersModel, self).__init__()
 
         self.device: torch.device = device
-        self.data_loader: utils.data.DataLoader = None
 
     @property
     @abstractmethod
