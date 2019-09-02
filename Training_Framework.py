@@ -12,6 +12,11 @@ class MastersModel(ABC):
         self.device: torch.device = device
         self.data_loader: utils.data.DataLoader = None
 
+    @property
+    @abstractmethod
+    def wandb_trainable_model(self):
+        pass
+
     @abstractmethod
     def __set_data_loader__(self, data_path: str) -> None:
         r"""
