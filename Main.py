@@ -25,10 +25,13 @@ if __name__ == "__main__":
     # CRN
     INPUT_TENSOR_SIZE: tuple = (4, 8)
     NUM_OUTPUT_IMAGES: int = 1
+    NUM_INNER_CHANNELS = 1024
+    HISTORY_LEN: int = 100
 
     # System Settings
     PREFER_CUDA: bool = True
     NUM_LOADER_WORKERS: int = 6
+
     MODEL_PATH: str = "./Models/"
     CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
     DATA_PATH: str = CITYSCAPES_PATH
@@ -54,7 +57,7 @@ if __name__ == "__main__":
     SAVE_EVERY_EPOCH: bool = True
     LOAD_BEFORE_TRAIN: bool = False
     # CRN
-    UPDATE_PL_LAMBDAS: bool = True
+    UPDATE_PL_LAMBDAS: bool = False
 
     # Choose Model
 
