@@ -105,11 +105,14 @@ class LocalEnhancer(torch.nn.Module):
 
         self.u7: UCIRBlock = UCIRBlock(3, self.u6.get_output_filter_count)
 
+        self.tan_h = nn.Tanh()
+
     def forward(self, inputs: generator_input) -> torch.Tensor:
         out: torch.Tensor = self.c1(inputs[0])
 
         # Add the output of the global generator
         out = self.d2(out) + inputs[1]
+        del inputs
 
         out = self.r3(out)
         out = self.r4(out)
@@ -118,4 +121,5 @@ class LocalEnhancer(torch.nn.Module):
         out = self.u6(out)
         out = self.u7(out)
 
+        out = self.tan_h(out).clone()
         return out
