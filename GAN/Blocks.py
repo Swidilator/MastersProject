@@ -11,7 +11,8 @@ class Block(torch.nn.Module):
 
     @staticmethod
     def init_conv_weights(conv: nn.Module) -> None:
-        nn.init.xavier_uniform_(conv.weight, gain=1)
+        nn.init.normal_(conv.weight, mean=0.0, std=0.02)
+        # nn.init.xavier_uniform_(conv.weight, gain=1)
         nn.init.constant_(conv.bias, 0)
 
     @property
@@ -139,4 +140,34 @@ class UCIRBlock(Block):
         out: torch.Tensor = self.deconv_1(input)
         out = self.instance_norm_1(out)
         out = self.ReLU(out)
+        return out
+
+
+class CCILBlock(Block):
+    def __init__(self, filter_count: int, input_channel_count: int, first_layer: bool):
+        super(CCILBlock, self).__init__(filter_count, input_channel_count)
+
+        self.first_layer = first_layer
+
+        kernel_size: int = 4
+        stride: int = 2
+        padding: int = 0
+
+        self.LReLU: nn.LeakyReLU = nn.LeakyReLU(0.2)
+        self.conv_1: modules.Conv2d = nn.Conv2d(
+            self.input_channel_count,
+            self.filter_count,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+        )
+        Block.init_conv_weights(conv=self.conv_1)
+
+        self.instance_norm_1 = nn.InstanceNorm2d(filter_count)
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        out: torch.Tensor = self.conv_1(input)
+        if not self.first_layer:
+            out = self.instance_norm_1(out)
+        out = self.LReLU(out)
         return out
