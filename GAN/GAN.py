@@ -11,6 +11,7 @@ from Helper_Stuff import *
 from Data_Management import GANDataset
 from Training_Framework import MastersModel
 from GAN.Generator import *
+from GAN.Discriminator import *
 
 import wandb
 
@@ -57,6 +58,7 @@ class GANFramework(MastersModel):
             root=data_path,
             split="train",
             num_classes=num_classes,
+            should_flip=True,
         )
 
         self.data_loader_train: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
@@ -71,6 +73,7 @@ class GANFramework(MastersModel):
             root=data_path,
             split="test",
             num_classes=num_classes,
+            should_flip=False,
         )
 
         self.data_loader_test: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
@@ -85,6 +88,7 @@ class GANFramework(MastersModel):
             root=data_path,
             split="val",
             num_classes=num_classes,
+            should_flip=False
         )
 
         self.data_loader_val: torch.utils.data.DataLoader = torch.utils.data.DataLoader(

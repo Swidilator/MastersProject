@@ -16,11 +16,9 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = False
 
     # General Model Settings
-    MAX_INPUT_HEIGHT_WIDTH: tuple = (128, 256)
+    MAX_INPUT_HEIGHT_WIDTH: tuple = (64, 128)
     NUM_CLASSES: int = 35
-    NUM_INNER_CHANNELS = 512
-    BATCH_SIZE: int = 2
-    HISTORY_LEN: int = 100
+    BATCH_SIZE: int = 1
 
     # CRN
     INPUT_TENSOR_SIZE: tuple = (4, 8)
