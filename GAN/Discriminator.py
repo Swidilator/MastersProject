@@ -1,9 +1,44 @@
 from GAN.Blocks import *
 
 
-class Discriminator(torch.nn.Module):
+class FullDiscriminator(torch.nn.Module):
     def __init__(self, device: torch.device):
-        super(Discriminator, self).__init__()
+        super(FullDiscriminator, self).__init__()
+
+        self.device: torch.device = device
+        self.input_size: tuple = (70, 70)
+
+        self.discriminator_1: SingleDiscriminator = SingleDiscriminator(self.device)
+        self.discriminator_1 = self.discriminator_1.to(self.device)
+        self.discriminator_2: SingleDiscriminator = SingleDiscriminator(self.device)
+        self.discriminator_2 = self.discriminator_2.to(self.device)
+        self.discriminator_3: SingleDiscriminator = SingleDiscriminator(self.device)
+        self.discriminator_3 = self.discriminator_3.to(self.device)
+
+    def forward(self, input) -> torch.Tensor:
+
+        output: torch.Tensor = self.discriminator_1(input)
+
+        new_size: tuple = (int(self.input_size[0] / 2), int(self.input_size[1] / 2))
+        input_small = torch.nn.functional.interpolate(
+            input=input, size=new_size, mode="bilinear"
+        )
+        output = output + self.discriminator_2(input_small)
+
+        new_size: tuple = (int(self.input_size[0] / 4), int(self.input_size[1] / 4))
+        input_small = torch.nn.functional.interpolate(
+            input=input, size=new_size, mode="bilinear"
+        )
+        output = output + self.discriminator_2(input_small)
+
+        output = output / 3
+
+        return output
+
+
+class SingleDiscriminator(torch.nn.Module):
+    def __init__(self, device: torch.device):
+        super(SingleDiscriminator, self).__init__()
 
         self.device = device
 
