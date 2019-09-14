@@ -58,28 +58,33 @@ if __name__ == "__main__":
     UPDATE_PL_LAMBDAS: bool = False
 
     # Choose Model
+    MODEL: str = "GAN"
 
-    # model_frame: CRNFramework = CRNFramework(
-    #     device=device,
-    #     data_path=DATA_PATH,
-    #     input_tensor_size=INPUT_TENSOR_SIZE,
-    #     max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
-    #     num_output_images=NUM_OUTPUT_IMAGES,
-    #     num_inner_channels=NUM_INNER_CHANNELS,
-    #     num_classes=NUM_CLASSES,
-    #     batch_size=BATCH_SIZE,
-    #     num_loader_workers=NUM_LOADER_WORKERS,
-    #     history_len=HISTORY_LEN,
-    # )
+    if MODEL == "CRN":
+        model_frame: CRNFramework = CRNFramework(
+            device=device,
+            data_path=DATA_PATH,
+            input_tensor_size=INPUT_TENSOR_SIZE,
+            max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
+            num_output_images=NUM_OUTPUT_IMAGES,
+            num_inner_channels=NUM_INNER_CHANNELS,
+            num_classes=NUM_CLASSES,
+            batch_size=BATCH_SIZE,
+            num_loader_workers=NUM_LOADER_WORKERS,
+            history_len=HISTORY_LEN,
+        )
 
-    model_frame: GANFramework = GANFramework(
-        device=device,
-        data_path=DATA_PATH,
-        max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
-        num_classes=NUM_CLASSES,
-        batch_size=BATCH_SIZE,
-        num_loader_workers=NUM_LOADER_WORKERS,
-    )
+    elif MODEL == "GAN":
+        model_frame: GANFramework = GANFramework(
+            device=device,
+            data_path=DATA_PATH,
+            max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
+            num_classes=NUM_CLASSES,
+            batch_size=BATCH_SIZE,
+            num_loader_workers=NUM_LOADER_WORKERS,
+        )
+    else:
+        quit()
 
     # Training
     if TRAIN[0]:
