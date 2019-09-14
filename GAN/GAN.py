@@ -39,7 +39,7 @@ class GANFramework(MastersModel):
             num_loader_workers,
         )
 
-        self.__set_model__(num_classes)
+        self.__set_model__(num_classes, 3)
 
     @property
     def wandb_trainable_model(self):
@@ -88,7 +88,7 @@ class GANFramework(MastersModel):
             root=data_path,
             split="val",
             num_classes=num_classes,
-            should_flip=False
+            should_flip=False,
         )
 
         self.data_loader_val: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
@@ -98,20 +98,126 @@ class GANFramework(MastersModel):
             num_workers=num_loader_workers,
         )
 
-    def __set_model__(self, num_classes) -> None:
+    def __set_model__(self, num_classes, num_discriminators: int) -> None:
 
         self.generator: Generator = Generator(num_classes)
         self.generator = self.generator.to(self.device)
-        pass
 
-    def save_model(self, model_dir: str) -> None:
-        pass
+        self.discriminator: FullDiscriminator = FullDiscriminator(self.device)
+        self.discriminator = self.discriminator.to(self.device)
 
-    def load_model(self, model_dir: str, model_name: str) -> None:
-        pass
+        self.optimizer_D: torch.optim.Adam = torch.optim.Adam(
+                self.discriminator.parameters(),
+                lr=0.0002,
+                # betas=(0.9, 0.999),
+                # eps=1e-08,
+                # weight_decay=0,
+            )
 
-    def train(self) -> epoch_output:
-        pass
+        self.optimizer_G = torch.optim.Adam(
+            self.generator.parameters(),
+            lr=0.0002,
+            # betas=(0.9, 0.999),
+            # eps=1e-08,
+            # weight_decay=0,
+        )
+
+        # TODO Change to correct criterion
+        self.criterion = nn.BCELoss()
+
+    def save_model(self, model_dir: str, snapshot: bool = False) -> None:
+        localtime: time.localtime() = time.localtime(time.time())
+        model_snapshot: str = "CRN" + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_year) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_mon) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_mday) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_hour) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_min) + "_"
+        model_snapshot = model_snapshot + str(localtime.tm_sec) + ".pt"
+
+        save_dict: dict = {"model_state_dict_gen": (self.generator.state_dict(),),
+                           "model_state_dict_disc": self.discriminator.state_dict()}
+
+        if snapshot:
+            torch.save(save_dict, model_dir + model_snapshot)
+        torch.save(save_dict, model_dir + self.model_name)
+
+    def load_model(self, model_dir: str, model_snapshot: str = None) -> None:
+        if model_snapshot is not None:
+            checkpoint = torch.load(
+                model_dir + model_snapshot, map_location=self.device
+            )
+            self.generator.load_state_dict(checkpoint["model_state_dict_gen"])
+            self.discriminator.load_state_dict(checkpoint["model_state_dict_disc"])
+        else:
+            checkpoint = torch.load(
+                model_dir + self.model_name, map_location=self.device
+            )
+            self.generator.load_state_dict(checkpoint["model_state_dict_gen"])
+            self.discriminator.load_state_dict(checkpoint["model_state_dict_disc"])
+
+    def train(self, input) -> epoch_output:
+        self.generator.train()
+        self.discriminator.train()
+
+        torch.cuda.empty_cache()
+
+        real_label = 1
+        fake_label = 0
+
+        loss_total: float = 0.0
+        loss_ave: float = 0.0
+
+        for batch_idx, (real_img, msk) in enumerate(self.data_loader_train):
+            this_batch_size: int = msk.shape[0]
+            real_img: torch.Tensor = real_img.to(self.device)
+            msk: torch.Tensor = msk.to(self.device)
+
+            # Discriminator
+            self.optimizer_D.zero_grad()
+
+            # TRAIN WITH ALL REAL BATCH
+            label = torch.full((this_batch_size,), real_label, device=self.device)
+            output = self.discriminator(real_img).view(-1)
+            error_d_real = self.criterion(output, label)
+            error_d_real.backward()
+            error_d_real_mean = output.mean().item()
+
+            # TRAIN WITH ALL-FAKE BATCH
+            fake_img: torch.Tensor = self.generator(inputs=(msk, False))
+            label.fill_(fake_label)
+            output = self.discriminator(fake_img.detach()).view(-1)
+            error_d_fake = self.criterion(output, label)
+            error_d_fake.backward()
+            error_d_fake_mean = output.mean().item()
+
+            error_d = error_d_real + error_d_fake
+            self.optimizer_D.step()
+
+            # Generator
+            self.generator.zero_grad()
+            label.fill_(real_label)
+            output = self.discriminator(fake_img).view(-1)
+            error_g = self.criterion(output, label)
+            error_g.backward()
+            error_g_mean = output.mean().item()
+            self.optimizer_G.step()
+
+            del error_d, error_d_fake, error_d_real, error_g, msk, fake_img, real_img
+
+            loss_ave += error_d_fake_mean + error_d_real_mean + error_g_mean
+            loss_total += error_d_fake_mean + error_d_real_mean + error_g_mean
+            if batch_idx * self.batch_size % 120 == 112:
+                print(
+                    "Batch: {batch}\nLoss: {loss_val}".format(
+                        batch=batch_idx, loss_val=loss_ave * this_batch_size
+                    )
+                )
+                # WandB logging, if WandB disabled this should skip the logging without error
+                no_except(wandb.log, {"Batch Loss": loss_ave * this_batch_size})
+                loss_ave = 0.0
+        del loss_ave
+        return loss_total, None
 
     def eval(self) -> epoch_output:
         pass
