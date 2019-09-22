@@ -77,8 +77,8 @@ if __name__ == "__main__":
                 "num_output_images": CRN_NUM_OUTPUT_IMAGES,
                 "num_inner_channels": CRN_NUM_INNER_CHANNELS,
                 "num_classes": NUM_CLASSES,
-                "history_len": CRN_HISTORY_LEN
-            }
+                "history_len": CRN_HISTORY_LEN,
+            },
         )
 
     elif MODEL == "GAN":
@@ -90,8 +90,8 @@ if __name__ == "__main__":
             subset_size=SUBSET_SIZE,
             settings={
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
-                "num_classes": NUM_CLASSES
-            }
+                "num_classes": NUM_CLASSES,
+            },
         )
     else:
         quit()
@@ -132,11 +132,14 @@ if __name__ == "__main__":
 
     # Sampling
     if SAMPLE[0]:
-        # model_frame.load_model(MODEL_PATH)
+        model_frame.load_model(MODEL_PATH)
         img_list: sample_output = model_frame.sample(SAMPLE[1])
         for i, img in enumerate(img_list):
             print(img_list[i])
-            plt.figure(i)
+            fig = plt.figure(i)
             plt.imshow(img)
             name = "{path}figure_{i}.png".format(path="./images/", i=i)
-            fig.savefig(fname=name)
+            try:
+                fig.savefig(fname=name)
+            except Exception as E:
+                print(e)
