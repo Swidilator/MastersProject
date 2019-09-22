@@ -85,14 +85,14 @@ class GlobalGenerator(torch.nn.Module):
         out = self.u17(out)
         out = self.u18(out)
 
-        # out = self.c19(out)
-        return out
+        img = self.c19(out)
+        return out, img
 
 
 class LocalEnhancer(torch.nn.Module):
     def __init__(self, input_channel_count):
         super(LocalEnhancer, self).__init__()
-
+        self.reflect_pad: nn.ReflectionPad2d = nn.ReflectionPad2d(3)
         self.c1: CCIRBlock = CCIRBlock(64, input_channel_count)
 
         self.d2: DCIRBlock = DCIRBlock(64, self.c1.get_output_filter_count)
@@ -103,23 +103,26 @@ class LocalEnhancer(torch.nn.Module):
 
         self.u6: UCIRBlock = UCIRBlock(32, self.r5.get_output_filter_count)
 
-        self.u7: UCIRBlock = UCIRBlock(3, self.u6.get_output_filter_count)
+        self.c7: CCIRBlock = CCIRBlock(3, self.u6.get_output_filter_count)
 
         self.tan_h = nn.Tanh()
 
     def forward(self, inputs: generator_input) -> torch.Tensor:
+        # out: torch.Tensor = self.reflect_pad(inputs[0])
         out: torch.Tensor = self.c1(inputs[0])
+        out = self.tan_h(out).clone()
 
         # Add the output of the global generator
-        out = self.d2(out) + inputs[1]
-        del inputs
+
+        out = self.d2(out) + inputs[1][0]
+        # del inputs
 
         out = self.r3(out)
         out = self.r4(out)
         out = self.r5(out)
 
         out = self.u6(out)
-        out = self.u7(out)
+        out = self.c7(out)
 
         out = self.tan_h(out).clone()
-        return out
+        return out, inputs[1][1]
