@@ -16,11 +16,12 @@ class CRNDataset(Dataset):
         split: str,
         num_classes: int,
         should_flip: bool,
-        subset_size: int
+        subset_size: int,
     ):
         super(CRNDataset, self).__init__()
         self.num_classes = num_classes
         self.should_flip = should_flip
+        self.subset_size = subset_size
 
         self.dataset: Cityscapes = Cityscapes(
             root=root, split=split, mode="fine", target_type="semantic"
@@ -77,7 +78,7 @@ class GANDataset(Dataset):
         split: str,
         num_classes: int,
         should_flip: bool,
-        subset_size: int
+        subset_size: int,
     ):
         super(GANDataset, self).__init__()
         self.num_classes = num_classes
