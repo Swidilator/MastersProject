@@ -16,6 +16,7 @@ class CRNDataset(Dataset):
         split: str,
         num_classes: int,
         should_flip: bool,
+        subset_size: int
     ):
         super(CRNDataset, self).__init__()
         self.num_classes = num_classes
@@ -61,7 +62,11 @@ class CRNDataset(Dataset):
         return img, msk
 
     def __len__(self):
-        return self.dataset.__len__()
+
+        if self.subset_size == 0 or self.dataset.__len__() < self.subset_size:
+            return self.dataset.__len__()
+        else:
+            return self.subset_size
 
 
 class GANDataset(Dataset):
@@ -72,10 +77,12 @@ class GANDataset(Dataset):
         split: str,
         num_classes: int,
         should_flip: bool,
+        subset_size: int
     ):
         super(GANDataset, self).__init__()
         self.num_classes = num_classes
         self.should_flip = should_flip
+        self.subset_size = subset_size
 
         self.dataset: Cityscapes = Cityscapes(
             root=root, split=split, mode="fine", target_type="semantic"
@@ -117,4 +124,8 @@ class GANDataset(Dataset):
         return img, msk
 
     def __len__(self):
-        return self.dataset.__len__()
+
+        if self.subset_size == 0 or self.dataset.__len__() < self.subset_size:
+            return self.dataset.__len__()
+        else:
+            return self.subset_size

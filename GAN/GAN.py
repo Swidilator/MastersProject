@@ -21,44 +21,57 @@ class GANFramework(MastersModel):
         self,
         device: torch.device,
         data_path: str,
-        max_input_height_width: image_size,
-        num_classes: int,
         batch_size: int,
         num_loader_workers: int,
+        subset_size: int,
+        settings: dict,
     ):
-        super(GANFramework, self).__init__(device=device)
-        self.batch_size = batch_size
+        super(GANFramework, self).__init__(
+            device, data_path, batch_size, num_loader_workers, subset_size, settings
+        )
+        self.model_name: str = "GAN"
 
-        self.model_name: str = "GAN_Latest.pt"
+        max_input_height_width: tuple = settings["max_input_height_width"]
+        num_classes: int = settings["num_classes"]
+
+        num_discriminators: int = 3
 
         self.__set_data_loader__(
             data_path,
-            max_input_height_width,
-            num_classes,
             batch_size,
             num_loader_workers,
+            subset_size,
+            settings={
+                "max_input_height_width": max_input_height_width,
+                "num_classes": num_classes,
+            },
         )
 
-        self.__set_model__(num_classes, 3)
+        self.__set_model__(
+            settings={
+                "num_classes": num_classes,
+                "num_discriminators": num_discriminators,
+            }
+        )
 
+    # TODO Confirm WandB works on multiple models
     @property
-    def wandb_trainable_model(self):
-        pass
+    def wandb_trainable_model(self) -> tuple:
+        return tuple([self.generator, self.discriminator])
 
     def __set_data_loader__(
-        self,
-        data_path,
-        max_input_height_width,
-        num_classes,
-        batch_size,
-        num_loader_workers,
+        self, data_path, batch_size, num_loader_workers, subset_size, settings
     ):
+        max_input_height_width = settings["max_input_height_width"]
+        num_classes: int = settings["num_classes"]
+
         self.__data_set_train__ = GANDataset(
             max_input_height_width=max_input_height_width,
             root=data_path,
             split="train",
             num_classes=num_classes,
             should_flip=True,
+            subset_size=subset_size,
         )
 
         self.data_loader_train: torch.utils.data.DataLoader = torch.utils.data.DataLoader(
@@ -98,7 +111,10 @@ class GANFramework(MastersModel):
             num_workers=num_loader_workers,
         )
 
-    def __set_model__(self, num_classes, num_discriminators: int) -> None:
+    def __set_model__(self, settings) -> None:
+
+        num_classes = settings["num_classes"]
+        num_discriminators = settings["num_discriminators"]
 
         self.generator: Generator = Generator(num_classes)
         self.generator = self.generator.to(self.device)
@@ -107,12 +123,12 @@ class GANFramework(MastersModel):
         self.discriminator = self.discriminator.to(self.device)
 
         self.optimizer_D: torch.optim.Adam = torch.optim.Adam(
-                self.discriminator.parameters(),
-                lr=0.0002,
-                # betas=(0.9, 0.999),
-                # eps=1e-08,
-                # weight_decay=0,
-            )
+            self.discriminator.parameters(),
+            lr=0.0002,
+            # betas=(0.9, 0.999),
+            # eps=1e-08,
+            # weight_decay=0,
+        )
 
         self.optimizer_G = torch.optim.Adam(
             self.generator.parameters(),
@@ -126,23 +142,21 @@ class GANFramework(MastersModel):
         self.criterion = nn.BCELoss()
 
     def save_model(self, model_dir: str, snapshot: bool = False) -> None:
-        localtime: time.localtime() = time.localtime(time.time())
-        model_snapshot: str = "CRN" + "_"
-        model_snapshot = model_snapshot + str(localtime.tm_year) + "_"
-        model_snapshot = model_snapshot + str(localtime.tm_mon) + "_"
-        model_snapshot = model_snapshot + str(localtime.tm_mday) + "_"
-        model_snapshot = model_snapshot + str(localtime.tm_hour) + "_"
-        model_snapshot = model_snapshot + str(localtime.tm_min) + "_"
-        model_snapshot = model_snapshot + str(localtime.tm_sec) + ".pt"
+        super().save_model(model_dir, snapshot)
 
-        save_dict: dict = {"model_state_dict_gen": (self.generator.state_dict(),),
-                           "model_state_dict_disc": self.discriminator.state_dict()}
+        model_snapshot: str = self.__get_model_snapshot_name__()
+
+        save_dict: dict = {
+            "model_state_dict_gen": (self.generator.state_dict()),
+            "model_state_dict_disc": self.discriminator.state_dict(),
+        }
 
         if snapshot:
             torch.save(save_dict, model_dir + model_snapshot)
-        torch.save(save_dict, model_dir + self.model_name)
+        torch.save(save_dict, model_dir + self.model_name + "_Latest.pt")
 
     def load_model(self, model_dir: str, model_snapshot: str = None) -> None:
+        super().load_model(model_dir, model_snapshot)
         if model_snapshot is not None:
             checkpoint = torch.load(
                 model_dir + model_snapshot, map_location=self.device
@@ -151,7 +165,7 @@ class GANFramework(MastersModel):
             self.discriminator.load_state_dict(checkpoint["model_state_dict_disc"])
         else:
             checkpoint = torch.load(
-                model_dir + self.model_name, map_location=self.device
+                model_dir + self.model_name + "_Latest.pt", map_location=self.device
             )
             self.generator.load_state_dict(checkpoint["model_state_dict_gen"])
             self.discriminator.load_state_dict(checkpoint["model_state_dict_disc"])

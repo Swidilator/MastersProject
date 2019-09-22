@@ -54,6 +54,7 @@ if __name__ == "__main__":
     WANDB: bool = False
     SAVE_EVERY_EPOCH: bool = True
     LOAD_BEFORE_TRAIN: bool = False
+    SUBSET_SIZE: int = 2000
     # CRN
     UPDATE_PL_LAMBDAS: bool = False
 
@@ -64,24 +65,30 @@ if __name__ == "__main__":
         model_frame: CRNFramework = CRNFramework(
             device=device,
             data_path=DATA_PATH,
-            input_tensor_size=INPUT_TENSOR_SIZE,
-            max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
-            num_output_images=NUM_OUTPUT_IMAGES,
-            num_inner_channels=NUM_INNER_CHANNELS,
-            num_classes=NUM_CLASSES,
             batch_size=BATCH_SIZE,
             num_loader_workers=NUM_LOADER_WORKERS,
-            history_len=HISTORY_LEN,
+            subset_size=SUBSET_SIZE,
+            settings={
+                "input_tensor_size": CRN_INPUT_TENSOR_SIZE,
+                "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
+                "num_output_images": CRN_NUM_OUTPUT_IMAGES,
+                "num_inner_channels": CRN_NUM_INNER_CHANNELS,
+                "num_classes": NUM_CLASSES,
+                "history_len": CRN_HISTORY_LEN
+            }
         )
 
     elif MODEL == "GAN":
         model_frame: GANFramework = GANFramework(
             device=device,
             data_path=DATA_PATH,
-            max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
-            num_classes=NUM_CLASSES,
             batch_size=BATCH_SIZE,
             num_loader_workers=NUM_LOADER_WORKERS,
+            subset_size=SUBSET_SIZE,
+            settings={
+                "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
+                "num_classes": NUM_CLASSES
+            }
         )
     else:
         quit()
@@ -103,7 +110,8 @@ if __name__ == "__main__":
             model_frame.load_model(MODEL_PATH)
 
         # Watch if set
-        no_except(wandb.watch, model_frame.wandb_trainable_model)
+        for val in model_frame.wandb_trainable_model:
+            no_except(wandb.watch, val)
 
         for i in range(TRAIN[1]):
             if i % 5 == 0:
