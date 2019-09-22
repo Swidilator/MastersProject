@@ -5,6 +5,8 @@ from matplotlib import pyplot as plt
 from CRN.CRN import CRNFramework
 from GAN.GAN import GANFramework
 from Helper_Stuff import *
+from typing import Optional
+from Training_Framework import MastersModel
 import wandb
 
 # from torchviz import make_dot
@@ -14,17 +16,6 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-    # General Model Settings
-    MAX_INPUT_HEIGHT_WIDTH: tuple = (64, 128)
-    NUM_CLASSES: int = 35
-    BATCH_SIZE: int = 1
-
-    # CRN
-    INPUT_TENSOR_SIZE: tuple = (4, 8)
-    NUM_OUTPUT_IMAGES: int = 1
-    NUM_INNER_CHANNELS = 1024
-    HISTORY_LEN: int = 100
 
     # System Settings
     PREFER_CUDA: bool = True
@@ -39,7 +30,7 @@ if __name__ == "__main__":
 
     if PREFER_CUDA:
         if torch.cuda.is_available():
-            device = torch.device("cuda")
+            device = torch.device("cuda:0")
             print("Device: CUDA")
         else:
             device = torch.device("cpu")
@@ -48,18 +39,30 @@ if __name__ == "__main__":
         device = torch.device("cpu")
         print("Device: CPU")
 
+    # Model Settings
+    MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
+    NUM_CLASSES: int = 35
+    BATCH_SIZE: int = 2
+    # CRN
+    CRN_INPUT_TENSOR_SIZE: tuple = (4, 8)
+    CRN_NUM_OUTPUT_IMAGES: int = 1
+    CRN_NUM_INNER_CHANNELS = 1024
+    CRN_HISTORY_LEN: int = 100
+
     # Run Specific Settings
-    TRAIN: tuple = (False, 100)
+    TRAIN: tuple = (True, 60)
     SAMPLE: tuple = (True, 1)
     WANDB: bool = False
-    SAVE_EVERY_EPOCH: bool = True
+    SAVE_EVERY_EPOCH: bool = False
     LOAD_BEFORE_TRAIN: bool = False
     SUBSET_SIZE: int = 2000
     # CRN
-    UPDATE_PL_LAMBDAS: bool = False
+    CRN_UPDATE_PL_LAMBDAS: bool = False
 
     # Choose Model
     MODEL: str = "GAN"
+
+    model_frame: Optional[MastersModel] = None
 
     if MODEL == "CRN":
         model_frame: CRNFramework = CRNFramework(
@@ -97,10 +100,10 @@ if __name__ == "__main__":
     if TRAIN[0]:
         if WANDB:
             wandb.init(
-                project="crn",
+                project=MODEL.lower(),
                 config={
                     "Batch Size": BATCH_SIZE,
-                    "Inner Channels": NUM_INNER_CHANNELS,
+                    "Inner Channels": CRN_NUM_INNER_CHANNELS,
                     "Output Size": MAX_INPUT_HEIGHT_WIDTH,
                     "Training Machine": TRAINING_MACHINE,
                 },
@@ -115,7 +118,7 @@ if __name__ == "__main__":
 
         for i in range(TRAIN[1]):
             if i % 5 == 0:
-                loss_total, _ = model_frame.train(UPDATE_PL_LAMBDAS)
+                loss_total, _ = model_frame.train(CRN_UPDATE_PL_LAMBDAS)
             else:
                 loss_total, _ = model_frame.train(False)
             no_except(wandb.log, {"Epoch Loss": loss_total * BATCH_SIZE, "Epoch": i})
@@ -135,4 +138,5 @@ if __name__ == "__main__":
             print(img_list[i])
             plt.figure(i)
             plt.imshow(img)
-            plt.show()
+            name = "{path}figure_{i}.png".format(path="./images/", i=i)
+            fig.savefig(fname=name)

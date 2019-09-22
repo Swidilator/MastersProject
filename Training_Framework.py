@@ -16,7 +16,7 @@ class MastersModel(ABC):
         batch_size: int,
         num_loader_workers: int,
         subset_size: int,
-        settings: dict
+        settings: dict,
     ):
         super(MastersModel, self).__init__()
 
@@ -28,7 +28,6 @@ class MastersModel(ABC):
         self.num_loader_workers: int = num_loader_workers
         self.subset_size: int = subset_size
         self.settings: dict = settings
-
 
     @property
     @abstractmethod
