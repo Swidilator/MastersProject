@@ -15,23 +15,23 @@ class FullDiscriminator(torch.nn.Module):
         self.discriminator_3: SingleDiscriminator = SingleDiscriminator(self.device)
         self.discriminator_3 = self.discriminator_3.to(self.device)
 
-    def forward(self, input) -> torch.Tensor:
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
 
-        output: torch.Tensor = self.discriminator_1(input)
+        output: torch.Tensor = self.discriminator_1(input).view(-1)
 
-        new_size: tuple = (int(self.input_size[0] / 2), int(self.input_size[1] / 2))
+        new_size: tuple = (int(input.shape[2] / 2), int(input.shape[3] / 2))
         input_small = torch.nn.functional.interpolate(
             input=input, size=new_size, mode="bilinear"
         )
-        output = output + self.discriminator_2(input_small)
+        output = torch.cat((output, self.discriminator_2(input_small).view(-1)))
 
-        new_size: tuple = (int(self.input_size[0] / 4), int(self.input_size[1] / 4))
+        new_size: tuple = (int(input.shape[2] / 4), int(input.shape[3] / 4))
         input_small = torch.nn.functional.interpolate(
             input=input, size=new_size, mode="bilinear"
         )
-        output = output + self.discriminator_2(input_small)
+        output = torch.cat((output, self.discriminator_3(input_small).view(-1)))
 
-        output = output / 3
+        # output = output / 3
 
         return output
 
@@ -63,6 +63,6 @@ class SingleDiscriminator(torch.nn.Module):
         out: torch.Tensor = self.cl4(out)
         out = self.final_conv(out)
         out = self.sigmoid(out)
-        out = torch.mean(out, axis=(1, 2, 3))
+        # out = torch.mean(out, axis=(1, 2, 3))
 
         return out
