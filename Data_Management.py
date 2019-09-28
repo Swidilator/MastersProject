@@ -17,11 +17,13 @@ class CRNDataset(Dataset):
         num_classes: int,
         should_flip: bool,
         subset_size: int,
+        noise: bool,
     ):
         super(CRNDataset, self).__init__()
-        self.num_classes = num_classes
-        self.should_flip = should_flip
-        self.subset_size = subset_size
+        self.num_classes: int = num_classes
+        self.should_flip: bool = should_flip
+        self.subset_size: int = subset_size
+        self.noise: bool = noise
 
         self.dataset: Cityscapes = Cityscapes(
             root=root, split=split, mode="fine", target_type="semantic"
@@ -58,8 +60,17 @@ class CRNDataset(Dataset):
             img = transforms.functional.hflip(img)
             msk = transforms.functional.hflip(msk)
 
-        img = self.image_resize_transform(img)
-        msk = self.mask_resize_transform(msk)
+        img: torch.Tensor = self.image_resize_transform(img)
+        msk: torch.Tensor = self.mask_resize_transform(msk)
+        if self.noise and torch.rand(1).item() > 0.5:
+            img = img + torch.normal(0, 0.02, img.size())
+            img[img > 1] = 1
+            img[img < -1] = -1
+        if self.noise and torch.rand(1).item() > 0.5:
+            msk_noise = torch.normal(0.9, 0.1, msk.size())
+            msk_noise = msk_noise.int().float()
+            # print(msk_noise.sum() / self.num_classes)
+            msk = msk + msk_noise
         return img, msk
 
     def __len__(self):
