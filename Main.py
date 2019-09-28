@@ -2,8 +2,8 @@ import torch
 import os
 from matplotlib import pyplot as plt
 
-from CRN.CRN import CRNFramework
-from GAN.GAN import GANFramework
+from CRN.CRN_Framework import CRNFramework
+from GAN.GAN_Framework import GANFramework
 from Helper_Stuff import *
 from typing import Optional
 from Training_Framework import MastersModel
@@ -42,7 +42,8 @@ if __name__ == "__main__":
     # Model Settings
     MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
     NUM_CLASSES: int = 35
-    BATCH_SIZE: int = 2
+    BATCH_SIZE_SLICE: int = 4
+    BATCH_SIZE_TOTAL: int = 8
     # CRN
     CRN_INPUT_TENSOR_SIZE: tuple = (4, 8)
     CRN_NUM_OUTPUT_IMAGES: int = 1
@@ -68,7 +69,8 @@ if __name__ == "__main__":
         model_frame: CRNFramework = CRNFramework(
             device=device,
             data_path=DATA_PATH,
-            batch_size=BATCH_SIZE,
+            batch_size_slice=BATCH_SIZE_SLICE,
+            batch_size_total=BATCH_SIZE_TOTAL,
             num_loader_workers=NUM_LOADER_WORKERS,
             subset_size=SUBSET_SIZE,
             settings={
@@ -85,7 +87,7 @@ if __name__ == "__main__":
         model_frame: GANFramework = GANFramework(
             device=device,
             data_path=DATA_PATH,
-            batch_size=BATCH_SIZE,
+            batch_size=BATCH_SIZE_TOTAL,
             num_loader_workers=NUM_LOADER_WORKERS,
             subset_size=SUBSET_SIZE,
             settings={
@@ -102,10 +104,12 @@ if __name__ == "__main__":
             wandb.init(
                 project=MODEL.lower(),
                 config={
-                    "Batch Size": BATCH_SIZE,
+                    "Batch Size Total": BATCH_SIZE_TOTAL,
+                    "Batch Size Slice": BATCH_SIZE_SLICE,
                     "Inner Channels": CRN_NUM_INNER_CHANNELS,
                     "Output Size": MAX_INPUT_HEIGHT_WIDTH,
                     "Training Machine": TRAINING_MACHINE,
+                    "Training Samples": SUBSET_SIZE,
                 },
             )
 
@@ -121,9 +125,30 @@ if __name__ == "__main__":
                 loss_total, _ = model_frame.train(CRN_UPDATE_PL_LAMBDAS)
             else:
                 loss_total, _ = model_frame.train(False)
-            no_except(wandb.log, {"Epoch Loss": loss_total * BATCH_SIZE, "Epoch": i})
+            no_except(
+                wandb.log,
+                {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i},
+                commit=False,
+            )
             # print(i, loss_total, model_frame.loss_net.loss_layer_scales)
             del loss_total
+            if SAMPLE[0]:
+                # model_frame.load_model(MODEL_PATH)
+                img_list: sample_output = model_frame.sample(SAMPLE[1])
+                for j, img in enumerate(img_list):
+                    print(img_list[j])
+                    fig = plt.figure(j)
+                    plt.imshow(img)
+                    caption: str = str("Sample Image " + str(i) + str(" ") + str(j))
+                    no_except(
+                        wandb.log,
+                        {"Sample Image": [wandb.Image(img, caption=caption)]},
+                        commit=False,
+                    )
+                    name = "{path}figure_{i}_{j}.png".format(path="./images/", i=i, j=j)
+                    fig.savefig(fname=name)
+                    del fig
+            wandb.log(commit=True)
             if SAVE_EVERY_EPOCH:
                 model_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
@@ -131,6 +156,15 @@ if __name__ == "__main__":
         # quit()
 
     # Sampling
+    # if SAMPLE[0]:
+    #     # model_frame.load_model(MODEL_PATH)
+    #     img_list: sample_output = model_frame.sample(SAMPLE[1])
+    #     for i, img in enumerate(img_list):
+    #         print(img_list[i])
+    #         plt.figure(i)
+    #         plt.imshow(img)
+    #         plt.show()
+
     if SAMPLE[0]:
         model_frame.load_model(MODEL_PATH)
         img_list: sample_output = model_frame.sample(SAMPLE[1])
@@ -142,4 +176,4 @@ if __name__ == "__main__":
             try:
                 fig.savefig(fname=name)
             except Exception as E:
-                print(e)
+                print(E)

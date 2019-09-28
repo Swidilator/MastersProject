@@ -13,7 +13,8 @@ class MastersModel(ABC):
         self,
         device: torch.device,
         data_path: str,
-        batch_size: int,
+        batch_size_slice: int,
+        batch_size_total: int,
         num_loader_workers: int,
         subset_size: int,
         settings: dict,
@@ -24,7 +25,8 @@ class MastersModel(ABC):
 
         self.device: torch.device = device
         self.data_path: str = data_path
-        self.batch_size: int = batch_size
+        self.batch_size_slice: int = batch_size_slice
+        self.batch_size_total: int = batch_size_total
         self.num_loader_workers: int = num_loader_workers
         self.subset_size: int = subset_size
         self.settings: dict = settings
@@ -44,7 +46,7 @@ class MastersModel(ABC):
     def __set_data_loader__(
         self,
         data_path: str,
-        batch_size: int,
+        batch_size_total: int,
         num_loader_workers: int,
         subset_size: int,
         settings: dict,
