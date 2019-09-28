@@ -16,10 +16,85 @@ class CRNDataset(Dataset):
         split: str,
         num_classes: int,
         should_flip: bool,
+        subset_size: int,
+        noise: bool,
     ):
         super(CRNDataset, self).__init__()
+        self.num_classes: int = num_classes
+        self.should_flip: bool = should_flip
+        self.subset_size: int = subset_size
+        self.noise: bool = noise
+
+        self.dataset: Cityscapes = Cityscapes(
+            root=root, split=split, mode="fine", target_type="semantic"
+        )
+
+        self.max_input_height_width = max_input_height_width
+
+        self.image_resize_transform = transforms.Compose(
+            [
+                transforms.Resize(max_input_height_width, Image.BILINEAR),
+                transforms.ToTensor(),
+            ]
+        )
+        self.mask_resize_transform = transforms.Compose(
+            [
+                transforms.Resize(
+                    max_input_height_width,
+                    Image.NEAREST,  # NEAREST as the values are categories and are not continuous
+                ),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: (x * 255).long()[0]),
+                transforms.Lambda(lambda x: one_hot(x, self.num_classes)),
+                transforms.Lambda(lambda x: x.transpose(0, 2).transpose(1, 2)),
+                transforms.Lambda(lambda x: x.float()),
+            ]
+        )
+
+    def __getitem__(self, index):
+        img, msk = self.dataset.__getitem__(index)
+
+        flip: bool = random()
+
+        if self.should_flip and flip > 0.5:
+            img = transforms.functional.hflip(img)
+            msk = transforms.functional.hflip(msk)
+
+        img: torch.Tensor = self.image_resize_transform(img)
+        msk: torch.Tensor = self.mask_resize_transform(msk)
+        if self.noise and torch.rand(1).item() > 0.5:
+            img = img + torch.normal(0, 0.02, img.size())
+            img[img > 1] = 1
+            img[img < -1] = -1
+        if self.noise and torch.rand(1).item() > 0.5:
+            msk_noise = torch.normal(0.9, 0.1, msk.size())
+            msk_noise = msk_noise.int().float()
+            # print(msk_noise.sum() / self.num_classes)
+            msk = msk + msk_noise
+        return img, msk
+
+    def __len__(self):
+
+        if self.subset_size == 0 or self.dataset.__len__() < self.subset_size:
+            return self.dataset.__len__()
+        else:
+            return self.subset_size
+
+
+class GANDataset(Dataset):
+    def __init__(
+        self,
+        max_input_height_width: tuple,
+        root: str,
+        split: str,
+        num_classes: int,
+        should_flip: bool,
+        subset_size: int,
+    ):
+        super(GANDataset, self).__init__()
         self.num_classes = num_classes
         self.should_flip = should_flip
+        self.subset_size = subset_size
 
         self.dataset: Cityscapes = Cityscapes(
             root=root, split=split, mode="fine", target_type="semantic"
@@ -61,47 +136,8 @@ class CRNDataset(Dataset):
         return img, msk
 
     def __len__(self):
-        return self.dataset.__len__()
 
-
-class GANDataset(Dataset):
-    def __init__(
-        self, max_input_height_width: tuple, root: str, split: str, num_classes: int
-    ):
-        super(GANDataset, self).__init__()
-        self.num_classes = num_classes
-        self.dataset: Cityscapes = Cityscapes(
-            root=root, split=split, mode="fine", target_type="semantic"
-        )
-
-        self.max_input_height_width = max_input_height_width
-
-        self.image_resize_transform = transforms.Compose(
-            [
-                transforms.Resize(max_input_height_width, Image.BILINEAR),
-                transforms.ToTensor(),
-            ]
-        )
-        self.mask_resize_transform = transforms.Compose(
-            [
-                transforms.Resize(
-                    max_input_height_width,
-                    Image.NEAREST,  # NEAREST as the values are categories and are not continuous
-                ),
-                transforms.ToTensor(),
-                transforms.Lambda(lambda x: (x * 255).long()[0]),
-                transforms.Lambda(lambda x: one_hot(x, self.num_classes)),
-                transforms.Lambda(lambda x: x.transpose(0, 2).transpose(1, 2)),
-                transforms.Lambda(lambda x: x.float()),
-            ]
-        )
-
-    def __getitem__(self, index):
-        img, msk = self.dataset.__getitem__(index)
-
-        img = self.image_resize_transform(img)
-        msk = self.mask_resize_transform(msk)
-        return img, msk
-
-    def __len__(self):
-        return self.dataset.__len__()
+        if self.subset_size == 0 or self.dataset.__len__() < self.subset_size:
+            return self.dataset.__len__()
+        else:
+            return self.subset_size

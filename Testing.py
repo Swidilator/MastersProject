@@ -2,8 +2,8 @@
 #%%
 from Data_Management import CRNDataset
 import torch
-from Perceptual_Loss import PerceptualLossNetwork
-from CRN import CRN
+from CRN.Perceptual_Loss import PerceptualLossNetwork
+from CRN.CRN import CRN
 
 
 #%%

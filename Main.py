@@ -2,40 +2,35 @@ import torch
 import os
 from matplotlib import pyplot as plt
 
-from CRN.CRN import CRNFramework
+from CRN.CRN_Framework import CRNFramework
+from GAN.GAN_Framework import GANFramework
 from Helper_Stuff import *
+from typing import Optional
+from Training_Framework import MastersModel
 import wandb
 
 # from torchviz import make_dot
 
 if __name__ == "__main__":
+    # Determinism
     torch.manual_seed(0)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    MAX_INPUT_HEIGHT_WIDTH: tuple = (128, 256)
-    INPUT_TENSOR_SIZE: tuple = (4, 8)
-    NUM_OUTPUT_IMAGES: int = 1
-    NUM_CLASSES: int = 35
-    NUM_INNER_CHANNELS = 512
-    BATCH_SIZE: int = 2
-    HISTORY_LEN: int = 100
-
+    # System Settings
     PREFER_CUDA: bool = True
     NUM_LOADER_WORKERS: int = 6
+
     MODEL_PATH: str = "./Models/"
-
     CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
-    print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
-
-    TRAINING_MACHINE: str = os.environ["TRAINING_MACHINE"]
-    print("Training Machine: {machine}".format(machine=TRAINING_MACHINE))
-
     DATA_PATH: str = CITYSCAPES_PATH
+    TRAINING_MACHINE: str = os.environ["TRAINING_MACHINE"]
+    print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
+    print("Training Machine: {machine}".format(machine=TRAINING_MACHINE))
 
     if PREFER_CUDA:
         if torch.cuda.is_available():
-            device = torch.device("cuda")
+            device = torch.device("cuda:0")
             print("Device: CUDA")
         else:
             device = torch.device("cpu")
@@ -44,38 +39,77 @@ if __name__ == "__main__":
         device = torch.device("cpu")
         print("Device: CPU")
 
-    model_frame: CRNFramework = CRNFramework(
-        device=device,
-        data_path=DATA_PATH,
-        input_tensor_size=INPUT_TENSOR_SIZE,
-        max_input_height_width=MAX_INPUT_HEIGHT_WIDTH,
-        num_output_images=NUM_OUTPUT_IMAGES,
-        num_inner_channels=NUM_INNER_CHANNELS,
-        num_classes=NUM_CLASSES,
-        batch_size=BATCH_SIZE,
-        num_loader_workers=NUM_LOADER_WORKERS,
-        history_len=HISTORY_LEN,
-    )
-
-    TRAIN: tuple = (True, 100)
-    SAMPLE: tuple = (False, 20)
-    WANDB: bool = True
-    SAVE_EVERY_EPOCH: bool = True
-    LOAD_BEFORE_TRAIN: bool = False
-
+    # Model Settings
+    MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
+    NUM_CLASSES: int = 35
+    BATCH_SIZE_SLICE: int = 4
+    BATCH_SIZE_TOTAL: int = 8
     # CRN
-    UPDATE_PL_LAMBDAS: bool = True
+    CRN_INPUT_TENSOR_SIZE: tuple = (4, 8)
+    CRN_NUM_OUTPUT_IMAGES: int = 1
+    CRN_NUM_INNER_CHANNELS = 1024
+    CRN_HISTORY_LEN: int = 100
+
+    # Run Specific Settings
+    TRAIN: tuple = (True, 60)
+    SAMPLE: tuple = (True, 1)
+    WANDB: bool = False
+    SAVE_EVERY_EPOCH: bool = False
+    LOAD_BEFORE_TRAIN: bool = False
+    SUBSET_SIZE: int = 2000
+    # CRN
+    CRN_UPDATE_PL_LAMBDAS: bool = False
+
+    # Choose Model
+    MODEL: str = "GAN"
+
+    model_frame: Optional[MastersModel] = None
+
+    if MODEL == "CRN":
+        model_frame: CRNFramework = CRNFramework(
+            device=device,
+            data_path=DATA_PATH,
+            batch_size_slice=BATCH_SIZE_SLICE,
+            batch_size_total=BATCH_SIZE_TOTAL,
+            num_loader_workers=NUM_LOADER_WORKERS,
+            subset_size=SUBSET_SIZE,
+            settings={
+                "input_tensor_size": CRN_INPUT_TENSOR_SIZE,
+                "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
+                "num_output_images": CRN_NUM_OUTPUT_IMAGES,
+                "num_inner_channels": CRN_NUM_INNER_CHANNELS,
+                "num_classes": NUM_CLASSES,
+                "history_len": CRN_HISTORY_LEN,
+            },
+        )
+
+    elif MODEL == "GAN":
+        model_frame: GANFramework = GANFramework(
+            device=device,
+            data_path=DATA_PATH,
+            batch_size=BATCH_SIZE_TOTAL,
+            num_loader_workers=NUM_LOADER_WORKERS,
+            subset_size=SUBSET_SIZE,
+            settings={
+                "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
+                "num_classes": NUM_CLASSES,
+            },
+        )
+    else:
+        quit()
 
     # Training
     if TRAIN[0]:
         if WANDB:
             wandb.init(
-                project="crn",
+                project=MODEL.lower(),
                 config={
-                    "Batch Size": BATCH_SIZE,
-                    "Inner Channels": NUM_INNER_CHANNELS,
+                    "Batch Size Total": BATCH_SIZE_TOTAL,
+                    "Batch Size Slice": BATCH_SIZE_SLICE,
+                    "Inner Channels": CRN_NUM_INNER_CHANNELS,
                     "Output Size": MAX_INPUT_HEIGHT_WIDTH,
                     "Training Machine": TRAINING_MACHINE,
+                    "Training Samples": SUBSET_SIZE,
                 },
             )
 
@@ -83,16 +117,38 @@ if __name__ == "__main__":
             model_frame.load_model(MODEL_PATH)
 
         # Watch if set
-        no_except(wandb.watch, model_frame.wandb_trainable_model)
+        for val in model_frame.wandb_trainable_model:
+            no_except(wandb.watch, val)
 
         for i in range(TRAIN[1]):
             if i % 5 == 0:
-                loss_total, _ = model_frame.train(UPDATE_PL_LAMBDAS)
+                loss_total, _ = model_frame.train(CRN_UPDATE_PL_LAMBDAS)
             else:
                 loss_total, _ = model_frame.train(False)
-            no_except(wandb.log, {"Epoch Loss": loss_total * BATCH_SIZE, "Epoch": i})
+            no_except(
+                wandb.log,
+                {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i},
+                commit=False,
+            )
             # print(i, loss_total, model_frame.loss_net.loss_layer_scales)
             del loss_total
+            if SAMPLE[0]:
+                # model_frame.load_model(MODEL_PATH)
+                img_list: sample_output = model_frame.sample(SAMPLE[1])
+                for j, img in enumerate(img_list):
+                    print(img_list[j])
+                    fig = plt.figure(j)
+                    plt.imshow(img)
+                    caption: str = str("Sample Image " + str(i) + str(" ") + str(j))
+                    no_except(
+                        wandb.log,
+                        {"Sample Image": [wandb.Image(img, caption=caption)]},
+                        commit=False,
+                    )
+                    name = "{path}figure_{i}_{j}.png".format(path="./images/", i=i, j=j)
+                    fig.savefig(fname=name)
+                    del fig
+            wandb.log(commit=True)
             if SAVE_EVERY_EPOCH:
                 model_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
@@ -100,11 +156,24 @@ if __name__ == "__main__":
         # quit()
 
     # Sampling
+    # if SAMPLE[0]:
+    #     # model_frame.load_model(MODEL_PATH)
+    #     img_list: sample_output = model_frame.sample(SAMPLE[1])
+    #     for i, img in enumerate(img_list):
+    #         print(img_list[i])
+    #         plt.figure(i)
+    #         plt.imshow(img)
+    #         plt.show()
+
     if SAMPLE[0]:
         model_frame.load_model(MODEL_PATH)
         img_list: sample_output = model_frame.sample(SAMPLE[1])
         for i, img in enumerate(img_list):
             print(img_list[i])
-            plt.figure(i)
+            fig = plt.figure(i)
             plt.imshow(img)
-            plt.show()
+            name = "{path}figure_{i}.png".format(path="./images/", i=i)
+            try:
+                fig.savefig(fname=name)
+            except Exception as E:
+                print(E)
