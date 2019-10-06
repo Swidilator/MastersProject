@@ -17,6 +17,7 @@ class MastersModel(ABC):
         batch_size_total: int,
         num_loader_workers: int,
         subset_size: int,
+        use_tanh: bool,
         settings: dict,
     ):
         super(MastersModel, self).__init__()
@@ -29,6 +30,7 @@ class MastersModel(ABC):
         self.batch_size_total: int = batch_size_total
         self.num_loader_workers: int = num_loader_workers
         self.subset_size: int = subset_size
+        self.use_tanh: bool = use_tanh
         self.settings: dict = settings
 
     @property

@@ -20,6 +20,7 @@ class CRNFramework(MastersModel):
         batch_size_total: int,
         num_loader_workers: int,
         subset_size: int,
+        use_tanh: bool,
         settings: dict,
     ):
         super(CRNFramework, self).__init__(
@@ -29,6 +30,7 @@ class CRNFramework(MastersModel):
             batch_size_total,
             num_loader_workers,
             subset_size,
+            use_tanh,
             settings,
         )
         self.model_name: str = "CRN"
@@ -142,6 +144,7 @@ class CRNFramework(MastersModel):
         IMAGE_CHANNELS = 3
 
         self.crn: CRN = CRN(
+            use_tanh=self.use_tanh,
             input_tensor_size=input_tensor_size,
             final_image_size=max_input_height_width,
             num_output_images=self.num_output_images,
@@ -354,7 +357,7 @@ class CRNFramework(MastersModel):
             img, msk = self.__data_set_test__[val]
             msk = msk.to(self.device).unsqueeze(0)
             img_out: torch.Tensor = self.crn(inputs=(msk, None))
-            print(img_out.shape)
+            #print(img_out.shape)
             for img_no in range(self.num_output_images):
                 start_channel: int = img_no * 3
                 end_channel: int = (img_no + 1) * 3
