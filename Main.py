@@ -55,9 +55,10 @@ if __name__ == "__main__":
     TRAIN: tuple = (True, 60)
     SAMPLE: tuple = (True, 1)
     WANDB: bool = False
-    SAVE_EVERY_EPOCH: bool = False
-    LOAD_BEFORE_TRAIN: bool = False
-    SUBSET_SIZE: int = 2000
+    SAVE_EVERY_EPOCH: bool = True
+    LOAD_BEFORE_RUN: bool = False
+    SUBSET_SIZE: int = 256
+    IMAGE_OUTPUT_DIR: str = "./Images/"
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
 
@@ -100,6 +101,9 @@ if __name__ == "__main__":
     else:
         quit()
 
+    if LOAD_BEFORE_RUN:
+        model_frame.load_model(MODEL_PATH)
+
     # Training
     if TRAIN[0]:
         if WANDB:
@@ -114,9 +118,6 @@ if __name__ == "__main__":
                     "Training Samples": SUBSET_SIZE,
                 },
             )
-
-        if LOAD_BEFORE_TRAIN:
-            model_frame.load_model(MODEL_PATH)
 
         # Watch if set
         for val in model_frame.wandb_trainable_model:
@@ -137,6 +138,9 @@ if __name__ == "__main__":
             if SAMPLE[0]:
                 # model_frame.load_model(MODEL_PATH)
                 img_list: sample_output = model_frame.sample(SAMPLE[1])
+
+                if not os.path.exists(IMAGE_OUTPUT_DIR):
+                    os.makedirs(IMAGE_OUTPUT_DIR)
                 for j, img in enumerate(img_list):
                     print(img_list[j])
                     fig = plt.figure(j)
@@ -147,7 +151,7 @@ if __name__ == "__main__":
                         {"Sample Image": [wandb.Image(img, caption=caption)]},
                         commit=False,
                     )
-                    name = "{path}figure_{i}_{j}.png".format(path="./images/", i=i, j=j)
+                    name = "{path}figure_{i}_{j}.png".format(path=IMAGE_OUTPUT_DIR, i=i, j=j)
                     fig.savefig(fname=name)
                     del fig
             no_except(wandb.log, commit=True)
@@ -168,14 +172,14 @@ if __name__ == "__main__":
     #         plt.show()
 
     if SAMPLE[0]:
-        model_frame.load_model(MODEL_PATH)
+        if not os.path.exists(IMAGE_OUTPUT_DIR):
+            os.makedirs(IMAGE_OUTPUT_DIR)
+        # model_frame.load_model(MODEL_PATH)
         img_list: sample_output = model_frame.sample(SAMPLE[1])
         for i, img in enumerate(img_list):
             print(img_list[i])
             fig = plt.figure(i)
             plt.imshow(img)
-            name = "{path}figure_{i}.png".format(path="./images/", i=i)
-            try:
-                fig.savefig(fname=name)
-            except Exception as E:
-                print(E)
+            name = "{path}figure_{i}.png".format(path=IMAGE_OUTPUT_DIR, i=i)
+            fig.savefig(fname=name)
+            del fig
