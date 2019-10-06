@@ -49,7 +49,7 @@ if __name__ == "__main__":
     CRN_INPUT_TENSOR_SIZE: tuple = (4, 8)
     CRN_NUM_OUTPUT_IMAGES: int = 1
     CRN_NUM_INNER_CHANNELS = 1024
-    CRN_HISTORY_LEN: int = 100
+    CRN_HISTORY_LEN: int = 0
 
     # Run Specific Settings
     TRAIN: tuple = (True, 60)
