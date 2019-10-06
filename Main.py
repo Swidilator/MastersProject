@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     if PREFER_CUDA:
         if torch.cuda.is_available():
-            device = torch.device("cuda:0")
+            device = torch.device("cuda:1")
             print("Device: CUDA")
         else:
             device = torch.device("cpu")
@@ -42,8 +42,9 @@ if __name__ == "__main__":
     # Model Settings
     MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
     NUM_CLASSES: int = 35
-    BATCH_SIZE_SLICE: int = 4
-    BATCH_SIZE_TOTAL: int = 8
+    BATCH_SIZE_SLICE: int = 1
+    BATCH_SIZE_TOTAL: int = 16
+    USE_TANH: bool = True
     # CRN
     CRN_INPUT_TENSOR_SIZE: tuple = (4, 8)
     CRN_NUM_OUTPUT_IMAGES: int = 1
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     CRN_UPDATE_PL_LAMBDAS: bool = False
 
     # Choose Model
-    MODEL: str = "GAN"
+    MODEL: str = "CRN"
 
     model_frame: Optional[MastersModel] = None
 
@@ -73,6 +74,7 @@ if __name__ == "__main__":
             batch_size_total=BATCH_SIZE_TOTAL,
             num_loader_workers=NUM_LOADER_WORKERS,
             subset_size=SUBSET_SIZE,
+            use_tanh=USE_TANH,
             settings={
                 "input_tensor_size": CRN_INPUT_TENSOR_SIZE,
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
@@ -148,7 +150,7 @@ if __name__ == "__main__":
                     name = "{path}figure_{i}_{j}.png".format(path="./images/", i=i, j=j)
                     fig.savefig(fname=name)
                     del fig
-            wandb.log(commit=True)
+            no_except(wandb.log, commit=True)
             if SAVE_EVERY_EPOCH:
                 model_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
