@@ -45,8 +45,9 @@ class CRNDataset(Dataset):
                 ),
                 transforms.ToTensor(),
                 transforms.Lambda(lambda x: (x * 255).long()[0]),
-                transforms.Lambda(lambda x: one_hot(x, self.num_classes)),
+                transforms.Lambda(lambda x: one_hot(x, self.num_classes - 1)),
                 transforms.Lambda(lambda x: x.transpose(0, 2).transpose(1, 2)),
+                transforms.Lambda(lambda x: CRNDataset.__add_remaining_layer__(x)),
                 transforms.Lambda(lambda x: x.float()),
             ]
         )
@@ -80,6 +81,13 @@ class CRNDataset(Dataset):
             return self.dataset.__len__()
         else:
             return self.subset_size
+
+    @staticmethod
+    def __add_remaining_layer__(x: torch.Tensor):
+        layer: torch.Tensor = torch.zeros_like(x[0])
+        layer[x.sum(dim=0) == 0] = 1
+        return torch.cat((x, layer.unsqueeze(dim=0)), dim=0)
+
 
 
 class GANDataset(Dataset):
