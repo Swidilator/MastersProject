@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # Model Settings
     MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
-    NUM_CLASSES: int = 35
+    NUM_CLASSES: int = 36
     BATCH_SIZE_SLICE: int = 1
     BATCH_SIZE_TOTAL: int = 16
     USE_TANH: bool = True
