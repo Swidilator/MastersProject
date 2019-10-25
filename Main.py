@@ -90,7 +90,8 @@ if __name__ == "__main__":
         model_frame: GANFramework = GANFramework(
             device=device,
             data_path=DATA_PATH,
-            batch_size=BATCH_SIZE_TOTAL,
+            batch_size_slice=BATCH_SIZE_SLICE,
+            batch_size_total=BATCH_SIZE_TOTAL,
             num_loader_workers=NUM_LOADER_WORKERS,
             subset_size=SUBSET_SIZE,
             settings={
