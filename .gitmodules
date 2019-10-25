@@ -1,6 +1,6 @@
-[submodule "crn"]
-	path = crn
-	url = https://gitlab.com/Swidilator/crn.git
-[submodule "gan"]
-	path = gan
-	url = https://gitlab.com/Swidilator/gan.git
+[submodule "CRN"]
+	path = CRN
+	url = https://gitlab.com/Swidilator/CRN.git
+[submodule "GAN"]
+	path = GAN
+	url = https://gitlab.com/Swidilator/GAN.git
