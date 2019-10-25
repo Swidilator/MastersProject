@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.modules as modules
-from math import log2
-import time
-import random
 
-from Helper_Stuff import *
+from typing import Tuple, List, Any
+# from math import log2
+# import time
+# import random
+
 from GAN.Blocks import *
 
 import wandb
@@ -19,7 +20,7 @@ class Generator(torch.nn.Module):
         self.global_generator: GlobalGenerator = GlobalGenerator(input_channel_count)
         self.local_enhancer: LocalEnhancer = LocalEnhancer(input_channel_count)
 
-    def forward(self, inputs: gan_input) -> torch.Tensor:
+    def forward(self, inputs: Tuple[torch.Tensor, bool]) -> torch.Tensor:
         # TODO Check that this is dividing properly
         half_size: tuple = (inputs[0].shape[2] // 2, inputs[0].shape[3] // 2)
 
@@ -107,7 +108,7 @@ class LocalEnhancer(torch.nn.Module):
 
         self.tan_h = nn.Tanh()
 
-    def forward(self, inputs: generator_input) -> torch.Tensor:
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         # out: torch.Tensor = self.reflect_pad(inputs[0])
         out: torch.Tensor = self.c1(inputs[0])
         out = self.tan_h(out).clone()

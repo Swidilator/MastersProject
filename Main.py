@@ -1,10 +1,10 @@
 import torch
 import os
+from typing import Tuple, List, Any
 from matplotlib import pyplot as plt
 
 from CRN.CRN_Framework import CRNFramework
 from GAN.GAN_Framework import GANFramework
-from Helper_Stuff import *
 from typing import Optional
 from Training_Framework import MastersModel
 import wandb
@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     if PREFER_CUDA:
         if torch.cuda.is_available():
-            device = torch.device("cuda:1")
+            device = torch.device("cuda:0")
             print("Device: CUDA")
         else:
             device = torch.device("cpu")
@@ -45,6 +45,7 @@ if __name__ == "__main__":
     BATCH_SIZE_SLICE: int = 1
     BATCH_SIZE_TOTAL: int = 16
     USE_TANH: bool = True
+    USE_INPUT_NOISE: bool = False
     # CRN
     CRN_INPUT_TENSOR_SIZE: tuple = (4, 8)
     CRN_NUM_OUTPUT_IMAGES: int = 1
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     CRN_UPDATE_PL_LAMBDAS: bool = False
 
     # Choose Model
-    MODEL: str = "CRN"
+    MODEL: str = "GAN"
 
     model_frame: Optional[MastersModel] = None
 
@@ -76,6 +77,7 @@ if __name__ == "__main__":
             num_loader_workers=NUM_LOADER_WORKERS,
             subset_size=SUBSET_SIZE,
             use_tanh=USE_TANH,
+            use_input_noise=USE_INPUT_NOISE,
             settings={
                 "input_tensor_size": CRN_INPUT_TENSOR_SIZE,
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
@@ -94,6 +96,8 @@ if __name__ == "__main__":
             batch_size_total=BATCH_SIZE_TOTAL,
             num_loader_workers=NUM_LOADER_WORKERS,
             subset_size=SUBSET_SIZE,
+            use_tanh=USE_TANH,
+            use_input_noise=USE_INPUT_NOISE,
             settings={
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
                 "num_classes": NUM_CLASSES,
@@ -105,32 +109,34 @@ if __name__ == "__main__":
     if LOAD_BEFORE_RUN:
         model_frame.load_model(MODEL_PATH)
 
+    if not WANDB:
+        os.environ["WANDB_MODE"] = "dryrun"
+
     # Training
     if TRAIN[0]:
-        if WANDB:
-            wandb.init(
-                project=MODEL.lower(),
-                config={
-                    "Batch Size Total": BATCH_SIZE_TOTAL,
-                    "Batch Size Slice": BATCH_SIZE_SLICE,
-                    "Inner Channels": CRN_NUM_INNER_CHANNELS,
-                    "Output Size": MAX_INPUT_HEIGHT_WIDTH,
-                    "Training Machine": TRAINING_MACHINE,
-                    "Training Samples": SUBSET_SIZE,
-                },
-            )
+        #if WANDB:
+        wandb.init(
+            project=MODEL.lower(),
+            config={
+                "Batch Size Total": BATCH_SIZE_TOTAL,
+                "Batch Size Slice": BATCH_SIZE_SLICE,
+                "Inner Channels": CRN_NUM_INNER_CHANNELS,
+                "Output Size": MAX_INPUT_HEIGHT_WIDTH,
+                "Training Machine": TRAINING_MACHINE,
+                "Training Samples": SUBSET_SIZE,
+            },
+        )
 
         # Watch if set
         for val in model_frame.wandb_trainable_model:
-            no_except(wandb.watch, val)
+            wandb.watch(val)
 
         for i in range(TRAIN[1]):
             if i % 5 == 0:
                 loss_total, _ = model_frame.train(CRN_UPDATE_PL_LAMBDAS)
             else:
                 loss_total, _ = model_frame.train(False)
-            no_except(
-                wandb.log,
+            wandb.log(
                 {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i},
                 commit=False,
             )
@@ -138,7 +144,7 @@ if __name__ == "__main__":
             del loss_total
             if SAMPLE[0]:
                 # model_frame.load_model(MODEL_PATH)
-                img_list: sample_output = model_frame.sample(SAMPLE[1])
+                img_list: List[Any] = model_frame.sample(SAMPLE[1])
 
                 if not os.path.exists(IMAGE_OUTPUT_DIR):
                     os.makedirs(IMAGE_OUTPUT_DIR)
@@ -147,15 +153,14 @@ if __name__ == "__main__":
                     fig = plt.figure(j)
                     plt.imshow(img)
                     caption: str = str("Sample Image " + str(i) + str(" ") + str(j))
-                    no_except(
-                        wandb.log,
+                    wandb.log(
                         {"Sample Image": [wandb.Image(img, caption=caption)]},
                         commit=False,
                     )
                     name = "{path}figure_{i}_{j}.png".format(path=IMAGE_OUTPUT_DIR, i=i, j=j)
                     fig.savefig(fname=name)
                     del fig
-            no_except(wandb.log, commit=True)
+                wandb.log(commit=True)
             if SAVE_EVERY_EPOCH:
                 model_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
@@ -176,7 +181,7 @@ if __name__ == "__main__":
         if not os.path.exists(IMAGE_OUTPUT_DIR):
             os.makedirs(IMAGE_OUTPUT_DIR)
         # model_frame.load_model(MODEL_PATH)
-        img_list: sample_output = model_frame.sample(SAMPLE[1])
+        img_list: List[Any] = model_frame.sample(SAMPLE[1])
         for i, img in enumerate(img_list):
             print(img_list[i])
             fig = plt.figure(i)

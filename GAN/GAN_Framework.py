@@ -7,7 +7,6 @@ from math import log2
 import time
 import random
 
-from Helper_Stuff import *
 from GAN.GAN_Dataset import GANDataset
 from Training_Framework import MastersModel
 from GAN.Generator import *
@@ -200,7 +199,7 @@ class GANFramework(MastersModel):
             self.generator.load_state_dict(checkpoint["model_state_dict_gen"])
             self.discriminator.load_state_dict(checkpoint["model_state_dict_disc"])
 
-    def train(self, input: tuple) -> epoch_output:
+    def train(self, input: tuple) -> Tuple[float, Any]:
         """
 
         Args:
@@ -461,7 +460,7 @@ class GANFramework(MastersModel):
                         )
                     )
                     # WandB logging, if WandB disabled this should skip the logging without error
-                    no_except(wandb.log, {"Batch Loss": batch_loss_val})
+                    wandb.log({"Batch Loss": batch_loss_val})
                     loss_ave = 0.0
 
                 # Reset big batch metrics
@@ -478,13 +477,13 @@ class GANFramework(MastersModel):
         del loss_ave
         return loss_total, None
 
-    def eval(self) -> epoch_output:
+    def eval(self) -> Tuple[float, Any]:
         pass
 
-    def sample(self, k: int) -> sample_output:
+    def sample(self, k: int) -> List[Any]:
         self.generator.eval()
         sample_list: list = random.sample(range(len(self.__data_set_test__)), k)
-        outputs: sample_output = []
+        outputs: List[Any] = []
         # noise: torch.Tensor = torch.randn(
         #     1,
         #     1,
