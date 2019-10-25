@@ -21,7 +21,7 @@ class Generator(torch.nn.Module):
 
     def forward(self, inputs: gan_input) -> torch.Tensor:
         # TODO Check that this is dividing properly
-        half_size: tuple = (int(inputs[0].shape[2] / 2), int(inputs[0].shape[3] / 2))
+        half_size: tuple = (inputs[0].shape[2] // 2, inputs[0].shape[3] // 2)
 
         smaller_input = torch.nn.functional.interpolate(
             input=inputs[0], size=half_size, mode="nearest"
