@@ -18,6 +18,7 @@ class MastersModel(ABC):
         num_loader_workers: int,
         subset_size: int,
         use_tanh: bool,
+        use_input_noise: bool,
         settings: dict,
     ):
         super(MastersModel, self).__init__()
@@ -31,6 +32,7 @@ class MastersModel(ABC):
         self.num_loader_workers: int = num_loader_workers
         self.subset_size: int = subset_size
         self.use_tanh: bool = use_tanh
+        self.use_input_noise: bool = use_input_noise
         self.settings: dict = settings
 
     @property
@@ -51,6 +53,7 @@ class MastersModel(ABC):
         batch_size_total: int,
         num_loader_workers: int,
         subset_size: int,
+        use_input_noise: bool,
         settings: dict,
     ) -> None:
         """
