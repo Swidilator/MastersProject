@@ -8,6 +8,7 @@ from GAN.GAN_Framework import GANFramework
 from typing import Optional
 from Training_Framework import MastersModel
 import wandb
+from PIL import Image
 
 # from torchviz import make_dot
 
@@ -114,7 +115,6 @@ if __name__ == "__main__":
 
     # Training
     if TRAIN[0]:
-        #if WANDB:
         wandb.init(
             project=MODEL.lower(),
             config={
@@ -132,34 +132,42 @@ if __name__ == "__main__":
             wandb.watch(val)
 
         for i in range(TRAIN[1]):
+            print("Epoch:", i)
             if i % 5 == 0:
                 loss_total, _ = model_frame.train(CRN_UPDATE_PL_LAMBDAS)
             else:
                 loss_total, _ = model_frame.train(False)
             wandb.log(
-                {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i},
-                commit=False,
+                {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i}, commit=False
             )
             # print(i, loss_total, model_frame.loss_net.loss_layer_scales)
             del loss_total
             if SAMPLE[0]:
                 # model_frame.load_model(MODEL_PATH)
-                img_list: List[Any] = model_frame.sample(SAMPLE[1])
+                img_list: List[Tuple[Any, Any]] = model_frame.sample(SAMPLE[1])
 
                 if not os.path.exists(IMAGE_OUTPUT_DIR):
                     os.makedirs(IMAGE_OUTPUT_DIR)
-                for j, img in enumerate(img_list):
-                    print(img_list[j])
-                    fig = plt.figure(j)
-                    plt.imshow(img)
+
+                img_pair: Tuple[Any, Any]
+                for j, img_pair in enumerate(img_list):
+                    width: int = img_pair[0].size[0]
+                    height: int = img_pair[0].size[1]
+
+                    new_im: Image = Image.new("RGB", (width * 2, height))
+                    new_im.paste(img_pair[0], (0, 0))
+                    new_im.paste(img_pair[1], (width, 0))
+
+                    filename = "{path}figure_{i}_{j}.png".format(
+                        path=IMAGE_OUTPUT_DIR, i=i, j=j
+                    )
+                    new_im.save(filename)
+
                     caption: str = str("Sample Image " + str(i) + str(" ") + str(j))
                     wandb.log(
-                        {"Sample Image": [wandb.Image(img, caption=caption)]},
+                        {"Sample Image": [wandb.Image(new_im, caption=caption)]},
                         commit=False,
                     )
-                    name = "{path}figure_{i}_{j}.png".format(path=IMAGE_OUTPUT_DIR, i=i, j=j)
-                    fig.savefig(fname=name)
-                    del fig
                 wandb.log(commit=True)
             if SAVE_EVERY_EPOCH:
                 model_frame.save_model(MODEL_PATH)
@@ -177,15 +185,20 @@ if __name__ == "__main__":
     #         plt.imshow(img)
     #         plt.show()
 
-    if SAMPLE[0]:
+    if SAMPLE[0] and not TRAIN[0]:
         if not os.path.exists(IMAGE_OUTPUT_DIR):
             os.makedirs(IMAGE_OUTPUT_DIR)
         # model_frame.load_model(MODEL_PATH)
         img_list: List[Any] = model_frame.sample(SAMPLE[1])
-        for i, img in enumerate(img_list):
-            print(img_list[i])
-            fig = plt.figure(i)
-            plt.imshow(img)
-            name = "{path}figure_{i}.png".format(path=IMAGE_OUTPUT_DIR, i=i)
-            fig.savefig(fname=name)
-            del fig
+        for i, img_pair in enumerate(img_list):
+            width: int = img_pair[0].size[0]
+            height: int = img_pair[0].size[1]
+
+            new_im: Image = Image.new("RGB", (width * 2, height))
+            new_im.paste(img_pair[0], (0, 0))
+            new_im.paste(img_pair[1], (width, 0))
+
+            filename = "{path}figure_{i}.png".format(
+                path=IMAGE_OUTPUT_DIR, i=i
+            )
+            new_im.save(filename)
