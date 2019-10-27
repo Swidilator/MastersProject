@@ -64,6 +64,8 @@ if __name__ == "__main__":
     IMAGE_OUTPUT_DIR: str = "./Images/"
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
+    # GAN
+    USE_NOISY_LABELS: bool = True
 
     # Choose Model
     MODEL: str = "GAN"
@@ -101,6 +103,7 @@ if __name__ == "__main__":
             settings={
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
                 "num_classes": NUM_CLASSES,
+                "use_noisy_labels": USE_NOISY_LABELS,
             },
         )
     else:
@@ -125,7 +128,7 @@ if __name__ == "__main__":
                 "Training Samples": SUBSET_SIZE,
                 "Training Data Flipping": FLIP_TRAINING_IMAGES,
                 "Using TanH Activation": USE_TANH,
-                "Using Noisy Input Images": USE_INPUT_NOISE
+                "Using Noisy Input Images": USE_INPUT_NOISE,
             },
         )
 
@@ -200,7 +203,5 @@ if __name__ == "__main__":
             new_im.paste(img_pair[0], (0, 0))
             new_im.paste(img_pair[1], (width, 0))
 
-            filename = "{path}figure_{i}.png".format(
-                path=IMAGE_OUTPUT_DIR, i=i
-            )
+            filename = "{path}figure_{i}.png".format(path=IMAGE_OUTPUT_DIR, i=i)
             new_im.save(filename)
