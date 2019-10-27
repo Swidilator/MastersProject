@@ -59,7 +59,8 @@ if __name__ == "__main__":
     WANDB: bool = False
     SAVE_EVERY_EPOCH: bool = True
     LOAD_BEFORE_RUN: bool = False
-    SUBSET_SIZE: int = 256
+    FLIP_TRAINING_IMAGES: bool = False
+    SUBSET_SIZE: int = 16
     IMAGE_OUTPUT_DIR: str = "./Images/"
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
@@ -69,16 +70,21 @@ if __name__ == "__main__":
 
     model_frame: Optional[MastersModel] = None
 
+    model_frame_args: dict = {
+        "device": device,
+        "data_path": DATA_PATH,
+        "batch_size_slice": BATCH_SIZE_SLICE,
+        "batch_size_total": BATCH_SIZE_TOTAL,
+        "num_loader_workers": NUM_LOADER_WORKERS,
+        "subset_size": SUBSET_SIZE,
+        "should_flip_train": FLIP_TRAINING_IMAGES,
+        "use_tanh": USE_TANH,
+        "use_input_noise": USE_INPUT_NOISE,
+    }
+
     if MODEL == "CRN":
         model_frame: CRNFramework = CRNFramework(
-            device=device,
-            data_path=DATA_PATH,
-            batch_size_slice=BATCH_SIZE_SLICE,
-            batch_size_total=BATCH_SIZE_TOTAL,
-            num_loader_workers=NUM_LOADER_WORKERS,
-            subset_size=SUBSET_SIZE,
-            use_tanh=USE_TANH,
-            use_input_noise=USE_INPUT_NOISE,
+            **model_frame_args,
             settings={
                 "input_tensor_size": CRN_INPUT_TENSOR_SIZE,
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
@@ -91,14 +97,7 @@ if __name__ == "__main__":
 
     elif MODEL == "GAN":
         model_frame: GANFramework = GANFramework(
-            device=device,
-            data_path=DATA_PATH,
-            batch_size_slice=BATCH_SIZE_SLICE,
-            batch_size_total=BATCH_SIZE_TOTAL,
-            num_loader_workers=NUM_LOADER_WORKERS,
-            subset_size=SUBSET_SIZE,
-            use_tanh=USE_TANH,
-            use_input_noise=USE_INPUT_NOISE,
+            **model_frame_args,
             settings={
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
                 "num_classes": NUM_CLASSES,
@@ -124,6 +123,9 @@ if __name__ == "__main__":
                 "Output Size": MAX_INPUT_HEIGHT_WIDTH,
                 "Training Machine": TRAINING_MACHINE,
                 "Training Samples": SUBSET_SIZE,
+                "Training Data Flipping": FLIP_TRAINING_IMAGES,
+                "Using TanH Activation": USE_TANH,
+                "Using Noisy Input Images": USE_INPUT_NOISE
             },
         )
 
