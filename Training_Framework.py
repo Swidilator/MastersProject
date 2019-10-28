@@ -1,9 +1,8 @@
 import torch
 import time
-from typing import Union
+from typing import Union, Tuple, List, Any
 import torch.utils as utils
 
-from Helper_Stuff import epoch_output, sample_output
 from abc import ABC, abstractmethod
 
 
@@ -17,7 +16,9 @@ class MastersModel(ABC):
         batch_size_total: int,
         num_loader_workers: int,
         subset_size: int,
+        should_flip_train: bool,
         use_tanh: bool,
+        use_input_noise: bool,
         settings: dict,
     ):
         super(MastersModel, self).__init__()
@@ -30,7 +31,9 @@ class MastersModel(ABC):
         self.batch_size_total: int = batch_size_total
         self.num_loader_workers: int = num_loader_workers
         self.subset_size: int = subset_size
+        self.should_flip_train: bool = should_flip_train
         self.use_tanh: bool = use_tanh
+        self.use_input_noise: bool = use_input_noise
         self.settings: dict = settings
 
     @property
@@ -51,6 +54,8 @@ class MastersModel(ABC):
         batch_size_total: int,
         num_loader_workers: int,
         subset_size: int,
+        should_flip_train: bool,
+        use_input_noise: bool,
         settings: dict,
     ) -> None:
         """
@@ -58,9 +63,11 @@ class MastersModel(ABC):
 
         Args:
             data_path: Path to dataset
-            batch_size: Batch size for data-loaders
+            batch_size_total:
             num_loader_workers: Number of CPU workers for loading data
             subset_size: Maximum number of images to load in training set
+            should_flip_train:
+            use_input_noise:
             settings: Extra model-specific settings
 
         Returns:
@@ -130,7 +137,7 @@ class MastersModel(ABC):
         assert self.model_name is not None
 
     @abstractmethod
-    def train(self, input: tuple) -> epoch_output:
+    def train(self, input: tuple) -> Tuple[float, Any]:
         """
         Perform one training epoch.
 
@@ -138,22 +145,22 @@ class MastersModel(ABC):
             input: Model and epoch specific settings
 
         Returns:
-            epoch_output
+            Tuple[float, Any]
         """
         pass
 
     @abstractmethod
-    def eval(self) -> epoch_output:
+    def eval(self) -> Tuple[float, Any]:
         """
         Evaluate model on test_dataset.
 
         Returns:
-            epoch_output
+            Tuple[float, Any]
         """
         pass
 
     @abstractmethod
-    def sample(self, k: int) -> sample_output:
+    def sample(self, k: int) -> List[Tuple[Any, Any]]:
         """
         Sample k random images from dataset, forward through network.
 
@@ -161,6 +168,6 @@ class MastersModel(ABC):
             k: number of images to sample
 
         Returns:
-            sample_output
+            List[Tuple[Any, Any]]
         """
         pass

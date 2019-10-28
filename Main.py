@@ -1,13 +1,14 @@
 import torch
 import os
+from typing import Tuple, List, Any
 from matplotlib import pyplot as plt
 
 from CRN.CRN_Framework import CRNFramework
 from GAN.GAN_Framework import GANFramework
-from Helper_Stuff import *
 from typing import Optional
 from Training_Framework import MastersModel
 import wandb
+from PIL import Image
 
 # from torchviz import make_dot
 
@@ -30,7 +31,7 @@ if __name__ == "__main__":
 
     if PREFER_CUDA:
         if torch.cuda.is_available():
-            device = torch.device("cuda:1")
+            device = torch.device("cuda:0")
             print("Device: CUDA")
         else:
             device = torch.device("cpu")
@@ -45,6 +46,7 @@ if __name__ == "__main__":
     BATCH_SIZE_SLICE: int = 1
     BATCH_SIZE_TOTAL: int = 16
     USE_TANH: bool = True
+    USE_INPUT_NOISE: bool = False
     # CRN
     CRN_INPUT_TENSOR_SIZE: tuple = (4, 8)
     CRN_NUM_OUTPUT_IMAGES: int = 1
@@ -57,25 +59,34 @@ if __name__ == "__main__":
     WANDB: bool = False
     SAVE_EVERY_EPOCH: bool = True
     LOAD_BEFORE_RUN: bool = False
-    SUBSET_SIZE: int = 256
+    FLIP_TRAINING_IMAGES: bool = False
+    SUBSET_SIZE: int = 16
     IMAGE_OUTPUT_DIR: str = "./Images/"
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
+    # GAN
+    USE_NOISY_LABELS: bool = True
 
     # Choose Model
-    MODEL: str = "CRN"
+    MODEL: str = "GAN"
 
     model_frame: Optional[MastersModel] = None
 
+    model_frame_args: dict = {
+        "device": device,
+        "data_path": DATA_PATH,
+        "batch_size_slice": BATCH_SIZE_SLICE,
+        "batch_size_total": BATCH_SIZE_TOTAL,
+        "num_loader_workers": NUM_LOADER_WORKERS,
+        "subset_size": SUBSET_SIZE,
+        "should_flip_train": FLIP_TRAINING_IMAGES,
+        "use_tanh": USE_TANH,
+        "use_input_noise": USE_INPUT_NOISE,
+    }
+
     if MODEL == "CRN":
         model_frame: CRNFramework = CRNFramework(
-            device=device,
-            data_path=DATA_PATH,
-            batch_size_slice=BATCH_SIZE_SLICE,
-            batch_size_total=BATCH_SIZE_TOTAL,
-            num_loader_workers=NUM_LOADER_WORKERS,
-            subset_size=SUBSET_SIZE,
-            use_tanh=USE_TANH,
+            **model_frame_args,
             settings={
                 "input_tensor_size": CRN_INPUT_TENSOR_SIZE,
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
@@ -88,14 +99,11 @@ if __name__ == "__main__":
 
     elif MODEL == "GAN":
         model_frame: GANFramework = GANFramework(
-            device=device,
-            data_path=DATA_PATH,
-            batch_size=BATCH_SIZE_TOTAL,
-            num_loader_workers=NUM_LOADER_WORKERS,
-            subset_size=SUBSET_SIZE,
+            **model_frame_args,
             settings={
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
                 "num_classes": NUM_CLASSES,
+                "use_noisy_labels": USE_NOISY_LABELS,
             },
         )
     else:
@@ -104,57 +112,68 @@ if __name__ == "__main__":
     if LOAD_BEFORE_RUN:
         model_frame.load_model(MODEL_PATH)
 
+    if not WANDB:
+        os.environ["WANDB_MODE"] = "dryrun"
+
     # Training
     if TRAIN[0]:
-        if WANDB:
-            wandb.init(
-                project=MODEL.lower(),
-                config={
-                    "Batch Size Total": BATCH_SIZE_TOTAL,
-                    "Batch Size Slice": BATCH_SIZE_SLICE,
-                    "Inner Channels": CRN_NUM_INNER_CHANNELS,
-                    "Output Size": MAX_INPUT_HEIGHT_WIDTH,
-                    "Training Machine": TRAINING_MACHINE,
-                    "Training Samples": SUBSET_SIZE,
-                },
-            )
+        wandb.init(
+            project=MODEL.lower(),
+            config={
+                "Batch Size Total": BATCH_SIZE_TOTAL,
+                "Batch Size Slice": BATCH_SIZE_SLICE,
+                "Inner Channels": CRN_NUM_INNER_CHANNELS,
+                "Output Size": MAX_INPUT_HEIGHT_WIDTH,
+                "Training Machine": TRAINING_MACHINE,
+                "Training Samples": SUBSET_SIZE,
+                "Training Data Flipping": FLIP_TRAINING_IMAGES,
+                "Using TanH Activation": USE_TANH,
+                "Using Noisy Input Images": USE_INPUT_NOISE,
+            },
+        )
 
         # Watch if set
         for val in model_frame.wandb_trainable_model:
-            no_except(wandb.watch, val)
+            wandb.watch(val)
 
         for i in range(TRAIN[1]):
+            print("Epoch:", i)
             if i % 5 == 0:
                 loss_total, _ = model_frame.train(CRN_UPDATE_PL_LAMBDAS)
             else:
                 loss_total, _ = model_frame.train(False)
-            no_except(
-                wandb.log,
-                {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i},
-                commit=False,
+            wandb.log(
+                {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i}, commit=False
             )
             # print(i, loss_total, model_frame.loss_net.loss_layer_scales)
             del loss_total
             if SAMPLE[0]:
                 # model_frame.load_model(MODEL_PATH)
-                img_list: sample_output = model_frame.sample(SAMPLE[1])
+                img_list: List[Tuple[Any, Any]] = model_frame.sample(SAMPLE[1])
 
                 if not os.path.exists(IMAGE_OUTPUT_DIR):
                     os.makedirs(IMAGE_OUTPUT_DIR)
-                for j, img in enumerate(img_list):
-                    print(img_list[j])
-                    fig = plt.figure(j)
-                    plt.imshow(img)
+
+                img_pair: Tuple[Any, Any]
+                for j, img_pair in enumerate(img_list):
+                    width: int = img_pair[0].size[0]
+                    height: int = img_pair[0].size[1]
+
+                    new_im: Image = Image.new("RGB", (width * 2, height))
+                    new_im.paste(img_pair[0], (0, 0))
+                    new_im.paste(img_pair[1], (width, 0))
+
+                    filename = "{path}figure_{i}_{j}.png".format(
+                        path=IMAGE_OUTPUT_DIR, i=i, j=j
+                    )
+                    new_im.save(filename)
+
                     caption: str = str("Sample Image " + str(i) + str(" ") + str(j))
-                    no_except(
-                        wandb.log,
-                        {"Sample Image": [wandb.Image(img, caption=caption)]},
+                    wandb.log(
+                        {"Sample Image": [wandb.Image(new_im, caption=caption)]},
                         commit=False,
                     )
-                    name = "{path}figure_{i}_{j}.png".format(path=IMAGE_OUTPUT_DIR, i=i, j=j)
-                    fig.savefig(fname=name)
-                    del fig
-            no_except(wandb.log, commit=True)
+                wandb.log(commit=True)
             if SAVE_EVERY_EPOCH:
                 model_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
@@ -171,15 +190,18 @@ if __name__ == "__main__":
     #         plt.imshow(img)
     #         plt.show()
 
-    if SAMPLE[0]:
+    if SAMPLE[0] and not TRAIN[0]:
         if not os.path.exists(IMAGE_OUTPUT_DIR):
             os.makedirs(IMAGE_OUTPUT_DIR)
         # model_frame.load_model(MODEL_PATH)
-        img_list: sample_output = model_frame.sample(SAMPLE[1])
-        for i, img in enumerate(img_list):
-            print(img_list[i])
-            fig = plt.figure(i)
-            plt.imshow(img)
-            name = "{path}figure_{i}.png".format(path=IMAGE_OUTPUT_DIR, i=i)
-            fig.savefig(fname=name)
-            del fig
+        img_list: List[Any] = model_frame.sample(SAMPLE[1])
+        for i, img_pair in enumerate(img_list):
+            width: int = img_pair[0].size[0]
+            height: int = img_pair[0].size[1]
+
+            new_im: Image = Image.new("RGB", (width * 2, height))
+            new_im.paste(img_pair[0], (0, 0))
+            new_im.paste(img_pair[1], (width, 0))
+
+            filename = "{path}figure_{i}.png".format(path=IMAGE_OUTPUT_DIR, i=i)
+            new_im.save(filename)
