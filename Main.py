@@ -42,9 +42,9 @@ if __name__ == "__main__":
 
     # Model Settings
     MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
-    NUM_CLASSES: int = 36
-    BATCH_SIZE_SLICE: int = 1
-    BATCH_SIZE_TOTAL: int = 16
+    NUM_CLASSES: int = 20
+    BATCH_SIZE_SLICE: int = 2
+    BATCH_SIZE_TOTAL: int = 32
     USE_TANH: bool = True
     USE_INPUT_NOISE: bool = False
     # CRN
@@ -54,13 +54,13 @@ if __name__ == "__main__":
     CRN_HISTORY_LEN: int = 0
 
     # Run Specific Settings
-    TRAIN: tuple = (True, 60)
-    SAMPLE: tuple = (True, 1)
+    TRAIN: tuple = (True, 40)
+    SAMPLE: tuple = (True, 3)
     WANDB: bool = False
     SAVE_EVERY_EPOCH: bool = True
-    LOAD_BEFORE_RUN: bool = False
-    FLIP_TRAINING_IMAGES: bool = False
-    SUBSET_SIZE: int = 16
+    LOAD_BEFORE_RUN: bool = True
+    FLIP_TRAINING_IMAGES: bool = True
+    SUBSET_SIZE: int = 128
     IMAGE_OUTPUT_DIR: str = "./Images/"
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
