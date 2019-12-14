@@ -58,9 +58,9 @@ if __name__ == "__main__":
     SAMPLE: tuple = (True, 3)
     WANDB: bool = False
     SAVE_EVERY_EPOCH: bool = True
-    LOAD_BEFORE_RUN: bool = True
+    LOAD_BEFORE_RUN: bool = False
     FLIP_TRAINING_IMAGES: bool = True
-    SUBSET_SIZE: int = 128
+    SUBSET_SIZE: int = 0
     IMAGE_OUTPUT_DIR: str = "./Images/"
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
