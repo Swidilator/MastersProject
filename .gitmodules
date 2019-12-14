@@ -4,6 +4,3 @@
 [submodule "GAN"]
 	path = GAN
 	url = https://gitlab.com/Swidilator/GAN.git
-[submodule "cityscapesScripts"]
-	path = cityscapesScripts
-	url = https://github.com/mcordts/cityscapesScripts.git
