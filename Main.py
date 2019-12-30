@@ -52,6 +52,8 @@ if __name__ == "__main__":
     CRN_NUM_OUTPUT_IMAGES: int = 1
     CRN_NUM_INNER_CHANNELS = 1024
     CRN_HISTORY_LEN: int = 0
+    # GAN
+    GAN_BASE_LEARNING_RATE: float = 0.0002
 
     # Run Specific Settings
     TRAIN: tuple = (True, 40)
@@ -66,6 +68,7 @@ if __name__ == "__main__":
     CRN_UPDATE_PL_LAMBDAS: bool = False
     # GAN
     USE_NOISY_LABELS: bool = True
+    DECAY_LEARNING_RATE: bool = True
 
     # Choose Model
     MODEL: str = "GAN"
@@ -104,6 +107,7 @@ if __name__ == "__main__":
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
                 "num_classes": NUM_CLASSES,
                 "use_noisy_labels": USE_NOISY_LABELS,
+                "base_learning_rate": GAN_BASE_LEARNING_RATE,
             },
         )
     else:
@@ -138,15 +142,25 @@ if __name__ == "__main__":
 
         for i in range(TRAIN[1]):
             print("Epoch:", i)
-            if i % 5 == 0:
+
+            # Decay learning rate
+            if DECAY_LEARNING_RATE:
+                if MODEL is "GAN":
+                    GANFramework.adjust_learning_rate(model_frame.optimizer_D, i, TRAIN[1], GAN_BASE_LEARNING_RATE)
+                    GANFramework.adjust_learning_rate(model_frame.optimizer_G, i, TRAIN[1], GAN_BASE_LEARNING_RATE)
+
+            # Adjust CRN PL Lambdas // DEFUNCT NOW
+            if i % 5 == 0 and MODEL is "CRN":
                 loss_total, _ = model_frame.train(CRN_UPDATE_PL_LAMBDAS)
             else:
                 loss_total, _ = model_frame.train(False)
+
             wandb.log(
                 {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i}, commit=False
             )
-            # print(i, loss_total, model_frame.loss_net.loss_layer_scales)
-            del loss_total
+
+            del loss_total, _
+
             if SAMPLE[0]:
                 # model_frame.load_model(MODEL_PATH)
                 img_list: List[Tuple[Any, Any]] = model_frame.sample(SAMPLE[1])
