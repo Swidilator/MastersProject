@@ -54,6 +54,7 @@ if __name__ == "__main__":
     CRN_HISTORY_LEN: int = 0
     # GAN
     GAN_BASE_LEARNING_RATE: float = 0.0002
+    GAN_USE_LOCAL_ENHANCER: bool = False
 
     # Run Specific Settings
     TRAIN: tuple = (True, 40)
@@ -67,8 +68,8 @@ if __name__ == "__main__":
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
     # GAN
-    USE_NOISY_LABELS: bool = True
-    DECAY_LEARNING_RATE: bool = True
+    GAN_USE_NOISY_LABELS: bool = True
+    GAN_DECAY_LEARNING_RATE: bool = False
 
     # Choose Model
     MODEL: str = "GAN"
@@ -106,8 +107,9 @@ if __name__ == "__main__":
             settings={
                 "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
                 "num_classes": NUM_CLASSES,
-                "use_noisy_labels": USE_NOISY_LABELS,
+                "use_noisy_labels": GAN_USE_NOISY_LABELS,
                 "base_learning_rate": GAN_BASE_LEARNING_RATE,
+                "use_local_enhancer": GAN_USE_LOCAL_ENHANCER,
             },
         )
     else:
@@ -144,7 +146,7 @@ if __name__ == "__main__":
             print("Epoch:", i)
 
             # Decay learning rate
-            if DECAY_LEARNING_RATE:
+            if GAN_DECAY_LEARNING_RATE:
                 if MODEL is "GAN":
                     GANFramework.adjust_learning_rate(model_frame.optimizer_D, i, TRAIN[1], GAN_BASE_LEARNING_RATE)
                     GANFramework.adjust_learning_rate(model_frame.optimizer_G, i, TRAIN[1], GAN_BASE_LEARNING_RATE)
