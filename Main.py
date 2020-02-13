@@ -26,6 +26,7 @@ if __name__ == "__main__":
     CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
     DATA_PATH: str = CITYSCAPES_PATH
     TRAINING_MACHINE: str = os.environ["TRAINING_MACHINE"]
+    
     print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
     print("Training Machine: {machine}".format(machine=TRAINING_MACHINE))
 
@@ -43,8 +44,8 @@ if __name__ == "__main__":
     # Model Settings
     MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
     NUM_CLASSES: int = 20
-    BATCH_SIZE_SLICE: int = 2
-    BATCH_SIZE_TOTAL: int = 32
+    BATCH_SIZE_SLICE: int = 1
+    BATCH_SIZE_TOTAL: int = 1
     USE_TANH: bool = True
     USE_INPUT_NOISE: bool = False
     # CRN
@@ -57,19 +58,21 @@ if __name__ == "__main__":
     GAN_USE_LOCAL_ENHANCER: bool = False
 
     # Run Specific Settings
-    TRAIN: tuple = (True, 40)
+    TRAIN: tuple = (True, 100)
     SAMPLE: tuple = (True, 3)
     WANDB: bool = False
     SAVE_EVERY_EPOCH: bool = True
     LOAD_BEFORE_RUN: bool = False
-    FLIP_TRAINING_IMAGES: bool = True
+    FLIP_TRAINING_IMAGES: bool = False
     SUBSET_SIZE: int = 0
     IMAGE_OUTPUT_DIR: str = "./Images/"
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
     # GAN
-    GAN_USE_NOISY_LABELS: bool = True
+    GAN_USE_NOISY_LABELS: bool = False
     GAN_DECAY_LEARNING_RATE: bool = False
+    GAN_NUM_DISCRIMINATORS: int = 2
+    GAN_FEATURE_MATCHING_WEIGHT: float = 1
 
     # Choose Model
     MODEL: str = "GAN"
@@ -110,10 +113,14 @@ if __name__ == "__main__":
                 "use_noisy_labels": GAN_USE_NOISY_LABELS,
                 "base_learning_rate": GAN_BASE_LEARNING_RATE,
                 "use_local_enhancer": GAN_USE_LOCAL_ENHANCER,
+                "num_discriminators": GAN_NUM_DISCRIMINATORS,
+                "feature_matching_weight": GAN_FEATURE_MATCHING_WEIGHT
             },
         )
     else:
         quit()
+
+    print(model_frame.generator)
 
     if LOAD_BEFORE_RUN:
         model_frame.load_model(MODEL_PATH)
@@ -126,15 +133,18 @@ if __name__ == "__main__":
         wandb.init(
             project=MODEL.lower(),
             config={
-                "Batch Size Total": BATCH_SIZE_TOTAL,
-                "Batch Size Slice": BATCH_SIZE_SLICE,
-                "Inner Channels": CRN_NUM_INNER_CHANNELS,
-                "Output Size": MAX_INPUT_HEIGHT_WIDTH,
-                "Training Machine": TRAINING_MACHINE,
-                "Training Samples": SUBSET_SIZE,
-                "Training Data Flipping": FLIP_TRAINING_IMAGES,
-                "Using TanH Activation": USE_TANH,
-                "Using Noisy Input Images": USE_INPUT_NOISE,
+                "Batch size total": BATCH_SIZE_TOTAL,
+                "Batch size slice": BATCH_SIZE_SLICE,
+                "Inner channels": CRN_NUM_INNER_CHANNELS,
+                "Output size": MAX_INPUT_HEIGHT_WIDTH,
+                "Training machine": TRAINING_MACHINE,
+                "Training samples": SUBSET_SIZE,
+                "Training data flipping": FLIP_TRAINING_IMAGES,
+                "Using tanh activation": USE_TANH,
+                "Using noisy input images": USE_INPUT_NOISE,
+                "GAN feature matching weight": GAN_FEATURE_MATCHING_WEIGHT,
+                "Use GAN local enhancer": GAN_USE_LOCAL_ENHANCER,
+                "Decay GAN learning rate": GAN_BASE_LEARNING_RATE
             },
         )
 
@@ -191,8 +201,12 @@ if __name__ == "__main__":
                     )
                 wandb.log(commit=True)
             if SAVE_EVERY_EPOCH:
+                if not os.path.exists(MODEL_PATH):
+                    os.makedirs(MODEL_PATH)
                 model_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
+            if not os.path.exists(MODEL_PATH):
+                os.makedirs(MODEL_PATH)
             model_frame.save_model(MODEL_PATH)
         # quit()
 
