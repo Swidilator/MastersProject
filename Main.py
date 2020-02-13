@@ -72,6 +72,7 @@ if __name__ == "__main__":
     GAN_USE_NOISY_LABELS: bool = False
     GAN_DECAY_LEARNING_RATE: bool = False
     GAN_NUM_DISCRIMINATORS: int = 2
+    GAN_FEATURE_MATCHING_WEIGHT: float = 1
 
     # Choose Model
     MODEL: str = "GAN"
@@ -113,6 +114,7 @@ if __name__ == "__main__":
                 "base_learning_rate": GAN_BASE_LEARNING_RATE,
                 "use_local_enhancer": GAN_USE_LOCAL_ENHANCER,
                 "num_discriminators": GAN_NUM_DISCRIMINATORS,
+                "feature_matching_weight": GAN_FEATURE_MATCHING_WEIGHT
             },
         )
     else:
