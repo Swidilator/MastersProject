@@ -26,6 +26,7 @@ if __name__ == "__main__":
     CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
     DATA_PATH: str = CITYSCAPES_PATH
     TRAINING_MACHINE: str = os.environ["TRAINING_MACHINE"]
+    
     print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
     print("Training Machine: {machine}".format(machine=TRAINING_MACHINE))
 
@@ -43,8 +44,8 @@ if __name__ == "__main__":
     # Model Settings
     MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
     NUM_CLASSES: int = 20
-    BATCH_SIZE_SLICE: int = 2
-    BATCH_SIZE_TOTAL: int = 32
+    BATCH_SIZE_SLICE: int = 1
+    BATCH_SIZE_TOTAL: int = 1
     USE_TANH: bool = True
     USE_INPUT_NOISE: bool = False
     # CRN
@@ -57,19 +58,20 @@ if __name__ == "__main__":
     GAN_USE_LOCAL_ENHANCER: bool = False
 
     # Run Specific Settings
-    TRAIN: tuple = (True, 40)
+    TRAIN: tuple = (True, 100)
     SAMPLE: tuple = (True, 3)
     WANDB: bool = False
     SAVE_EVERY_EPOCH: bool = True
     LOAD_BEFORE_RUN: bool = False
-    FLIP_TRAINING_IMAGES: bool = True
+    FLIP_TRAINING_IMAGES: bool = False
     SUBSET_SIZE: int = 0
     IMAGE_OUTPUT_DIR: str = "./Images/"
     # CRN
     CRN_UPDATE_PL_LAMBDAS: bool = False
     # GAN
-    GAN_USE_NOISY_LABELS: bool = True
+    GAN_USE_NOISY_LABELS: bool = False
     GAN_DECAY_LEARNING_RATE: bool = False
+    GAN_NUM_DISCRIMINATORS: int = 2
 
     # Choose Model
     MODEL: str = "GAN"
@@ -110,6 +112,7 @@ if __name__ == "__main__":
                 "use_noisy_labels": GAN_USE_NOISY_LABELS,
                 "base_learning_rate": GAN_BASE_LEARNING_RATE,
                 "use_local_enhancer": GAN_USE_LOCAL_ENHANCER,
+                "num_discriminators": GAN_NUM_DISCRIMINATORS,
             },
         )
     else:
