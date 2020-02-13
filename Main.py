@@ -120,6 +120,8 @@ if __name__ == "__main__":
     else:
         quit()
 
+    print(model_frame.generator)
+
     if LOAD_BEFORE_RUN:
         model_frame.load_model(MODEL_PATH)
 
@@ -131,15 +133,18 @@ if __name__ == "__main__":
         wandb.init(
             project=MODEL.lower(),
             config={
-                "Batch Size Total": BATCH_SIZE_TOTAL,
-                "Batch Size Slice": BATCH_SIZE_SLICE,
-                "Inner Channels": CRN_NUM_INNER_CHANNELS,
-                "Output Size": MAX_INPUT_HEIGHT_WIDTH,
-                "Training Machine": TRAINING_MACHINE,
-                "Training Samples": SUBSET_SIZE,
-                "Training Data Flipping": FLIP_TRAINING_IMAGES,
-                "Using TanH Activation": USE_TANH,
-                "Using Noisy Input Images": USE_INPUT_NOISE,
+                "Batch size total": BATCH_SIZE_TOTAL,
+                "Batch size slice": BATCH_SIZE_SLICE,
+                "Inner channels": CRN_NUM_INNER_CHANNELS,
+                "Output size": MAX_INPUT_HEIGHT_WIDTH,
+                "Training machine": TRAINING_MACHINE,
+                "Training samples": SUBSET_SIZE,
+                "Training data flipping": FLIP_TRAINING_IMAGES,
+                "Using tanh activation": USE_TANH,
+                "Using noisy input images": USE_INPUT_NOISE,
+                "GAN feature matching weight": GAN_FEATURE_MATCHING_WEIGHT,
+                "Use GAN local enhancer": GAN_USE_LOCAL_ENHANCER,
+                "Decay GAN learning rate": GAN_BASE_LEARNING_RATE
             },
         )
 
