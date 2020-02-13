@@ -194,8 +194,12 @@ if __name__ == "__main__":
                     )
                 wandb.log(commit=True)
             if SAVE_EVERY_EPOCH:
+                if not os.path.exists(MODEL_PATH):
+                    os.makedirs(MODEL_PATH)
                 model_frame.save_model(MODEL_PATH)
         if not SAVE_EVERY_EPOCH:
+            if not os.path.exists(MODEL_PATH):
+                os.makedirs(MODEL_PATH)
             model_frame.save_model(MODEL_PATH)
         # quit()
 
