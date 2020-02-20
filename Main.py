@@ -1,6 +1,9 @@
 import torch
 import os
 from typing import Tuple, List, Any
+import argparse
+import json
+from ast import literal_eval
 from matplotlib import pyplot as plt
 
 from CRN.CRN_Framework import CRNFramework
@@ -12,27 +15,70 @@ from PIL import Image
 
 # from torchviz import make_dot
 
+
+def process_sampled_image(img_pair: tuple, output_path: str) -> Image:
+    img_width: int = img_pair[0].size[0]
+    img_height: int = img_pair[0].size[1]
+
+    new_image: Image = Image.new("RGB", (img_width * 2, img_height))
+    new_image.paste(img_pair[0], (0, 0))
+    new_image.paste(img_pair[1], (img_width, 0))
+    new_image.save(output_path)
+    return new_image
+
+
 if __name__ == "__main__":
+    # Parse settings
+    parser = argparse.ArgumentParser(description="Masters model main file")
+
+    parser.add_argument("model", action="store")
+    parser.add_argument("dataset", action="store")
+    parser.add_argument("dataset_path", action="store")
+    parser.add_argument("input_image_height_width", action="store", type=eval)
+    parser.add_argument("batch_size_pair", action="store", type=eval)
+    parser.add_argument("training_machine_name", action="store")
+
+    parser.add_argument("--train", action="store", default=0, type=int)
+    parser.add_argument("--starting-epoch", action="store", default=1, type=int)
+    parser.add_argument("--sample", action="store", default=0, type=int)
+    parser.add_argument("--training-subset", action="store", default=0, type=int)
+    parser.add_argument("--wandb", action="store_true", default=False)
+    parser.add_argument("--model-save-dir", action="store", default="./Models/")
+    parser.add_argument("--image-output-dir", action="store", default="./Images/")
+    parser.add_argument("--cpu", action="store_true", default=False)
+    parser.add_argument("--gpu-no", action="store", default=0)
+    parser.add_argument("--save-every-epoch", action="store_true", default=False)
+    parser.add_argument("--load-saved-model", action="store", default=None)
+    parser.add_argument("--no-tanh", action="store_true", default=False)
+    parser.add_argument("--num_workers", action="store", default=6, type=int)
+    parser.add_argument("--num-classes", action="store", default=20, type=int)
+    parser.add_argument("--input-image-noise", action="store_true", default=False)
+    parser.add_argument("--flip-training-images", action="store_true", default=False)
+    parser.add_argument("--deterministic", action="store_true", default=False)
+
+    args: dict = vars(parser.parse_args())
+
     # Determinism
-    torch.manual_seed(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    if args["deterministic"]:
+        torch.manual_seed(0)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
-    # System Settings
-    PREFER_CUDA: bool = True
-    NUM_LOADER_WORKERS: int = 6
+    # Import model configuration file
+    with open("model_conf.json", "r") as model_conf_file:
+        model_conf: dict = json.load(model_conf_file)
+        for item in model_conf[args["model"]].items():
+            if type(item[1]) is str and type(literal_eval(item[1])) is tuple:
+                update_spec: dict = {item[0]: literal_eval(item[1])}
+                model_conf[args["model"]].update(update_spec)
 
-    MODEL_PATH: str = "./Models/"
-    CITYSCAPES_PATH: str = os.environ["CITYSCAPES_PATH"]
-    DATA_PATH: str = CITYSCAPES_PATH
-    TRAINING_MACHINE: str = os.environ["TRAINING_MACHINE"]
-    
-    print("Dataset path: {cityscapes}".format(cityscapes=CITYSCAPES_PATH))
-    print("Training Machine: {machine}".format(machine=TRAINING_MACHINE))
+    # Print configuration options
+    for arg, val in {**args, **model_conf[args["model"]]}.items():
+        print("{arg}: {val}".format(arg=arg, val=val))
 
-    if PREFER_CUDA:
+    if not args["cpu"]:
         if torch.cuda.is_available():
-            device = torch.device("cuda:0")
+            device = torch.device("cuda:{gpu}".format(gpu=args["gpu_no"]))
             print("Device: CUDA")
         else:
             device = torch.device("cpu")
@@ -41,197 +87,146 @@ if __name__ == "__main__":
         device = torch.device("cpu")
         print("Device: CPU")
 
-    # Model Settings
-    MAX_INPUT_HEIGHT_WIDTH: tuple = (256, 512)
-    NUM_CLASSES: int = 20
-    BATCH_SIZE_SLICE: int = 1
-    BATCH_SIZE_TOTAL: int = 1
-    USE_TANH: bool = True
-    USE_INPUT_NOISE: bool = False
-    # CRN
-    CRN_INPUT_TENSOR_SIZE: tuple = (4, 8)
-    CRN_NUM_OUTPUT_IMAGES: int = 1
-    CRN_NUM_INNER_CHANNELS = 1024
-    CRN_HISTORY_LEN: int = 0
-    # GAN
-    GAN_BASE_LEARNING_RATE: float = 0.0002
-    GAN_USE_LOCAL_ENHANCER: bool = False
-
-    # Run Specific Settings
-    TRAIN: tuple = (True, 100)
-    SAMPLE: tuple = (True, 3)
-    WANDB: bool = False
-    SAVE_EVERY_EPOCH: bool = True
-    LOAD_BEFORE_RUN: bool = False
-    FLIP_TRAINING_IMAGES: bool = False
-    SUBSET_SIZE: int = 0
-    IMAGE_OUTPUT_DIR: str = "./Images/"
-    # CRN
-    CRN_UPDATE_PL_LAMBDAS: bool = False
-    # GAN
-    GAN_USE_NOISY_LABELS: bool = False
-    GAN_DECAY_LEARNING_RATE: bool = False
-    GAN_NUM_DISCRIMINATORS: int = 2
-    GAN_FEATURE_MATCHING_WEIGHT: float = 1
-
-    # Choose Model
-    MODEL: str = "GAN"
-
     model_frame: Optional[MastersModel] = None
 
     model_frame_args: dict = {
         "device": device,
-        "data_path": DATA_PATH,
-        "batch_size_slice": BATCH_SIZE_SLICE,
-        "batch_size_total": BATCH_SIZE_TOTAL,
-        "num_loader_workers": NUM_LOADER_WORKERS,
-        "subset_size": SUBSET_SIZE,
-        "should_flip_train": FLIP_TRAINING_IMAGES,
-        "use_tanh": USE_TANH,
-        "use_input_noise": USE_INPUT_NOISE,
+        "data_path": args["dataset_path"],
+        "input_image_height_width": args["input_image_height_width"],
+        "batch_size_slice": args["batch_size_pair"][0],
+        "batch_size_total": args["batch_size_pair"][1],
+        "num_classes": args["num_classes"],
+        "num_loader_workers": args["num_workers"],
+        "subset_size": args["training_subset"],
+        "should_flip_train": args["flip_training_images"],
+        "use_tanh": not args["no_tanh"],
+        "use_input_noise": args["input_image_noise"],
     }
 
-    if MODEL == "CRN":
-        model_frame: CRNFramework = CRNFramework(
-            **model_frame_args,
-            settings={
-                "input_tensor_size": CRN_INPUT_TENSOR_SIZE,
-                "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
-                "num_output_images": CRN_NUM_OUTPUT_IMAGES,
-                "num_inner_channels": CRN_NUM_INNER_CHANNELS,
-                "num_classes": NUM_CLASSES,
-                "history_len": CRN_HISTORY_LEN,
-            },
-        )
+    if args["model"] == "CRN":
+        settings = {
+            "input_tensor_size": model_conf["CRN"]["CRN_INPUT_TENSOR_SIZE"],
+            "num_output_images": model_conf["CRN"]["CRN_NUM_OUTPUT_IMAGES"],
+            "num_inner_channels": model_conf["CRN"]["CRN_NUM_INNER_CHANNELS"],
+            "history_len": model_conf["CRN"]["CRN_HISTORY_LEN"],
+        }
+        model_frame: CRNFramework = CRNFramework(**model_frame_args, **settings)
 
-    elif MODEL == "GAN":
-        model_frame: GANFramework = GANFramework(
-            **model_frame_args,
-            settings={
-                "max_input_height_width": MAX_INPUT_HEIGHT_WIDTH,
-                "num_classes": NUM_CLASSES,
-                "use_noisy_labels": GAN_USE_NOISY_LABELS,
-                "base_learning_rate": GAN_BASE_LEARNING_RATE,
-                "use_local_enhancer": GAN_USE_LOCAL_ENHANCER,
-                "num_discriminators": GAN_NUM_DISCRIMINATORS,
-                "feature_matching_weight": GAN_FEATURE_MATCHING_WEIGHT
-            },
-        )
+    elif args["model"] == "GAN":
+        settings = {
+            "use_noisy_labels": model_conf["GAN"]["GAN_USE_NOISY_LABELS"],
+            "base_learning_rate": model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
+            "use_local_enhancer": model_conf["GAN"]["GAN_USE_LOCAL_ENHANCER"],
+            "num_discriminators": model_conf["GAN"]["GAN_NUM_DISCRIMINATORS"],
+            "feature_matching_weight": model_conf["GAN"]["GAN_FEATURE_MATCHING_WEIGHT"],
+        }
+        model_frame: GANFramework = GANFramework(**model_frame_args, **settings)
     else:
-        quit()
+        raise SystemExit
 
-    print(model_frame.generator)
+    if args["load_saved_model"]:
+        model_frame.load_model(args["model_save_dir"])
 
-    if LOAD_BEFORE_RUN:
-        model_frame.load_model(MODEL_PATH)
-
-    if not WANDB:
+    if not args["wandb"]:
         os.environ["WANDB_MODE"] = "dryrun"
 
     # Training
-    if TRAIN[0]:
+    if args["train"]:
         wandb.init(
-            project=MODEL.lower(),
-            config={
-                "Batch size total": BATCH_SIZE_TOTAL,
-                "Batch size slice": BATCH_SIZE_SLICE,
-                "Inner channels": CRN_NUM_INNER_CHANNELS,
-                "Output size": MAX_INPUT_HEIGHT_WIDTH,
-                "Training machine": TRAINING_MACHINE,
-                "Training samples": SUBSET_SIZE,
-                "Training data flipping": FLIP_TRAINING_IMAGES,
-                "Using tanh activation": USE_TANH,
-                "Using noisy input images": USE_INPUT_NOISE,
-                "GAN feature matching weight": GAN_FEATURE_MATCHING_WEIGHT,
-                "Use GAN local enhancer": GAN_USE_LOCAL_ENHANCER,
-                "Decay GAN learning rate": GAN_BASE_LEARNING_RATE
-            },
+            project=args["model"].lower(), config={**args, **model_conf[args["model"]]}
         )
 
         # Watch if set
         for val in model_frame.wandb_trainable_model:
             wandb.watch(val)
 
-        for i in range(TRAIN[1]):
-            print("Epoch:", i)
+        for current_epoch in range(args["starting_epoch"], args["train"] + 1):
+            print("Epoch:", current_epoch)
 
             # Decay learning rate
-            if GAN_DECAY_LEARNING_RATE:
-                if MODEL is "GAN":
-                    GANFramework.adjust_learning_rate(model_frame.optimizer_D, i, TRAIN[1], GAN_BASE_LEARNING_RATE)
-                    GANFramework.adjust_learning_rate(model_frame.optimizer_G, i, TRAIN[1], GAN_BASE_LEARNING_RATE)
+            if args["model"] == "GAN" and model_conf["GAN"]["GAN_DECAY_LEARNING_RATE"]:
+                GANFramework.adjust_learning_rate(
+                    model_frame.optimizer_D,
+                    current_epoch,
+                    args["train"],
+                    model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
+                )
+                GANFramework.adjust_learning_rate(
+                    model_frame.optimizer_G,
+                    current_epoch,
+                    args["train"],
+                    model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
+                )
 
-            # Adjust CRN PL Lambdas // DEFUNCT NOW
-            if i % 5 == 0 and MODEL is "CRN":
-                loss_total, _ = model_frame.train(CRN_UPDATE_PL_LAMBDAS)
-            else:
-                loss_total, _ = model_frame.train(False)
+            # Perform single epoch of training
+            loss_total, _ = model_frame.train(False)
 
-            wandb.log(
-                {"Epoch Loss": loss_total * BATCH_SIZE_TOTAL, "Epoch": i}, commit=False
-            )
+            # Sample images from the model
+            if args["sample"]:
+                img_list: List[Tuple[Any, Any]] = model_frame.sample(args["sample"])
+                wandb_img_list: list = []
 
-            del loss_total, _
+                if not os.path.exists(args["image_output_dir"]):
+                    os.makedirs(args["image_output_dir"])
 
-            if SAMPLE[0]:
-                # model_frame.load_model(MODEL_PATH)
-                img_list: List[Tuple[Any, Any]] = model_frame.sample(SAMPLE[1])
-
-                if not os.path.exists(IMAGE_OUTPUT_DIR):
-                    os.makedirs(IMAGE_OUTPUT_DIR)
+                model_image_dir: str = os.path.join(
+                    args["image_output_dir"], args["model"]
+                )
+                if not os.path.exists(model_image_dir):
+                    os.makedirs(model_image_dir)
 
                 img_pair: Tuple[Any, Any]
                 for j, img_pair in enumerate(img_list):
-                    width: int = img_pair[0].size[0]
-                    height: int = img_pair[0].size[1]
-
-                    new_im: Image = Image.new("RGB", (width * 2, height))
-                    new_im.paste(img_pair[0], (0, 0))
-                    new_im.paste(img_pair[1], (width, 0))
-
-                    filename = "{path}figure_{i}_{j}.png".format(
-                        path=IMAGE_OUTPUT_DIR, i=i, j=j
+                    filename = os.path.join(
+                        args["image_output_dir"],
+                        "epoch_{epoch}_figure_{_figure_}.png".format(
+                            epoch=current_epoch, _figure_=j
+                        ),
                     )
-                    new_im.save(filename)
 
-                    caption: str = str("Sample Image " + str(i) + str(" ") + str(j))
-                    wandb.log(
-                        {"Sample Image": [wandb.Image(new_im, caption=caption)]},
-                        commit=False,
+                    output_image: Image = process_sampled_image(img_pair, filename)
+
+                    caption: str = str(
+                        "Epoch: {epoch}, figure: {fig}".format(
+                            epoch=current_epoch, fig=j
+                        )
                     )
-                wandb.log(commit=True)
-            if SAVE_EVERY_EPOCH:
-                if not os.path.exists(MODEL_PATH):
-                    os.makedirs(MODEL_PATH)
-                model_frame.save_model(MODEL_PATH)
-        if not SAVE_EVERY_EPOCH:
-            if not os.path.exists(MODEL_PATH):
-                os.makedirs(MODEL_PATH)
-            model_frame.save_model(MODEL_PATH)
-        # quit()
+                    wandb_img_list.append(wandb.Image(output_image, caption=caption))
 
-    # Sampling
-    # if SAMPLE[0]:
-    #     # model_frame.load_model(MODEL_PATH)
-    #     img_list: sample_output = model_frame.sample(SAMPLE[1])
-    #     for i, img in enumerate(img_list):
-    #         print(img_list[i])
-    #         plt.figure(i)
-    #         plt.imshow(img)
-    #         plt.show()
+                # Log sample images to wandb, do not commit yet
+                wandb.log({"Sample Images": wandb_img_list}, commit=False)
 
-    if SAMPLE[0] and not TRAIN[0]:
-        if not os.path.exists(IMAGE_OUTPUT_DIR):
-            os.makedirs(IMAGE_OUTPUT_DIR)
+            # Commit epoch loss, and sample images if they exist.
+            wandb.log(
+                {
+                    "Epoch Loss": loss_total * args["batch_size_pair"][1],
+                    "Epoch": current_epoch,
+                }
+            )
+
+            # Delete output of training
+            del loss_total, _
+
+            # Save model if requested to save every epoch
+            if args["save_every_epoch"]:
+                if not os.path.exists(args["model_save_dir"]):
+                    os.makedirs(args["model_save_dir"])
+                model_frame.save_model(args["model_save_dir"])
+
+        # If not saving every epoch, save model only once at the end
+        if not args["save_every_epoch"]:
+            if not os.path.exists(args["model_save_dir"]):
+                os.makedirs(args["model_save_dir"])
+            model_frame.save_model(args["model_save_dir"])
+
+    # Sample images if not training
+    if args["sample"] and not args["train"]:
+        if not os.path.exists(args["image_output_dir"]):
+            os.makedirs(args["image_output_dir"])
         # model_frame.load_model(MODEL_PATH)
-        img_list: List[Any] = model_frame.sample(SAMPLE[1])
+        img_list: list = model_frame.sample(args["sample"])
         for i, img_pair in enumerate(img_list):
-            width: int = img_pair[0].size[0]
-            height: int = img_pair[0].size[1]
-
-            new_im: Image = Image.new("RGB", (width * 2, height))
-            new_im.paste(img_pair[0], (0, 0))
-            new_im.paste(img_pair[1], (width, 0))
-
-            filename = "{path}figure_{i}.png".format(path=IMAGE_OUTPUT_DIR, i=i)
-            new_im.save(filename)
+            filename = os.path.join(
+                args["image_output_dir"], "Sample_figure_{i}.png".format(i=i)
+            )
+            process_sampled_image(img_pair, filename)
