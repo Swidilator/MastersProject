@@ -146,15 +146,9 @@ if __name__ == "__main__":
 
             # Decay learning rate
             if args["model"] == "GAN" and model_conf["GAN"]["GAN_DECAY_LEARNING_RATE"]:
-                GANFramework.adjust_learning_rate(
-                    model_frame.optimizer_D,
+                model_frame.adjust_learning_rate(
                     current_epoch,
-                    args["train"],
-                    model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
-                )
-                GANFramework.adjust_learning_rate(
-                    model_frame.optimizer_G,
-                    current_epoch,
+                    model_conf["GAN"]["GAN_DECAY_STARTING_EPOCH"],
                     args["train"],
                     model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
                 )
