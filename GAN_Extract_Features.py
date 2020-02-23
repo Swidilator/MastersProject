@@ -20,7 +20,9 @@ if __name__ == "__main__":
     parser.add_argument("--training-subset", action="store", default=0, type=int)
     parser.add_argument("--model-save-dir", action="store", default="./Models/")
     parser.add_argument("--model-file-name", action="store", default="GAN_Latest.pt")
-    parser.add_argument("--features-file-path", action="store", default="./extracted_features.csv")
+    parser.add_argument(
+        "--features-file-path", action="store", default="./extracted_features.csv"
+    )
     parser.add_argument("--cpu", action="store_true", default=False)
     parser.add_argument("--gpu-no", action="store", default=0)
     parser.add_argument("--no-tanh", action="store_true", default=False)
