@@ -103,13 +103,13 @@ class MastersModel(ABC):
         return model_snapshot
 
     @abstractmethod
-    def save_model(self, model_dir: str, snapshot: bool = False) -> None:
+    def save_model(self, model_dir: str, epoch: int = -1) -> None:
         """
         Save the current model state. Defaults to only overwriting last file.
 
         Args:
             model_dir: Directory in which to save the model
-            snapshot: Save an extra, timestamped version
+            epoch: Save an extra version every epoch
 
         Returns:
             None

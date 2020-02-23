@@ -38,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument("batch_size_pair", action="store", type=eval)
     parser.add_argument("training_machine_name", action="store")
 
+    parser.add_argument("--model-conf_file", action="store", default="model_conf.json")
     parser.add_argument("--train", action="store", default=0, type=int)
     parser.add_argument("--starting-epoch", action="store", default=1, type=int)
     parser.add_argument("--sample", action="store", default=0, type=int)
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument("--save-every-epoch", action="store_true", default=False)
     parser.add_argument("--load-saved-model", action="store", default=None)
     parser.add_argument("--no-tanh", action="store_true", default=False)
-    parser.add_argument("--num_workers", action="store", default=6, type=int)
+    parser.add_argument("--num-workers", action="store", default=6, type=int)
     parser.add_argument("--num-classes", action="store", default=20, type=int)
     parser.add_argument("--input-image-noise", action="store_true", default=False)
     parser.add_argument("--flip-training-images", action="store_true", default=False)
@@ -65,7 +66,7 @@ if __name__ == "__main__":
         torch.backends.cudnn.benchmark = False
 
     # Import model configuration file
-    with open("model_conf.json", "r") as model_conf_file:
+    with open(args["model_conf_file"], "r") as model_conf_file:
         model_conf: dict = json.load(model_conf_file)
         for item in model_conf[args["model"]].items():
             if type(item[1]) is str and type(literal_eval(item[1])) is tuple:
@@ -145,15 +146,9 @@ if __name__ == "__main__":
 
             # Decay learning rate
             if args["model"] == "GAN" and model_conf["GAN"]["GAN_DECAY_LEARNING_RATE"]:
-                GANFramework.adjust_learning_rate(
-                    model_frame.optimizer_D,
+                model_frame.adjust_learning_rate(
                     current_epoch,
-                    args["train"],
-                    model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
-                )
-                GANFramework.adjust_learning_rate(
-                    model_frame.optimizer_G,
-                    current_epoch,
+                    model_conf["GAN"]["GAN_DECAY_STARTING_EPOCH"],
                     args["train"],
                     model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
                 )
@@ -211,7 +206,7 @@ if __name__ == "__main__":
             if args["save_every_epoch"]:
                 if not os.path.exists(args["model_save_dir"]):
                     os.makedirs(args["model_save_dir"])
-                model_frame.save_model(args["model_save_dir"])
+                model_frame.save_model(args["model_save_dir"], current_epoch)
 
         # If not saving every epoch, save model only once at the end
         if not args["save_every_epoch"]:
