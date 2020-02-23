@@ -206,7 +206,7 @@ if __name__ == "__main__":
             if args["save_every_epoch"]:
                 if not os.path.exists(args["model_save_dir"]):
                     os.makedirs(args["model_save_dir"])
-                model_frame.save_model(args["model_save_dir"])
+                model_frame.save_model(args["model_save_dir"], current_epoch)
 
         # If not saving every epoch, save model only once at the end
         if not args["save_every_epoch"]:
