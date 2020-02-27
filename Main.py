@@ -126,7 +126,10 @@ if __name__ == "__main__":
         raise SystemExit
 
     if args["load_saved_model"]:
-        model_frame.load_model(args["model_save_dir"], args["load_saved_model"])
+        if args["load_saved_model"] == "Latest":
+            model_frame.load_model(args["model_save_dir"])
+        else:
+            model_frame.load_model(args["model_save_dir"], args["load_saved_model"])
 
     if not args["wandb"]:
         os.environ["WANDB_MODE"] = "dryrun"
