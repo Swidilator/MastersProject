@@ -117,13 +117,13 @@ class MastersModel(ABC):
         assert self.model_name is not None
 
     @abstractmethod
-    def load_model(self, model_dir: str, model_name: str) -> None:
+    def load_model(self, model_dir: str, model_file_name: str) -> None:
         """
         Inplace load a snapshot of a model.
 
         Args:
             model_dir: Path to saved model folder
-            model_name: Filename of saved model file
+            model_file_name: Filename of saved model file
 
         Returns:
             None
