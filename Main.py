@@ -15,7 +15,7 @@ from PIL import Image
 
 # from torchviz import make_dot
 
-
+# When sampling, this combines images for saving as side-by-side comparisons
 def process_sampled_image(img_pair: tuple, output_path: str) -> Image:
     img_width: int = img_pair[0].size[0]
     img_height: int = img_pair[0].size[1]
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     parser.add_argument("batch_size_pair", action="store", type=eval)
     parser.add_argument("training_machine_name", action="store")
 
-    parser.add_argument("--model-conf_file", action="store", default="model_conf.json")
+    parser.add_argument("--model-conf-file", action="store", default="model_conf.json")
     parser.add_argument("--train", action="store", default=0, type=int)
     parser.add_argument("--starting-epoch", action="store", default=1, type=int)
     parser.add_argument("--sample", action="store", default=0, type=int)
@@ -68,10 +68,6 @@ if __name__ == "__main__":
     # Import model configuration file
     with open(args["model_conf_file"], "r") as model_conf_file:
         model_conf: dict = json.load(model_conf_file)
-        for item in model_conf[args["model"]].items():
-            if type(item[1]) is str and type(literal_eval(item[1])) is tuple:
-                update_spec: dict = {item[0]: literal_eval(item[1])}
-                model_conf[args["model"]].update(update_spec)
 
     # Print configuration options
     for arg, val in {**args, **model_conf[args["model"]]}.items():
@@ -106,7 +102,10 @@ if __name__ == "__main__":
 
     if args["model"] == "CRN":
         settings = {
-            "input_tensor_size": model_conf["CRN"]["CRN_INPUT_TENSOR_SIZE"],
+            "input_tensor_size": (
+                model_conf["CRN"]["CRN_INPUT_TENSOR_SIZE_HEIGHT"],
+                model_conf["CRN"]["CRN_INPUT_TENSOR_SIZE_WIDTH"],
+            ),
             "num_output_images": model_conf["CRN"]["CRN_NUM_OUTPUT_IMAGES"],
             "num_inner_channels": model_conf["CRN"]["CRN_NUM_INNER_CHANNELS"],
             "history_len": model_conf["CRN"]["CRN_HISTORY_LEN"],
@@ -115,11 +114,15 @@ if __name__ == "__main__":
 
     elif args["model"] == "GAN":
         settings = {
-            "use_noisy_labels": model_conf["GAN"]["GAN_USE_NOISY_LABELS"],
             "base_learning_rate": model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
-            "use_local_enhancer": model_conf["GAN"]["GAN_USE_LOCAL_ENHANCER"],
             "num_discriminators": model_conf["GAN"]["GAN_NUM_DISCRIMINATORS"],
+            "use_local_enhancer": model_conf["GAN"]["GAN_USE_LOCAL_ENHANCER"],
+            "use_noisy_labels": model_conf["GAN"]["GAN_USE_NOISY_LABELS"],
             "feature_matching_weight": model_conf["GAN"]["GAN_FEATURE_MATCHING_WEIGHT"],
+            "feature_extractions_file_path": model_conf["GAN"][
+                "GAN_FEATURE_EXTRACTIONS_FILE_PATH"
+            ],
+            "use_sigmoid_discriminator": model_conf["GAN"]["GAN_USE_SIGMOID_DISCRIMINATOR"]
         }
         model_frame: GANFramework = GANFramework(**model_frame_args, **settings)
     else:
@@ -140,7 +143,7 @@ if __name__ == "__main__":
             project=args["model"].lower(), config={**args, **model_conf[args["model"]]}
         )
 
-        # Watch if set
+        # Have WandB watch the components of the model
         for val in model_frame.wandb_trainable_model:
             wandb.watch(val)
 
@@ -157,7 +160,7 @@ if __name__ == "__main__":
                 )
 
             # Perform single epoch of training
-            loss_total, _ = model_frame.train(False)
+            epoch_loss, _ = model_frame.train(current_epoch=current_epoch)
 
             # Sample images from the model
             if args["sample"]:
@@ -197,13 +200,13 @@ if __name__ == "__main__":
             # Commit epoch loss, and sample images if they exist.
             wandb.log(
                 {
-                    "Epoch Loss": loss_total * args["batch_size_pair"][1],
+                    "Epoch Loss": epoch_loss * args["batch_size_pair"][1],
                     "Epoch": current_epoch,
                 }
             )
 
             # Delete output of training
-            del loss_total, _
+            del epoch_loss, _
 
             # Save model if requested to save every epoch
             if args["save_every_epoch"]:

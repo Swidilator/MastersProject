@@ -131,12 +131,12 @@ class MastersModel(ABC):
         assert self.model_name is not None
 
     @abstractmethod
-    def train(self, input: tuple) -> Tuple[float, Any]:
+    def train(self, **kwargs) -> Tuple[float, Any]:
         """
         Perform one training epoch.
 
         Args:
-            input: Model and epoch specific settings
+            kwargs: Model and epoch specific settings
 
         Returns:
             Tuple[float, Any]

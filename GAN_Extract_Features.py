@@ -1,5 +1,11 @@
 import torch
-from pandas import DataFrame
+import numpy as np
+import pandas as pd
+import kmeans_pytorch
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import pyplot as plt
+import pickle
+
 import os
 
 import argparse
@@ -23,6 +29,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--features-file-path", action="store", default="./extracted_features.csv"
     )
+    parser.add_argument("--use-existing-data", action="store_true", default=False)
     parser.add_argument("--cpu", action="store_true", default=False)
     parser.add_argument("--gpu-no", action="store", default=0)
     parser.add_argument("--no-tanh", action="store_true", default=False)
@@ -84,15 +91,51 @@ if __name__ == "__main__":
         "num_discriminators": model_conf["GAN"]["GAN_NUM_DISCRIMINATORS"],
         "feature_matching_weight": model_conf["GAN"]["GAN_FEATURE_MATCHING_WEIGHT"],
     }
-    model_frame: GANFramework = GANFramework(**model_frame_args, **settings)
 
-    # Load model
-    model_path: str = os.path.join(args["model_save_dir"])
-    model_frame.load_model(model_path)
+    if not args["use_existing_data"]:
+        model_frame: GANFramework = GANFramework(**model_frame_args, **settings)
 
-    # Extract features
-    features: DataFrame = model_frame.extract_features()
+        # Load model
+        model_frame.load_model(args["model_save_dir"], args["model_file_name"])
+        # Extract features
+        features: pd.DataFrame = model_frame.extract_features()
 
-    # Save features to file
-    features.to_csv(args["features_file_path"], index=False)
+        # Save features to file
+        features.to_csv(args["features_file_path"], index=False)
+        del model_frame
+    else:
+        features: pd.DataFrame = pd.read_csv(args["features_file_path"])
+        features = features.round({"Class": 0})
+
+    clustered_means: torch.Tensor = torch.empty(0, 4)
+
+    for i, val in enumerate(features["Class"].unique().tolist()):
+        subset: pd.DataFrame = features[features["Class"] == val]
+        subset = subset[["Value_1", "Value_2", "Value_3"]]
+        np_subset: np.ndarray = subset.to_numpy()
+        t_subset: torch.Tensor = torch.tensor(np_subset).to(device)
+
+        cluster_ids_x, cluster_centers = kmeans_pytorch.kmeans(
+            X=t_subset, num_clusters=10, distance="euclidean", device=device
+        )
+
+        formatted_means: torch.Tensor = torch.empty(10, 4).float()
+        formatted_means[:, 0] = val
+        formatted_means[:, 1:4] = cluster_centers
+
+        clustered_means = torch.cat((clustered_means, formatted_means))
+
+    # Dump to pickle to preserve tensor data type
+    with open("cluster_centres_tensor.pkl", "wb") as f:
+        pickle.dump(clustered_means.cpu(), f)
+
+    np_clustered_means: np.ndarray = clustered_means.cpu().numpy()
+
+    output_dataframe = pd.DataFrame(
+        data=np.float_(np_clustered_means),
+        index=np.arange(0, np_clustered_means.shape[0]),
+        columns=["Class", "Mean_1", "Mean_2", "Mean_3"]
+    )
+    output_dataframe.to_csv("cluster_centres.csv", index=False)
+
     raise SystemExit
