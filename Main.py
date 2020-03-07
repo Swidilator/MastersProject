@@ -122,6 +122,7 @@ if __name__ == "__main__":
             "feature_extractions_file_path": model_conf["GAN"][
                 "GAN_FEATURE_EXTRACTIONS_FILE_PATH"
             ],
+            "use_sigmoid_discriminator": model_conf["GAN"]["GAN_USE_SIGMOID_DISCRIMINATOR"]
         }
         model_frame: GANFramework = GANFramework(**model_frame_args, **settings)
     else:
