@@ -154,12 +154,13 @@ class MastersModel(ABC):
         pass
 
     @abstractmethod
-    def sample(self, k: int) -> List[Tuple[Any, Any]]:
+    def sample(self, k: int, **kwargs) -> List[Tuple[Any, Any]]:
         """
         Sample k random images from dataset, forward through network.
 
         Args:
             k: number of images to sample
+            kwargs: any model-specific arguments
 
         Returns:
             List[Tuple[Any, Any]]
