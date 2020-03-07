@@ -157,7 +157,7 @@ if __name__ == "__main__":
                 )
 
             # Perform single epoch of training
-            loss_total, _ = model_frame.train(False)
+            epoch_loss, _ = model_frame.train(current_epoch=current_epoch)
 
             # Sample images from the model
             if args["sample"]:
