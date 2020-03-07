@@ -120,6 +120,9 @@ if __name__ == "__main__":
             "use_local_enhancer": model_conf["GAN"]["GAN_USE_LOCAL_ENHANCER"],
             "num_discriminators": model_conf["GAN"]["GAN_NUM_DISCRIMINATORS"],
             "feature_matching_weight": model_conf["GAN"]["GAN_FEATURE_MATCHING_WEIGHT"],
+            "feature_extractions_file_path": model_conf["GAN"][
+                "GAN_FEATURE_EXTRACTIONS_FILE_PATH"
+            ],
         }
         model_frame: GANFramework = GANFramework(**model_frame_args, **settings)
     else:
