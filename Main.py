@@ -13,16 +13,28 @@ from Training_Framework import MastersModel
 import wandb
 from PIL import Image
 
-# from torchviz import make_dot
 
 # When sampling, this combines images for saving as side-by-side comparisons
-def process_sampled_image(img_pair: tuple, output_path: str) -> Image:
-    img_width: int = img_pair[0].size[0]
-    img_height: int = img_pair[0].size[1]
+def process_sampled_image(img_list: tuple, output_path: str) -> Image:
+    img_width: int = img_list[0].size[0]
+    img_height: int = img_list[0].size[1]
 
-    new_image: Image = Image.new("RGB", (img_width * 2, img_height))
-    new_image.paste(img_pair[0], (0, 0))
-    new_image.paste(img_pair[1], (img_width, 0))
+    num_images_hor: int = 2
+    num_images_vert: int = (len(img_list) + 1) // num_images_hor
+
+    total_img_width: int = img_width * num_images_hor
+    total_img_height: int = img_height * num_images_vert
+
+    new_image: Image = Image.new("RGB", (total_img_width, total_img_height))
+    for img_no_vert in range(total_img_height):
+        for img_no_hor in range(total_img_width):
+            index: int = (img_no_vert * num_images_hor) + img_no_hor
+            if index < len(img_list):
+                new_image.paste(
+                    img_list[(img_no_vert * num_images_hor) + img_no_hor],
+                    (img_no_hor * img_width, img_no_vert * img_height))
+    # new_image.paste(img_list[0], (0, 0))
+    # new_image.paste(img_list[1], (img_width, 0))
     new_image.save(output_path)
     return new_image
 
@@ -139,6 +151,34 @@ if __name__ == "__main__":
     if not args["wandb"]:
         os.environ["WANDB_MODE"] = "dryrun"
 
+    # Set up sampling args and sample if no training is to be done
+    if args["sample"]:
+        sample_args: dict = {}
+        if args["model"] == "GAN":
+            sample_args.update(
+                {
+                    "use_extracted_features": (
+                        True
+                        if model_conf["GAN"][
+                            "GAN_FEATURE_EXTRACTIONS_FILE_PATH"
+                        ]
+                        else False
+                    )
+                }
+            )
+
+        if not args["train"]:
+            img_list: List[Tuple[Any, Any]] = model_frame.sample(
+                args["sample"], **sample_args
+            )
+            if not os.path.exists(args["image_output_dir"]):
+                os.makedirs(args["image_output_dir"])
+            for i, img_pair in enumerate(img_list):
+                filename = os.path.join(
+                    args["image_output_dir"], "Sample_figure_{i}.png".format(i=i)
+                )
+                process_sampled_image(img_pair, filename)
+
     # Training
     if args["train"]:
         wandb.init(
@@ -166,19 +206,7 @@ if __name__ == "__main__":
 
             # Sample images from the model
             if args["sample"]:
-                sample_args: dict = {}
-                if args["model"] == "GAN":
-                    sample_args.update(
-                        {
-                            "use_extracted_features": (
-                                True
-                                if model_conf["GAN"][
-                                    "GAN_FEATURE_EXTRACTIONS_FILE_PATH"
-                                ]
-                                else False
-                            )
-                        }
-                    )
+
                 img_list: List[Tuple[Any, Any]] = model_frame.sample(
                     args["sample"], **sample_args
                 )
@@ -236,15 +264,3 @@ if __name__ == "__main__":
             if not os.path.exists(args["model_save_dir"]):
                 os.makedirs(args["model_save_dir"])
             model_frame.save_model(args["model_save_dir"])
-
-    # Sample images if not training
-    if args["sample"] and not args["train"]:
-        if not os.path.exists(args["image_output_dir"]):
-            os.makedirs(args["image_output_dir"])
-        # model_frame.load_model(MODEL_PATH)
-        img_list: list = model_frame.sample(args["sample"])
-        for i, img_pair in enumerate(img_list):
-            filename = os.path.join(
-                args["image_output_dir"], "Sample_figure_{i}.png".format(i=i)
-            )
-            process_sampled_image(img_pair, filename)
