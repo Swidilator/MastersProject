@@ -50,10 +50,6 @@ if __name__ == "__main__":
     # Import model configuration file
     with open("model_conf.json", "r") as model_conf_file:
         model_conf: dict = json.load(model_conf_file)
-        for item in model_conf["GAN"].items():
-            if type(item[1]) is str and type(literal_eval(item[1])) is tuple:
-                update_spec: dict = {item[0]: literal_eval(item[1])}
-                model_conf["GAN"].update(update_spec)
 
     # Print configuration options
     for arg, val in {**args, **model_conf["GAN"]}.items():
@@ -85,11 +81,17 @@ if __name__ == "__main__":
     }
 
     settings = {
-        "use_noisy_labels": model_conf["GAN"]["GAN_USE_NOISY_LABELS"],
         "base_learning_rate": model_conf["GAN"]["GAN_BASE_LEARNING_RATE"],
-        "use_local_enhancer": model_conf["GAN"]["GAN_USE_LOCAL_ENHANCER"],
         "num_discriminators": model_conf["GAN"]["GAN_NUM_DISCRIMINATORS"],
+        "use_local_enhancer": model_conf["GAN"]["GAN_USE_LOCAL_ENHANCER"],
+        "use_noisy_labels": model_conf["GAN"]["GAN_USE_NOISY_LABELS"],
         "feature_matching_weight": model_conf["GAN"]["GAN_FEATURE_MATCHING_WEIGHT"],
+        "feature_extractions_file_path": model_conf["GAN"][
+            "GAN_FEATURE_EXTRACTIONS_FILE_PATH"
+        ],
+        "use_sigmoid_discriminator": model_conf["GAN"][
+            "GAN_USE_SIGMOID_DISCRIMINATOR"
+        ],
     }
 
     if not args["use_existing_data"]:
