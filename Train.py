@@ -3,13 +3,11 @@ import os
 from typing import Tuple, List, Any
 import argparse
 import json
-from ast import literal_eval
-from matplotlib import pyplot as plt
 
 from CRN.CRN_Framework import CRNFramework
 from GAN.GAN_Framework import GANFramework
 from typing import Optional
-from Training_Framework import MastersModel
+from SupportScripts.Training_Framework import MastersModel
 import wandb
 from PIL import Image
 
