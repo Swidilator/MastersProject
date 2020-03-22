@@ -46,7 +46,11 @@ class MastersModel(ABC):
     @abstractmethod
     def wandb_trainable_model(self) -> tuple:
         """
-        Give access to the list of models that WandB must track
+        Expose model components that WandB can track.
+
+        :return: tuple containing model components that WandB can track.
+        """
+        pass
 
     @classmethod
     @abstractmethod
@@ -64,17 +68,8 @@ class MastersModel(ABC):
         """
         Set up dataset and data loader for model.
 
-        Args:
-            data_path: Path to dataset
-            batch_size_total:
-            num_loader_workers: Number of CPU workers for loading data
-            subset_size: Maximum number of images to load in training set
-            should_flip_train:
-            use_input_noise:
-            settings: Extra model-specific settings
-
-        Returns:
-            None
+        :param kwargs: Extra model specific settings for data loaders.
+        :return: None
         """
         pass
 
@@ -83,15 +78,17 @@ class MastersModel(ABC):
         """
         Set up all necessary model components into a state ready for training.
 
-        Args:
-            settings: Model-specific settings
-
-        Returns:
-            None
+        :param kwargs: Extra model specific settings for model creation.
+        :return: None
         """
         pass
 
     def __get_model_snapshot_name__(self) -> str:
+        """
+        Generate a timestamped name string for saving a model.
+
+        :return: str
+        """
         """
         Generate a timestamped name string for saving a model.
 
