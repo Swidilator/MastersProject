@@ -1,6 +1,7 @@
 import torch
 import time
 from typing import Union, Tuple, List, Any
+from support_scripts.utils import ModelSettingsManager
 import torch.utils as utils
 
 from abc import ABC, abstractmethod
@@ -45,8 +46,14 @@ class MastersModel(ABC):
         """
         Give access to the list of models that WandB must track
 
-        Returns:
-            Models to track
+    @classmethod
+    @abstractmethod
+    def from_model_settings_manager(cls, manager: ModelSettingsManager) -> 'MastersModel':
+        """
+        Initialise MastersModel from ModelSettingsManager instead of input arguments.
+
+        :param manager: ModelSettingsManager to sample settings from.
+        :return: MastersModel
         """
         pass
 
