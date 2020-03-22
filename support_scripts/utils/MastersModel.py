@@ -22,6 +22,7 @@ class MastersModel(ABC):
         should_flip_train: bool,
         use_tanh: bool,
         use_input_noise: bool,
+        sample_only: bool,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -39,6 +40,7 @@ class MastersModel(ABC):
         self.should_flip_train: bool = should_flip_train
         self.use_tanh: bool = use_tanh
         self.use_input_noise: bool = use_input_noise
+        self.sample_only: bool = sample_only
 
     @property
     @abstractmethod

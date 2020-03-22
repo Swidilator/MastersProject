@@ -1,8 +1,9 @@
-import torch
 import os
-from typing import Tuple, List, Any
-import argparse
-import json
+from typing import Tuple, Any, Optional
+from PIL.Image import Image
+from tqdm import tqdm
+
+import wandb
 
 from CRN.CRN_Framework import CRNFramework
 from GAN import GANFramework
@@ -69,9 +70,18 @@ if __name__ == "__main__":
 
                 indices_list: tuple = tuple([x for x in range(manager.args["sample"])])
 
-                img_list: List[Tuple[Any, Any]] = model_frame.sample(
-                    args["sample"], **sample_args
+                sample_args: dict = {}
+                if manager.args["model"] == "GAN":
+                    sample_args.update({"use_extracted_features": False})
+
+                output_images, sample_list = sample_from_model(
+                    model=model_frame,
+                    sample_args=sample_args,
+                    mode=manager.args["sample_mode"],
+                    indices=indices_list,
+                    num_images=manager.args["sample"],
                 )
+
                 wandb_img_list: list = []
 
                 if not os.path.exists(manager.args["image_output_dir"]):
@@ -83,23 +93,21 @@ if __name__ == "__main__":
                 if not os.path.exists(model_image_dir):
                     os.makedirs(model_image_dir)
 
-                img_pair: Tuple[Any, Any]
-                for j, img_pair in enumerate(img_list):
+                img: Image
+                for j, img in enumerate(tqdm(output_images, desc="Saving / Uploading")):
                     filename = os.path.join(
                         manager.args["image_output_dir"],
                         "epoch_{epoch}_figure_{_figure_}.png".format(
-                            epoch=current_epoch, _figure_=j
+                            epoch=current_epoch, _figure_=sample_list[j]
                         ),
                     )
-
-                    output_image: Image = process_sampled_image(img_pair, filename)
-
+                    img.save(filename)
                     caption: str = str(
                         "Epoch: {epoch}, figure: {fig}".format(
                             epoch=current_epoch, fig=j
                         )
                     )
-                    wandb_img_list.append(wandb.Image(output_image, caption=caption))
+                    wandb_img_list.append(wandb.Image(img, caption=caption))
 
                 # Log sample images to wandb, do not commit yet
                 wandb.log({"Sample Images": wandb_img_list}, commit=False)
