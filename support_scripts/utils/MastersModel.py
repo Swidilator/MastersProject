@@ -1,6 +1,7 @@
 import torch
 import time
 from typing import Union, Tuple, List, Any
+from support_scripts.utils import ModelSettingsManager
 import torch.utils as utils
 
 from abc import ABC, abstractmethod
@@ -21,6 +22,7 @@ class MastersModel(ABC):
         should_flip_train: bool,
         use_tanh: bool,
         use_input_noise: bool,
+        sample_only: bool,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -38,15 +40,26 @@ class MastersModel(ABC):
         self.should_flip_train: bool = should_flip_train
         self.use_tanh: bool = use_tanh
         self.use_input_noise: bool = use_input_noise
+        self.sample_only: bool = sample_only
 
     @property
     @abstractmethod
     def wandb_trainable_model(self) -> tuple:
         """
-        Give access to the list of models that WandB must track
+        Expose model components that WandB can track.
 
-        Returns:
-            Models to track
+        :return: tuple containing model components that WandB can track.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_model_settings_manager(cls, manager: ModelSettingsManager) -> 'MastersModel':
+        """
+        Initialise MastersModel from ModelSettingsManager instead of input arguments.
+
+        :param manager: ModelSettingsManager to sample settings from.
+        :return: MastersModel
         """
         pass
 
@@ -55,17 +68,8 @@ class MastersModel(ABC):
         """
         Set up dataset and data loader for model.
 
-        Args:
-            data_path: Path to dataset
-            batch_size_total:
-            num_loader_workers: Number of CPU workers for loading data
-            subset_size: Maximum number of images to load in training set
-            should_flip_train:
-            use_input_noise:
-            settings: Extra model-specific settings
-
-        Returns:
-            None
+        :param kwargs: Extra model specific settings for data loaders.
+        :return: None
         """
         pass
 
@@ -74,15 +78,17 @@ class MastersModel(ABC):
         """
         Set up all necessary model components into a state ready for training.
 
-        Args:
-            settings: Model-specific settings
-
-        Returns:
-            None
+        :param kwargs: Extra model specific settings for model creation.
+        :return: None
         """
         pass
 
     def __get_model_snapshot_name__(self) -> str:
+        """
+        Generate a timestamped name string for saving a model.
+
+        :return: str
+        """
         """
         Generate a timestamped name string for saving a model.
 
