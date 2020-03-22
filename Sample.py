@@ -2,6 +2,7 @@ import os
 from typing import Optional
 from PIL.Image import Image
 from tqdm import tqdm
+import random
 
 from support_scripts.utils.ModelSettingsManager import ModelSettingsManager
 from support_scripts.sampling.SamplingHelpers import (
@@ -26,7 +27,9 @@ if __name__ == "__main__":
     else:
         raise SystemExit
 
-    indices: tuple = (0,)
+    indices: tuple = random.sample(
+        range(0, len(model_frame.__data_set_val__)), manager.args["sample"]
+    )
 
     prefix: str = manager.args["model_save_prefix"]
     suffix: str = ".pt"
@@ -74,5 +77,4 @@ if __name__ == "__main__":
                     epoch=num, _figure_=sample_list[i]
                 ),
             )
-            print(filename)
             image.save(filename)
