@@ -27,9 +27,10 @@ if __name__ == "__main__":
     else:
         raise SystemExit
 
-    indices: tuple = random.sample(
-        range(0, len(model_frame.__data_set_val__)), manager.args["sample"]
-    )
+    # indices: tuple = random.sample(
+    #     range(0, len(model_frame.__data_set_val__)), manager.args["sample"]
+    # )
+    indices: tuple = (32, 112, 130, 132, 175, 285, 377, 389, 447, 467)
 
     prefix: str = manager.args["model_save_prefix"]
     suffix: str = ".pt"
