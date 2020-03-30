@@ -28,12 +28,9 @@ if __name__ == "__main__":
         raise SystemExit
 
     if manager.args["load_saved_model"]:
-        if manager.args["load_saved_model"] == "Latest":
-            model_frame.load_model(manager.args["model_save_dir"])
-        else:
-            model_frame.load_model(
-                manager.args["model_save_dir"], manager.args["load_saved_model"]
-            )
+        model_frame.load_model(
+            manager.args["model_save_dir"], manager.args["load_saved_model"]
+        )
 
     if not manager.args["wandb"]:
         os.environ["WANDB_MODE"] = "dryrun"
@@ -50,6 +47,9 @@ if __name__ == "__main__":
         # Have WandB watch the components of the model
         for val in model_frame.wandb_trainable_model:
             wandb.watch(val)
+
+        # Indices list for sampling
+        indices_list: tuple = tuple([x for x in range(manager.args["sample"])])
 
         for current_epoch in range(
             manager.args["starting_epoch"], manager.args["train"] + 1
@@ -70,8 +70,6 @@ if __name__ == "__main__":
 
             # Sample images from the model
             if manager.args["sample"]:
-
-                indices_list: tuple = tuple([x for x in range(manager.args["sample"])])
 
                 sample_args: dict = {}
                 if manager.args["model"] == "GAN":
@@ -101,10 +99,12 @@ if __name__ == "__main__":
                     os.makedirs(model_image_dir)
 
                 img: Image
-                for j, img in enumerate(tqdm(output_images, desc="Saving / Uploading")):
+                for j, img in enumerate(
+                    tqdm(output_images, desc="Saving / Uploading Images")
+                ):
                     filename = os.path.join(
-                        manager.args["image_output_dir"],
-                        "epoch_{epoch}_figure_{_figure_}.png".format(
+                        model_image_dir,
+                        "figure_{_figure_}_epoch_{epoch}.png".format(
                             epoch=current_epoch, _figure_=sample_list[j]
                         ),
                     )
