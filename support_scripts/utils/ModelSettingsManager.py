@@ -33,6 +33,7 @@ class ModelSettingsManager:
         parser.add_argument("input_image_height_width", action="store", type=eval)
         parser.add_argument("batch_size_pair", action="store", type=eval)
         parser.add_argument("training_machine_name", action="store")
+        parser.add_argument("run_name", action="store")
 
         parser.add_argument(
             "--model-conf-file", action="store", default="model_conf.json"
@@ -50,7 +51,7 @@ class ModelSettingsManager:
         parser.add_argument("--image-output-dir", action="store", default="./Images/")
         parser.add_argument("--cpu", action="store_true", default=False)
         parser.add_argument("--gpu-no", action="store", default=0)
-        parser.add_argument("--save-every-epoch", action="store_true", default=False)
+        parser.add_argument("--save-every-num-epochs", action="store", default=0, type=int)
         parser.add_argument("--load-saved-model", action="store", default=None)
         parser.add_argument("--no-tanh", action="store_true", default=False)
         parser.add_argument("--num-workers", action="store", default=6, type=int)

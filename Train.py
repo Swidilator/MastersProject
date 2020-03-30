@@ -27,13 +27,19 @@ if __name__ == "__main__":
     else:
         raise SystemExit
 
+    # Generate folder for run
+    model_folder_name: str = "{model_name}_{run_name}".format(
+        model_name=manager.args["model"],
+        run_name=manager.args["run_name"].replace(" ", "_"),
+    )
+    full_save_path: str = os.path.join(
+        manager.args["model_save_dir"], model_folder_name
+    )
+
     if manager.args["load_saved_model"]:
-        if manager.args["load_saved_model"] == "Latest":
-            model_frame.load_model(manager.args["model_save_dir"])
-        else:
-            model_frame.load_model(
-                manager.args["model_save_dir"], manager.args["load_saved_model"]
-            )
+        model_frame.load_model(
+            full_save_path, manager.args["load_saved_model"]
+        )
 
     if not manager.args["wandb"]:
         os.environ["WANDB_MODE"] = "dryrun"
@@ -41,12 +47,18 @@ if __name__ == "__main__":
     # Training
     if manager.args["train"]:
         wandb.init(
-            project=manager.model.lower(), config={**manager.args, **manager.model_conf}
+            project=manager.model.lower(),
+            config={**manager.args, **manager.model_conf},
+            name=manager.args["run_name"],
+            resume=(True if manager.args["starting_epoch"] > 1 else False),
         )
 
         # Have WandB watch the components of the model
         for val in model_frame.wandb_trainable_model:
             wandb.watch(val)
+
+        # Indices list for sampling
+        indices_list: tuple = tuple([x for x in range(manager.args["sample"])])
 
         for current_epoch in range(
             manager.args["starting_epoch"], manager.args["train"] + 1
@@ -68,13 +80,11 @@ if __name__ == "__main__":
             # Sample images from the model
             if manager.args["sample"]:
 
-                indices_list: tuple = tuple([x for x in range(manager.args["sample"])])
-
                 sample_args: dict = {}
                 if manager.args["model"] == "GAN":
                     sample_args.update({"use_extracted_features": False})
 
-                output_images, sample_list = sample_from_model(
+                output_dicts, output_images, sample_list = sample_from_model(
                     model=model_frame,
                     sample_args=sample_args,
                     mode=manager.args["sample_mode"],
@@ -87,17 +97,23 @@ if __name__ == "__main__":
                 if not os.path.exists(manager.args["image_output_dir"]):
                     os.makedirs(manager.args["image_output_dir"])
 
+                save_folder_name: str = "{model_name}_{run_name}".format(
+                    model_name=manager.args["model"],
+                    run_name=manager.args["run_name"].replace(" ", "_"),
+                )
                 model_image_dir: str = os.path.join(
-                    manager.args["image_output_dir"], manager.args["model"]
+                    manager.args["image_output_dir"], save_folder_name
                 )
                 if not os.path.exists(model_image_dir):
                     os.makedirs(model_image_dir)
 
                 img: Image
-                for j, img in enumerate(tqdm(output_images, desc="Saving / Uploading")):
+                for j, img in enumerate(
+                    tqdm(output_images, desc="Saving / Uploading Images")
+                ):
                     filename = os.path.join(
-                        manager.args["image_output_dir"],
-                        "epoch_{epoch}_figure_{_figure_}.png".format(
+                        model_image_dir,
+                        "figure_{_figure_}_epoch_{epoch}.png".format(
                             epoch=current_epoch, _figure_=sample_list[j]
                         ),
                     )
@@ -124,13 +140,21 @@ if __name__ == "__main__":
             del epoch_loss, _
 
             # Save model if requested to save every epoch
-            if manager.args["save_every_epoch"]:
+            if (
+                manager.args["save_every_num_epochs"] > 0
+                and current_epoch % manager.args["save_every_num_epochs"] == 0
+            ):
+                print("Saving model")
                 if not os.path.exists(manager.args["model_save_dir"]):
                     os.makedirs(manager.args["model_save_dir"])
-                model_frame.save_model(manager.args["model_save_dir"], current_epoch)
+
+                if not os.path.exists(full_save_path):
+                    os.makedirs(full_save_path)
+                model_frame.save_model(full_save_path, current_epoch)
 
         # If not saving every epoch, save model only once at the end
-        if not manager.args["save_every_epoch"]:
+        if not manager.args["save_every_num_epochs"]:
+            print("Saving model")
             if not os.path.exists(manager.args["model_save_dir"]):
                 os.makedirs(manager.args["model_save_dir"])
             model_frame.save_model(manager.args["model_save_dir"])

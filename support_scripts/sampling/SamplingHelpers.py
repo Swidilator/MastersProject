@@ -56,7 +56,7 @@ def sample_from_model(
     mode: str,
     num_images: int = 1,
     indices: tuple = (0,),
-) -> Tuple[List, List]:
+) -> Tuple[List, List, List]:
 
     if mode == "random":
         sample_list: list = random.sample(
@@ -72,10 +72,12 @@ def sample_from_model(
     img_list: List[dict,] = [model.sample(x, **sample_args) for x in sample_list]
 
     output_images: list = []
+    output_dicts: list = []
 
     img_dict: dict
     for j, img_dict in enumerate(tqdm(img_list, desc="Sampling")):
-
+        output_dicts.append(img_dict)
         output_images.append(process_sampled_image(img_dict))
 
-    return output_images, sample_list
+
+    return output_dicts, output_images, sample_list
