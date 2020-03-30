@@ -62,7 +62,7 @@ if __name__ == "__main__":
             model_frame.__data_set_val__.set_clustered_means(clustered_means)
 
         # Sample image from dataset
-        output_images, sample_list = sample_from_model(
+        output_dicts, output_images, sample_list = sample_from_model(
             model=model_frame,
             sample_args=sample_args,
             mode=manager.args["sample_mode"],

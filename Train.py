@@ -74,7 +74,7 @@ if __name__ == "__main__":
                 if manager.args["model"] == "GAN":
                     sample_args.update({"use_extracted_features": False})
 
-                output_images, sample_list = sample_from_model(
+                output_dicts, output_images, sample_list = sample_from_model(
                     model=model_frame,
                     sample_args=sample_args,
                     mode=manager.args["sample_mode"],
