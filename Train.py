@@ -27,9 +27,18 @@ if __name__ == "__main__":
     else:
         raise SystemExit
 
+    # Generate folder for run
+    model_folder_name: str = "{model_name}_{run_name}".format(
+        model_name=manager.args["model"],
+        run_name=manager.args["run_name"].replace(" ", "_"),
+    )
+    full_save_path: str = os.path.join(
+        manager.args["model_save_dir"], model_folder_name
+    )
+
     if manager.args["load_saved_model"]:
         model_frame.load_model(
-            manager.args["model_save_dir"], manager.args["load_saved_model"]
+            full_save_path, manager.args["load_saved_model"]
         )
 
     if not manager.args["wandb"]:
@@ -88,12 +97,12 @@ if __name__ == "__main__":
                 if not os.path.exists(manager.args["image_output_dir"]):
                     os.makedirs(manager.args["image_output_dir"])
 
-                folder_name: str = "{model_name}_{run_name}".format(
+                save_folder_name: str = "{model_name}_{run_name}".format(
                     model_name=manager.args["model"],
                     run_name=manager.args["run_name"].replace(" ", "_"),
                 )
                 model_image_dir: str = os.path.join(
-                    manager.args["image_output_dir"], folder_name
+                    manager.args["image_output_dir"], save_folder_name
                 )
                 if not os.path.exists(model_image_dir):
                     os.makedirs(model_image_dir)
@@ -135,15 +144,6 @@ if __name__ == "__main__":
                 manager.args["save_every_num_epochs"] > 0
                 and current_epoch % manager.args["save_every_num_epochs"] == 0
             ):
-                # Generate folder for run
-                folder_name: str = "{model_name}_{run_name}".format(
-                    model_name=manager.args["model"],
-                    run_name=manager.args["run_name"].replace(" ", "_"),
-                )
-                full_save_path: str = os.path.join(
-                    manager.args["model_save_dir"], folder_name
-                )
-
                 print("Saving model")
                 if not os.path.exists(manager.args["model_save_dir"]):
                     os.makedirs(manager.args["model_save_dir"])
