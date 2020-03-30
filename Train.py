@@ -131,7 +131,20 @@ if __name__ == "__main__":
             del epoch_loss, _
 
             # Save model if requested to save every epoch
-            if manager.args["save_every_epoch"]:
+            if (
+                manager.args["save_every_num_epochs"] > 0
+                and current_epoch % manager.args["save_every_num_epochs"] == 0
+            ):
+                # Generate folder for run
+                folder_name: str = "{model_name}_{run_name}".format(
+                    model_name=manager.args["model"],
+                    run_name=manager.args["run_name"].replace(" ", "_"),
+                )
+                full_save_path: str = os.path.join(
+                    manager.args["model_save_dir"], folder_name
+                )
+
+                print("Saving model")
                 if not os.path.exists(manager.args["model_save_dir"]):
                     os.makedirs(manager.args["model_save_dir"])
 
@@ -140,7 +153,8 @@ if __name__ == "__main__":
                 model_frame.save_model(full_save_path, current_epoch)
 
         # If not saving every epoch, save model only once at the end
-        if not manager.args["save_every_epoch"]:
+        if not manager.args["save_every_num_epochs"]:
+            print("Saving model")
             if not os.path.exists(manager.args["model_save_dir"]):
                 os.makedirs(manager.args["model_save_dir"])
             model_frame.save_model(manager.args["model_save_dir"])
