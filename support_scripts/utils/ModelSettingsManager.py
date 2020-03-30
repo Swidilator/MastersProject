@@ -33,6 +33,7 @@ class ModelSettingsManager:
         parser.add_argument("input_image_height_width", action="store", type=eval)
         parser.add_argument("batch_size_pair", action="store", type=eval)
         parser.add_argument("training_machine_name", action="store")
+        parser.add_argument("run_name", action="store")
 
         parser.add_argument(
             "--model-conf-file", action="store", default="model_conf.json"

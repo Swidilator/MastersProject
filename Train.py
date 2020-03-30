@@ -41,7 +41,10 @@ if __name__ == "__main__":
     # Training
     if manager.args["train"]:
         wandb.init(
-            project=manager.model.lower(), config={**manager.args, **manager.model_conf}
+            project=manager.model.lower(),
+            config={**manager.args, **manager.model_conf},
+            name=manager.args["run_name"],
+            resume=(True if manager.args["starting_epoch"] > 1 else False),
         )
 
         # Have WandB watch the components of the model
@@ -87,8 +90,12 @@ if __name__ == "__main__":
                 if not os.path.exists(manager.args["image_output_dir"]):
                     os.makedirs(manager.args["image_output_dir"])
 
+                folder_name: str = "{model_name}_{run_name}".format(
+                    model_name=manager.args["model"],
+                    run_name=manager.args["run_name"].replace(" ", "_"),
+                )
                 model_image_dir: str = os.path.join(
-                    manager.args["image_output_dir"], manager.args["model"]
+                    manager.args["image_output_dir"], folder_name
                 )
                 if not os.path.exists(model_image_dir):
                     os.makedirs(model_image_dir)
@@ -127,7 +134,10 @@ if __name__ == "__main__":
             if manager.args["save_every_epoch"]:
                 if not os.path.exists(manager.args["model_save_dir"]):
                     os.makedirs(manager.args["model_save_dir"])
-                model_frame.save_model(manager.args["model_save_dir"], current_epoch)
+
+                if not os.path.exists(full_save_path):
+                    os.makedirs(full_save_path)
+                model_frame.save_model(full_save_path, current_epoch)
 
         # If not saving every epoch, save model only once at the end
         if not manager.args["save_every_epoch"]:
