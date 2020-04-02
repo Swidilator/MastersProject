@@ -13,7 +13,8 @@ def process_sampled_image(img_dict: dict) -> Image:
     img_height: int = img_dict["original_img"].size[1]
 
     key_list: list = list(img_dict.keys())
-    ordered_keys: list = ["original_img", "output_img"]
+    output_images: list = [x for x in key_list if "output_img" in x]
+    ordered_keys: list = ["original_img", *output_images]
     ordered_key_list: list = [
         *ordered_keys,
         *[x for x in key_list if x not in ordered_keys],
