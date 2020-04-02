@@ -71,6 +71,9 @@ class ModelSettingsManager:
         args.update(self.__clean_arg_path__("model_save_dir", args))
         args.update(self.__clean_arg_path__("image_output_dir", args))
 
+        if (args["sample_mode"] != "random") and (args["sample_mode"] != "fixed"):
+            raise ValueError("--sample-mode should be 'random' or 'fixed'.")
+
         return args
 
     def __process_model_conf__(self) -> dict:

@@ -37,9 +37,7 @@ if __name__ == "__main__":
     )
 
     if manager.args["load_saved_model"]:
-        model_frame.load_model(
-            full_save_path, manager.args["load_saved_model"]
-        )
+        model_frame.load_model(full_save_path, manager.args["load_saved_model"])
 
     if not manager.args["wandb"]:
         os.environ["WANDB_MODE"] = "dryrun"
@@ -58,7 +56,7 @@ if __name__ == "__main__":
             wandb.watch(val)
 
         # Indices list for sampling
-        indices_list: tuple = tuple([x for x in range(manager.args["sample"])])
+        indices_list: tuple = tuple(range(manager.args["sample"]))
 
         for current_epoch in range(
             manager.args["starting_epoch"], manager.args["train"] + 1
@@ -88,8 +86,8 @@ if __name__ == "__main__":
                     model=model_frame,
                     sample_args=sample_args,
                     mode=manager.args["sample_mode"],
-                    indices=indices_list,
                     num_images=manager.args["sample"],
+                    indices=indices_list,
                 )
 
                 wandb_img_list: list = []
