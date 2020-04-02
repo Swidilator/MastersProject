@@ -62,12 +62,10 @@ def sample_from_model(
         sample_list: list = random.sample(
             range(len(model.__data_set_val__)), num_images
         )
-    elif mode == "from_tuple":
+    elif mode == "fixed":
         sample_list = list(indices)
     else:
-        raise ValueError(
-            "Please choose from the following modes: 'random', 'from_tuple'."
-        )
+        raise ValueError("Please choose from the following modes: 'random', 'fixed'.")
 
     img_list: List[dict,] = [model.sample(x, **sample_args) for x in sample_list]
 
