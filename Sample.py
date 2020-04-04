@@ -31,6 +31,9 @@ if __name__ == "__main__":
     #     range(0, len(model_frame.__data_set_val__)), manager.args["sample"]
     # )
     indices: tuple = (32, 112, 130, 132, 175, 285, 377, 389, 447, 467)
+    num_samples: int = len(indices) if (
+        len(indices) and manager.args["sample_mode"] == "fixed"
+    ) < manager.args["sample"] else manager.args["sample"]
 
     prefix: str = manager.args["model_save_prefix"]
     suffix: str = ".pt"
@@ -62,20 +65,20 @@ if __name__ == "__main__":
             model_frame.__data_set_val__.set_clustered_means(clustered_means)
 
         # Sample image from dataset
-        output_dicts, output_images, sample_list = sample_from_model(
+        output_dicts, sample_list = sample_from_model(
             model=model_frame,
             sample_args=sample_args,
             mode=manager.args["sample_mode"],
-            num_images=manager.args["sample"],
+            num_images=num_samples,
             indices=indices,
         )
 
         image: Image
-        for i, image in enumerate(tqdm(output_images, desc="Saving")):
+        for i, img_dict in enumerate(tqdm(output_dicts, desc="Saving")):
             filename = os.path.join(
                 model_image_dir,
                 "figure_{_figure_}_epoch_{epoch}.png".format(
                     epoch=num, _figure_=sample_list[i]
                 ),
             )
-            image.save(filename)
+            img_dict["composite_img"].save(filename)
