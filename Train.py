@@ -111,8 +111,11 @@ if __name__ == "__main__":
                 ):
                     filename = os.path.join(
                         model_image_dir,
-                        "figure_{_figure_}_epoch_{epoch}.png".format(
-                            epoch=current_epoch, _figure_=sample_list[j]
+                        "{model_name}_{run_name}_figure_{_figure_}_epoch_{epoch}.png".format(
+                            model_name=manager.args["model"].replace(" ", "_"),
+                            run_name=manager.args["run_name"].replace(" ", "_"),
+                            epoch=current_epoch,
+                            _figure_=sample_list[j],
                         ),
                     )
                     img_dict["composite_img"].save(filename)
