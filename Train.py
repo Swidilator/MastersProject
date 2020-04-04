@@ -82,7 +82,7 @@ if __name__ == "__main__":
                 if manager.args["model"] == "GAN":
                     sample_args.update({"use_extracted_features": False})
 
-                output_dicts, output_images, sample_list = sample_from_model(
+                output_dicts, sample_list = sample_from_model(
                     model=model_frame,
                     sample_args=sample_args,
                     mode=manager.args["sample_mode"],
@@ -105,9 +105,9 @@ if __name__ == "__main__":
                 if not os.path.exists(model_image_dir):
                     os.makedirs(model_image_dir)
 
-                img: Image
-                for j, img in enumerate(
-                    tqdm(output_images, desc="Saving / Uploading Images")
+                img_dict: dict
+                for j, img_dict in enumerate(
+                    tqdm(output_dicts, desc="Saving / Uploading Images")
                 ):
                     filename = os.path.join(
                         model_image_dir,
@@ -115,13 +115,15 @@ if __name__ == "__main__":
                             epoch=current_epoch, _figure_=sample_list[j]
                         ),
                     )
-                    img.save(filename)
+                    img_dict["composite_img"].save(filename)
                     caption: str = str(
                         "Epoch: {epoch}, figure: {fig}".format(
                             epoch=current_epoch, fig=j
                         )
                     )
-                    wandb_img_list.append(wandb.Image(img, caption=caption))
+                    wandb_img_list.append(
+                        wandb.Image(img_dict["composite_img"], caption=caption)
+                    )
 
                 # Log sample images to wandb, do not commit yet
                 wandb.log({"Sample Images": wandb_img_list}, commit=False)
