@@ -12,15 +12,26 @@ def process_sampled_image(img_dict: dict) -> Image:
     img_width: int = img_dict["original_img"].size[0]
     img_height: int = img_dict["original_img"].size[1]
 
-    key_list: list = list(img_dict.keys())
-    ordered_keys: list = ["original_img", "output_img"]
+    input_key_list: list = [key for key in list(img_dict.keys()) if type(img_dict[key]) is Image.Image]
+    output_key_list: list = list(img_dict["output_img_dict"].keys())
+    true_output_key_list: list = [key for key in output_key_list if "output_img" in key]
+    other_output_key_list: list = [key for key in output_key_list if "output_img" not in key]
+
+    input_img_dict: dict = {item[0]: item[1] for item in img_dict.items() if item[0] in input_key_list}
+    output_img_dict: dict = img_dict["output_img_dict"]
+
+    combined_dict: dict = {**input_img_dict, **output_img_dict}
+
+
     ordered_key_list: list = [
-        *ordered_keys,
-        *[x for x in key_list if x not in ordered_keys],
+        "original_img",
+        *true_output_key_list,
+        *[key for key in input_key_list if "original_img" not in key],
+        *other_output_key_list
     ]
 
     num_images_hor: int = 2
-    num_images_vert: int = (len(img_dict) + 1) // num_images_hor
+    num_images_vert: int = (len(combined_dict) + 1) // num_images_hor
 
     total_img_width: int = img_width * num_images_hor
     total_img_height: int = img_height * num_images_vert
@@ -29,16 +40,16 @@ def process_sampled_image(img_dict: dict) -> Image:
     for img_no_vert in range(total_img_height):
         for img_no_hor in range(total_img_width):
             index: int = (img_no_vert * num_images_hor) + img_no_hor
-            if index < len(img_dict):
+            if index < len(combined_dict):
                 new_image.paste(
-                    img_dict[
+                    combined_dict[
                         ordered_key_list[(img_no_vert * num_images_hor) + img_no_hor]
                     ],
                     (img_no_hor * img_width, img_no_vert * img_height),
                 )
-    # new_image.paste(img_list[0], (0, 0))
-    # new_image.paste(img_list[1], (img_width, 0))
-    return new_image
+
+    img_dict.update({"composite_img": new_image})
+    return img_dict
 
 
 def create_image_directories(image_output_dir: str, model_name: str) -> str:
@@ -58,7 +69,7 @@ def sample_from_model(
     mode: str,
     num_images: int = 1,
     indices: tuple = (0,),
-) -> Tuple[List, List, List]:
+) -> Tuple[List, List]:
 
     if mode == "random":
         sample_list: list = random.sample(
@@ -71,12 +82,10 @@ def sample_from_model(
 
     img_list: List[dict,] = [model.sample(x, **sample_args) for x in sample_list]
 
-    output_images: list = []
     output_dicts: list = []
 
     img_dict: dict
     for j, img_dict in enumerate(tqdm(img_list, desc="Sampling")):
-        output_dicts.append(img_dict)
-        output_images.append(process_sampled_image(img_dict))
+        output_dicts.append(process_sampled_image(img_dict))
 
-    return output_dicts, output_images, sample_list
+    return output_dicts, sample_list
