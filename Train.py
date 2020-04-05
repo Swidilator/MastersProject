@@ -48,7 +48,6 @@ if __name__ == "__main__":
             project=manager.model.lower(),
             config={**manager.args, **manager.model_conf},
             name=manager.args["run_name"],
-            resume=(True if manager.args["starting_epoch"] > 1 else False),
         )
 
         # Have WandB watch the components of the model
