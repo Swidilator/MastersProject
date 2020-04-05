@@ -41,9 +41,8 @@ class ModelSettingsManager:
         parser.add_argument("--train", action="store", default=0, type=int)
         parser.add_argument("--starting-epoch", action="store", default=1, type=int)
         parser.add_argument("--sample", action="store", default=0, type=int)
-        parser.add_argument(
-            "--sample-type", action="store", default="from_tuple", type=str
-        )
+        parser.add_argument("--sample-mode", action="store", default="random")
+        parser.add_argument("--sample-only", action="store_true", default=False)
         parser.add_argument("--training-subset", action="store", default=0, type=int)
         parser.add_argument("--wandb", action="store_true", default=False)
         parser.add_argument("--model-save-dir", action="store", default="./Models/")
@@ -61,8 +60,7 @@ class ModelSettingsManager:
             "--flip-training-images", action="store_true", default=False
         )
         parser.add_argument("--deterministic", action="store_true", default=False)
-        parser.add_argument("--sample-mode", action="store", default="random")
-        parser.add_argument("--sample-only", action="store_true", default=False)
+
 
         args: dict = vars(parser.parse_args())
 
