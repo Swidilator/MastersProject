@@ -224,3 +224,5 @@ dmypy.json
 
 ### Pytorch saved models
 *.pt
+./Models/*
+./Images/*
