@@ -28,12 +28,8 @@ if __name__ == "__main__":
         raise SystemExit
 
     # Generate folder for run
-    model_folder_name: str = "{model_name}_{run_name}".format(
-        model_name=manager.args["model"],
-        run_name=manager.args["run_name"].replace(" ", "_"),
-    )
     full_save_path: str = os.path.join(
-        manager.args["model_save_dir"], model_folder_name
+        manager.args["model_save_dir"], manager.args["run_folder_name"]
     )
 
     if manager.args["load_saved_model"]:
@@ -94,12 +90,8 @@ if __name__ == "__main__":
                 if not os.path.exists(manager.args["image_output_dir"]):
                     os.makedirs(manager.args["image_output_dir"])
 
-                save_folder_name: str = "{model_name}_{run_name}".format(
-                    model_name=manager.args["model"],
-                    run_name=manager.args["run_name"].replace(" ", "_"),
-                )
                 model_image_dir: str = os.path.join(
-                    manager.args["image_output_dir"], save_folder_name
+                    manager.args["image_output_dir"], manager.args["run_folder_name"]
                 )
                 if not os.path.exists(model_image_dir):
                     os.makedirs(model_image_dir)

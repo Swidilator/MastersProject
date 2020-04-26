@@ -50,7 +50,9 @@ class ModelSettingsManager:
         parser.add_argument("--image-output-dir", action="store", default="./Images/")
         parser.add_argument("--cpu", action="store_true", default=False)
         parser.add_argument("--gpu-no", action="store", default=0)
-        parser.add_argument("--save-every-num-epochs", action="store", default=0, type=int)
+        parser.add_argument(
+            "--save-every-num-epochs", action="store", default=0, type=int
+        )
         parser.add_argument("--load-saved-model", action="store", default=None)
         parser.add_argument("--no-tanh", action="store_true", default=False)
         parser.add_argument("--num-workers", action="store", default=6, type=int)
@@ -61,8 +63,16 @@ class ModelSettingsManager:
         )
         parser.add_argument("--deterministic", action="store_true", default=False)
 
-
         args: dict = vars(parser.parse_args())
+
+        # Add folder name for ease of access and standardisation
+        args.update(
+            {
+                "run_folder_name": "{model}_{run_name}".format(
+                    model=args["model"], run_name=args["run_name"].replace(" ", "_")
+                )
+            }
+        )
 
         args.update(self.__clean_arg_path__("dataset_path", args))
         args.update(self.__clean_arg_path__("model_conf_file", args))
