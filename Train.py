@@ -2,6 +2,7 @@ import os
 from typing import Tuple, Any, Optional
 from PIL.Image import Image
 from tqdm import tqdm
+from pickle import dump, load
 
 import wandb
 
@@ -97,24 +98,35 @@ if __name__ == "__main__":
                     os.makedirs(model_image_dir)
 
                 img_dict: dict
-                for j, img_dict in enumerate(
+                for image_dict_index, img_dict in enumerate(
                     tqdm(output_dicts, desc="Saving / Uploading Images")
                 ):
-                    filename = os.path.join(
+                    # Create base filename for saving images and pickle files
+                    filename_no_extension = os.path.join(
                         model_image_dir,
-                        "{model_name}_{run_name}_figure_{_figure_}_epoch_{epoch}.png".format(
+                        "{model_name}_{run_name}_figure_{_figure_}_epoch_{epoch}".format(
                             model_name=manager.args["model"].replace(" ", "_"),
                             run_name=manager.args["run_name"].replace(" ", "_"),
                             epoch=current_epoch,
-                            _figure_=sample_list[j],
+                            _figure_=sample_list[image_dict_index],
                         ),
                     )
-                    img_dict["composite_img"].save(filename)
+
+                    # Save composite image for easy viewing
+                    img_dict["composite_img"].save(filename_no_extension + ".png")
+
+                    # Save dict with all images for advanced usage later on
+                    with open(filename_no_extension + ".pickle", "wb") as pickle_file:
+                        dump(img_dict, pickle_file)
+
+                    # Caption used for images on WandB
                     caption: str = str(
                         "Epoch: {epoch}, figure: {fig}".format(
-                            epoch=current_epoch, fig=j
+                            epoch=current_epoch, fig=image_dict_index
                         )
                     )
+
+                    # Append composite images to list of images to be uploaded on WandB
                     wandb_img_list.append(
                         wandb.Image(img_dict["composite_img"], caption=caption)
                     )
