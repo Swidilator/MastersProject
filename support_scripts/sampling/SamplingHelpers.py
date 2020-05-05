@@ -12,22 +12,27 @@ def process_sampled_image(img_dict: dict) -> Image:
     img_width: int = img_dict["original_img"].size[0]
     img_height: int = img_dict["original_img"].size[1]
 
-    input_key_list: list = [key for key in list(img_dict.keys()) if type(img_dict[key]) is Image.Image]
+    input_key_list: list = [
+        key for key in list(img_dict.keys()) if type(img_dict[key]) is Image.Image
+    ]
     output_key_list: list = list(img_dict["output_img_dict"].keys())
     true_output_key_list: list = [key for key in output_key_list if "output_img" in key]
-    other_output_key_list: list = [key for key in output_key_list if "output_img" not in key]
+    other_output_key_list: list = [
+        key for key in output_key_list if "output_img" not in key
+    ]
 
-    input_img_dict: dict = {item[0]: item[1] for item in img_dict.items() if item[0] in input_key_list}
+    input_img_dict: dict = {
+        item[0]: item[1] for item in img_dict.items() if item[0] in input_key_list
+    }
     output_img_dict: dict = img_dict["output_img_dict"]
 
     combined_dict: dict = {**input_img_dict, **output_img_dict}
-
 
     ordered_key_list: list = [
         "original_img",
         *true_output_key_list,
         *[key for key in input_key_list if "original_img" not in key],
-        *other_output_key_list
+        *other_output_key_list,
     ]
 
     num_images_hor: int = 2
