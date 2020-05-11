@@ -54,7 +54,9 @@ class MastersModel(ABC):
 
     @classmethod
     @abstractmethod
-    def from_model_settings_manager(cls, manager: ModelSettingsManager) -> 'MastersModel':
+    def from_model_settings_manager(
+        cls, manager: ModelSettingsManager
+    ) -> "MastersModel":
         """
         Initialise MastersModel from ModelSettingsManager instead of input arguments.
 

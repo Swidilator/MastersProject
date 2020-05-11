@@ -2,7 +2,9 @@ import os
 from typing import Tuple, Any, Optional
 from PIL.Image import Image
 from tqdm import tqdm
-from pickle import dump, load
+from pickle import dump as p_dump
+from pickle import dumps as p_dumps
+from zstd import dumps as z_dumps
 
 import wandb
 
@@ -117,7 +119,7 @@ if __name__ == "__main__":
 
                     # Save dict with all images for advanced usage later on
                     with open(filename_no_extension + ".pickle", "wb") as pickle_file:
-                        dump(img_dict, pickle_file)
+                        p_dump(z_dumps(p_dumps(img_dict)), pickle_file)
 
                     # Caption used for images on WandB
                     caption: str = str(
