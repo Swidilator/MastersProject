@@ -1,4 +1,5 @@
 import torch
+from os import path, listdir
 from torch.utils.data import Dataset
 from torch.nn.functional import one_hot
 from torchvision.datasets import Cityscapes
@@ -7,8 +8,82 @@ from torchvision.transforms.functional import hflip
 from PIL import Image
 from random import random
 from typing import Optional, Union
+import itertools
 
 from support_scripts import utils
+
+
+class BaseCityScapesDataset(Dataset):
+    def __init__(self, root: str, split: str, target_type: Union[str, tuple, list]):
+        super(BaseCityScapesDataset, self).__init__()
+        if not path.exists(root):
+            raise ValueError("'root' path does not exist.")
+        if (
+            split != "train"
+            and split != "test"
+            and split != "val"
+            and split != "demoVideo"
+        ):
+            raise ValueError("Invalid 'split' value.")
+
+        self.target_type: Union[str, tuple, list] = target_type if type(target_type) is list else [target_type]
+
+        # Create full image folder paths
+        gt_fine_path: str = path.join(root, "gtFine/", split + "/")
+        left_img_8bit_path: str = path.join(root, "leftImg8bit/", split + "/")
+
+        # Get image directories
+        gt_fine_dirs: list = sorted(listdir(gt_fine_path))
+        left_img_dirs: list = sorted(listdir(left_img_8bit_path))
+
+        def make_full_path(img_dir: str, root_dir: str):
+            img_list = listdir(path.join(root_dir, img_dir))
+            img_list = [path.join(root_dir, img_dir, x) for x in img_list]
+            return img_list
+
+        # Get images
+        gt_fine_imgs: list = sorted(
+            list(itertools.chain(*[make_full_path(x, gt_fine_path) for x in gt_fine_dirs]))
+        )
+        left_img_imgs: list = sorted(
+            list(itertools.chain(*[make_full_path(x, left_img_8bit_path) for x in left_img_dirs]))
+        )
+
+        # Convert image names into absolute paths
+        gt_fine_imgs = [path.abspath(path.join(gt_fine_path, x)) for x in gt_fine_imgs]
+        self.__left_img_imgs = [
+            path.abspath(path.join(left_img_8bit_path, x)) for x in left_img_imgs
+        ]
+
+        self.__semantic_target_imgs: list = [x for x in gt_fine_imgs if "labelIds" in x]
+        self.__color_target_imgs: list = [x for x in gt_fine_imgs if "color" in x]
+        self.__instance_target_imgs: list = [
+            x for x in gt_fine_imgs if "instanceIds" in x
+        ]
+
+        assert (
+            len(self.__left_img_imgs) == len(self.__semantic_target_imgs)
+            and len(self.__left_img_imgs) == len(self.__color_target_imgs)
+            and len(self.__left_img_imgs) == len(self.__instance_target_imgs)
+        )
+
+    def __getitem__(self, item) -> tuple:
+        # targets = ["semantic", "color", "instance"]
+        output: list = []
+        for target_type in self.target_type:
+            if target_type == "semantic":
+                output.append(Image.open(self.__semantic_target_imgs[item]))
+            elif target_type == "color":
+                output.append(Image.open(self.__color_target_imgs[item]))
+            elif target_type == "instance":
+                output.append(Image.open(self.__instance_target_imgs[item]))
+        if len(output) == 1:
+            return Image.open(self.__left_img_imgs[item]), output[0]
+        else:
+            return Image.open(self.__left_img_imgs[item]), tuple(output)
+
+    def __len__(self):
+        return len(self.__left_img_imgs)
 
 
 class CityScapesDataset(Dataset):
@@ -51,10 +126,16 @@ class CityScapesDataset(Dataset):
         num_cityscape_classes: int = 34
 
         # Base CityScapes dataset
-        self.dataset: Cityscapes = Cityscapes(
+        # self.dataset: Cityscapes = Cityscapes(
+        #     root=root,
+        #     split=split,
+        #     mode="fine",
+        #     target_type=["semantic", "color", "instance"],
+        # )
+
+        self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(
             root=root,
             split=split,
-            mode="fine",
             target_type=["semantic", "color", "instance"],
         )
 
@@ -149,7 +230,9 @@ class CityScapesDataset(Dataset):
                 self.feature_extractions_sampler(msk, instance)
             )
         else:
-            feature_extractions: Optional[torch.Tensor] = torch.empty(0)
+            feature_extractions: Optional[torch.Tensor] = torch.empty(
+                0, requires_grad=False
+            )
 
         if not self.dataset_features_dict["instance_map"]:
             instance = torch.empty(0)
