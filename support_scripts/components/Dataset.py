@@ -26,7 +26,9 @@ class BaseCityScapesDataset(Dataset):
         ):
             raise ValueError("Invalid 'split' value.")
 
-        self.target_type: Union[str, tuple, list] = target_type if type(target_type) is list else [target_type]
+        self.target_type: Union[str, tuple, list] = target_type if type(
+            target_type
+        ) is list else [target_type]
 
         # Create full image folder paths
         gt_fine_path: str = path.join(root, "gtFine/", split + "/")
@@ -43,10 +45,18 @@ class BaseCityScapesDataset(Dataset):
 
         # Get images
         gt_fine_imgs: list = sorted(
-            list(itertools.chain(*[make_full_path(x, gt_fine_path) for x in gt_fine_dirs]))
+            list(
+                itertools.chain(
+                    *[make_full_path(x, gt_fine_path) for x in gt_fine_dirs]
+                )
+            )
         )
         left_img_imgs: list = sorted(
-            list(itertools.chain(*[make_full_path(x, left_img_8bit_path) for x in left_img_dirs]))
+            list(
+                itertools.chain(
+                    *[make_full_path(x, left_img_8bit_path) for x in left_img_dirs]
+                )
+            )
         )
 
         # Convert image names into absolute paths
@@ -134,10 +144,10 @@ class CityScapesDataset(Dataset):
         # )
 
         self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(
-            root=root,
-            split=split,
-            target_type=["semantic", "color", "instance"],
+            root=root, split=split, target_type=["semantic", "color", "instance"],
         )
+
+        # test1, (test2, test3, test4) = self.dataset[0]
 
         # Add features based on feature_dict
         if self.dataset_features_dict["feature_extractions"]["use"]:
@@ -226,18 +236,18 @@ class CityScapesDataset(Dataset):
 
         # If the feature is not being used, the output will be None
         if self.dataset_features_dict["feature_extractions"]["use"]:
-            feature_extractions: Optional[torch.Tensor] = (
+            feature_selection: Optional[torch.Tensor] = (
                 self.feature_extractions_sampler(msk, instance)
             )
         else:
-            feature_extractions: Optional[torch.Tensor] = torch.empty(
+            feature_selection: Optional[torch.Tensor] = torch.empty(
                 0, requires_grad=False
             )
 
         if not self.dataset_features_dict["instance_map"]:
             instance = torch.empty(0)
 
-        return img, msk, msk_colour, instance, instance_processed, feature_extractions
+        return img, msk, msk_colour, instance, instance_processed, feature_selection
 
     def __len__(self):
         # Set length of dataset to subset size intelligently
