@@ -100,8 +100,8 @@ if __name__ == "__main__":
             if manager.args["sample"]:
 
                 sample_args: dict = {}
-                if manager.args["model"] == "GAN":
-                    sample_args.update({"use_extracted_features": False})
+                # if manager.args["model"] == "GAN":
+                sample_args.update({"use_extracted_features": False})
 
                 output_dicts, sample_list = sample_from_model(
                     model=model_frame,
