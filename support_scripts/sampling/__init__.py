@@ -1,1 +1,1 @@
-from support_scripts.sampling.SamplingHelpers import *
+from support_scripts.sampling.SamplingHelpers import sample_from_model

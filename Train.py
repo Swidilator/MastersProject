@@ -54,7 +54,30 @@ if __name__ == "__main__":
             wandb.watch(val)
 
         # Indices list for sampling
-        indices_list: tuple = tuple(range(manager.args["sample"]))
+        final_chosen: list = [
+            9,
+            11,
+            26,
+            34,
+            76,
+            83,
+            95,
+            100,
+            158,
+            166,
+            190,
+            227,
+            281,
+            290,
+            322,
+        ]
+
+        # Select a subset of final_chosen
+        indices_list: tuple = final_chosen[
+            0 : manager.args["sample"]
+            if manager.args["sample"] <= len(final_chosen)
+            else len(final_chosen)
+        ]
 
         for current_epoch in range(
             manager.args["starting_epoch"], manager.args["train"] + 1
@@ -77,8 +100,8 @@ if __name__ == "__main__":
             if manager.args["sample"]:
 
                 sample_args: dict = {}
-                if manager.args["model"] == "GAN":
-                    sample_args.update({"use_extracted_features": False})
+                # if manager.args["model"] == "GAN":
+                sample_args.update({"use_extracted_features": False})
 
                 output_dicts, sample_list = sample_from_model(
                     model=model_frame,
