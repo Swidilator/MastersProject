@@ -14,7 +14,7 @@ from support_scripts.sampling import sample_from_model
 from support_scripts.utils import MastersModel
 from support_scripts.utils import ModelSettingsManager
 
-from support_scripts.utils.visualisation import eigenvector_visualisation
+# from support_scripts.utils.visualisation import eigenvector_visualisation
 
 if __name__ == "__main__":
     # Initialise settings manager to read args and set up environment
