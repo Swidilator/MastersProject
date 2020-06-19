@@ -173,10 +173,7 @@ if __name__ == "__main__":
 
             # Commit epoch loss, and sample images if they exist.
             wandb.log(
-                {
-                    "Epoch Loss": epoch_loss,
-                    "Epoch": current_epoch,
-                }
+                {"Epoch Loss": epoch_loss, "Epoch": current_epoch,}
             )
 
             # Delete output of training
