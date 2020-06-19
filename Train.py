@@ -14,6 +14,8 @@ from support_scripts.sampling import sample_from_model
 from support_scripts.utils import MastersModel
 from support_scripts.utils import ModelSettingsManager
 
+from support_scripts.utils.visualisation import eigenvector_visualisation
+
 if __name__ == "__main__":
     # Initialise settings manager to read args and set up environment
     manager: ModelSettingsManager = ModelSettingsManager()
@@ -24,7 +26,16 @@ if __name__ == "__main__":
 
     if manager.model == "CRN":
         model_frame: CRNFramework = CRNFramework.from_model_settings_manager(manager)
-        pass
+        # for rms in model_frame.crn.rms_list:
+        #     # rms.conv_2.register_forward_hook(analyse_activations)
+        #     rms.conv_1.register_forward_hook(eigenvector_visualisation)
+        #     rms.layer_norm_1.register_forward_hook(eigenvector_visualisation)
+        #     rms.conv_2.register_forward_hook(eigenvector_visualisation)
+        #     if hasattr(rms, "layer_norm_2"):
+        #         rms.layer_norm_2.register_forward_hook(eigenvector_visualisation)
+        #     else:
+        #         rms.final_conv.register_forward_hook(eigenvector_visualisation)
+        # pass
     elif manager.model == "GAN":
         model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
     else:
@@ -47,6 +58,7 @@ if __name__ == "__main__":
             project=manager.model.lower(),
             config={**manager.args, **manager.model_conf},
             name=manager.args["run_name"],
+            group=manager.args["run_name"],
         )
 
         # Have WandB watch the components of the model
@@ -162,7 +174,7 @@ if __name__ == "__main__":
             # Commit epoch loss, and sample images if they exist.
             wandb.log(
                 {
-                    "Epoch Loss": epoch_loss * manager.args["batch_size_pair"][1],
+                    "Epoch Loss": epoch_loss,
                     "Epoch": current_epoch,
                 }
             )

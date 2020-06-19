@@ -14,8 +14,7 @@ class MastersModel(ABC):
         device: torch.device,
         data_path: str,
         input_image_height_width: tuple,
-        batch_size_slice: int,
-        batch_size_total: int,
+        batch_size: int,
         num_classes: int,
         num_loader_workers: int,
         subset_size: int,
@@ -32,8 +31,7 @@ class MastersModel(ABC):
         self.device: torch.device = device
         self.data_path: str = data_path
         self.input_image_height_width: tuple = input_image_height_width
-        self.batch_size_slice: int = batch_size_slice
-        self.batch_size_total: int = batch_size_total
+        self.batch_size: int = batch_size
         self.num_classes: int = num_classes
         self.num_loader_workers: int = num_loader_workers
         self.subset_size: int = subset_size
