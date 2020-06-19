@@ -1,2 +1,3 @@
-from support_scripts.components.Dataset import CityScapesDataset
-from support_scripts.components.FeatureEncoder import FeatureEncoder
+from support_scripts.components.custom_datasets import CityScapesDataset
+from support_scripts.components.feature_encoder import FeatureEncoder
+from support_scripts.components.blocks import Block

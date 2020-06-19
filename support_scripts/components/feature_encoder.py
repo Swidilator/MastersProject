@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from GAN.Blocks import EncoderBlock
+from support_scripts.components.blocks import EncoderBlock
 
 
 class FeatureEncoder(nn.Module):
