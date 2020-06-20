@@ -8,7 +8,7 @@ from zstd import dumps as z_dumps
 
 import wandb
 
-from CRN.CRN_Framework import CRNFramework
+from CRN import CRNFramework
 from GAN import GANFramework
 from support_scripts.sampling import sample_from_model
 from support_scripts.utils import MastersModel
