@@ -2,15 +2,12 @@ import torch
 from os import path, listdir
 from torch.utils.data import Dataset
 from torch.nn.functional import one_hot
-from torchvision.datasets import Cityscapes
 from torchvision import transforms
 from torchvision.transforms.functional import hflip
 from PIL import Image
 from random import random
 from typing import Optional, Union
 import itertools
-
-from support_scripts import utils
 
 
 class BaseCityScapesDataset(Dataset):
@@ -26,6 +23,7 @@ class BaseCityScapesDataset(Dataset):
         ):
             raise ValueError("Invalid 'split' value.")
 
+        # Target can be a single string, or an iterable, but code requires an iterable
         self.target_type: Union[str, tuple, list] = target_type if type(
             target_type
         ) is list else [target_type]
@@ -38,6 +36,7 @@ class BaseCityScapesDataset(Dataset):
         gt_fine_dirs: list = sorted(listdir(gt_fine_path))
         left_img_dirs: list = sorted(listdir(left_img_8bit_path))
 
+        # Helper function for generating paths of each image.
         def make_full_path(img_dir: str, root_dir: str):
             img_list = listdir(path.join(root_dir, img_dir))
             img_list = [path.join(root_dir, img_dir, x) for x in img_list]
@@ -65,12 +64,14 @@ class BaseCityScapesDataset(Dataset):
             path.abspath(path.join(left_img_8bit_path, x)) for x in left_img_imgs
         ]
 
+        # Sort gt_fine images into their respective sets
         self.__semantic_target_imgs: list = [x for x in gt_fine_imgs if "labelIds" in x]
         self.__color_target_imgs: list = [x for x in gt_fine_imgs if "color" in x]
         self.__instance_target_imgs: list = [
             x for x in gt_fine_imgs if "instanceIds" in x
         ]
 
+        # Make sure that the dataset is complete
         assert (
             len(self.__left_img_imgs) == len(self.__semantic_target_imgs)
             and len(self.__left_img_imgs) == len(self.__color_target_imgs)
@@ -87,6 +88,8 @@ class BaseCityScapesDataset(Dataset):
                 output.append(Image.open(self.__color_target_imgs[item]))
             elif target_type == "instance":
                 output.append(Image.open(self.__instance_target_imgs[item]))
+
+        # Return single image if only one target type, else tuple
         if len(output) == 1:
             return Image.open(self.__left_img_imgs[item]), output[0]
         else:
@@ -135,19 +138,10 @@ class CityScapesDataset(Dataset):
         # Number of classes in base CityScapes image
         num_cityscape_classes: int = 34
 
-        # Base CityScapes dataset
-        # self.dataset: Cityscapes = Cityscapes(
-        #     root=root,
-        #     split=split,
-        #     mode="fine",
-        #     target_type=["semantic", "color", "instance"],
-        # )
-
+        # Recreation of the normal CityScapes dataset
         self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(
             root=root, split=split, target_type=["semantic", "color", "instance"],
         )
-
-        # test1, (test2, test3, test4) = self.dataset[0]
 
         # Add features based on feature_dict
         if self.dataset_features_dict["feature_extractions"]["use"]:
