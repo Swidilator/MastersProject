@@ -24,6 +24,7 @@ if __name__ == "__main__":
 
     if manager.model == "CRN":
         from CRN import CRNFramework
+
         model_frame: CRNFramework = CRNFramework.from_model_settings_manager(manager)
         # for rms in model_frame.crn.rms_list:
         #     # rms.conv_2.register_forward_hook(analyse_activations)
@@ -37,6 +38,7 @@ if __name__ == "__main__":
         # pass
     elif manager.model == "GAN":
         from GAN import GANFramework
+
         model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
     else:
         raise SystemExit
