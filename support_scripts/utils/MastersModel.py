@@ -2,7 +2,6 @@ import torch
 import time
 from typing import Union, Tuple, List, Any
 from support_scripts.utils import ModelSettingsManager
-import torch.utils as utils
 
 from abc import ABC, abstractmethod
 

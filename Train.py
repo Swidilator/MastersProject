@@ -8,8 +8,6 @@ from zstd import dumps as z_dumps
 
 import wandb
 
-from CRN import CRNFramework
-from GAN import GANFramework
 from support_scripts.sampling import sample_from_model
 from support_scripts.utils import MastersModel
 from support_scripts.utils import ModelSettingsManager
@@ -25,6 +23,8 @@ if __name__ == "__main__":
     assert "train" in manager.args
 
     if manager.model == "CRN":
+        from CRN import CRNFramework
+
         model_frame: CRNFramework = CRNFramework.from_model_settings_manager(manager)
         # for rms in model_frame.crn.rms_list:
         #     # rms.conv_2.register_forward_hook(analyse_activations)
@@ -37,6 +37,8 @@ if __name__ == "__main__":
         #         rms.final_conv.register_forward_hook(eigenvector_visualisation)
         # pass
     elif manager.model == "GAN":
+        from GAN import GANFramework
+
         model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
     else:
         raise SystemExit
