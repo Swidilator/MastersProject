@@ -1,5 +1,6 @@
 import os
-from typing import Optional
+from typing import Tuple, Any, Optional
+from PIL.Image import Image
 from tqdm import tqdm
 from pickle import dump as p_dump
 from pickle import dumps as p_dumps
@@ -49,6 +50,8 @@ if __name__ == "__main__":
     full_save_path: str = os.path.join(
         manager.args["model_save_dir"], manager.args["run_folder_name"]
     )
+    if not os.path.exists(manager.args["model_save_dir"]):
+        os.makedirs(manager.args["model_save_dir"])
 
     if not os.path.exists(full_save_path):
         os.makedirs(full_save_path)

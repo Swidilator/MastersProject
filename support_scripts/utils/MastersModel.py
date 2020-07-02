@@ -22,7 +22,6 @@ class MastersModel(ABC):
         use_input_noise: bool,
         sample_only: bool,
         use_amp: Union[str, bool],
-        use_hsv: bool,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -41,7 +40,6 @@ class MastersModel(ABC):
         self.use_input_noise: bool = use_input_noise
         self.sample_only: bool = sample_only
         self.use_amp: Union[str, bool] = use_amp
-        self.use_hsv: bool = use_hsv
 
     @property
     @abstractmethod
