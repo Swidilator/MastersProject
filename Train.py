@@ -1,6 +1,5 @@
 import os
-from typing import Tuple, Any, Optional
-from PIL.Image import Image
+from typing import Optional
 from tqdm import tqdm
 from pickle import dump as p_dump
 from pickle import dumps as p_dumps
@@ -13,6 +12,7 @@ from support_scripts.utils import MastersModel
 from support_scripts.utils import ModelSettingsManager
 
 # from support_scripts.utils.visualisation import eigenvector_visualisation
+from support_scripts.utils import RunTimer
 
 if __name__ == "__main__":
     # Initialise settings manager to read args and set up environment
@@ -21,6 +21,8 @@ if __name__ == "__main__":
     model_frame: Optional[MastersModel] = None
 
     assert "train" in manager.args
+
+    run_timer: RunTimer = RunTimer(manager.args["max_run_hours"])
 
     if manager.model == "CRN":
         from CRN import CRNFramework
@@ -47,7 +49,13 @@ if __name__ == "__main__":
     full_save_path: str = os.path.join(
         manager.args["model_save_dir"], manager.args["run_folder_name"]
     )
+    if not os.path.exists(manager.args["model_save_dir"]):
+        os.makedirs(manager.args["model_save_dir"])
 
+    if not os.path.exists(full_save_path):
+        os.makedirs(full_save_path)
+
+    # Load model
     if manager.args["load_saved_model"]:
         model_frame.load_model(full_save_path, manager.args["load_saved_model"])
 
@@ -62,6 +70,8 @@ if __name__ == "__main__":
             name=manager.args["run_name"],
             group=manager.args["run_name"],
         )
+
+        run_timer.reset_timer()
 
         # Have WandB watch the components of the model
         for val in model_frame.wandb_trainable_model:
@@ -97,6 +107,11 @@ if __name__ == "__main__":
             manager.args["starting_epoch"], manager.args["train"] + 1
         ):
             print("Epoch:", current_epoch)
+
+            save_this_epoch = (
+                manager.args["save_every_num_epochs"] > 0
+                and current_epoch % manager.args["save_every_num_epochs"] == 0
+            ) or (current_epoch == manager.args["train"])
 
             # Decay learning rate
             if manager.model == "GAN" and manager.model_conf["GAN_DECAY_LEARNING_RATE"]:
@@ -181,22 +196,13 @@ if __name__ == "__main__":
             # Delete output of training
             del epoch_loss, _
 
-            # Save model if requested to save every epoch
-            if (
-                manager.args["save_every_num_epochs"] > 0
-                and current_epoch % manager.args["save_every_num_epochs"] == 0
-            ):
-                print("Saving model")
-                if not os.path.exists(manager.args["model_save_dir"]):
-                    os.makedirs(manager.args["model_save_dir"])
-
-                if not os.path.exists(full_save_path):
-                    os.makedirs(full_save_path)
+            if not run_timer.update_and_predict_interval_security():
+                print("Stopping due to run timer.")
+                print("Saving model: {}".format(current_epoch))
                 model_frame.save_model(full_save_path, current_epoch)
+                break
 
-        # If not saving every epoch, save model only once at the end
-        if not manager.args["save_every_num_epochs"]:
-            print("Saving model")
-            if not os.path.exists(manager.args["model_save_dir"]):
-                os.makedirs(manager.args["model_save_dir"])
-            model_frame.save_model(manager.args["model_save_dir"])
+            # Save model
+            if save_this_epoch:
+                print("Saving model: {}".format(current_epoch))
+                model_frame.save_model(full_save_path, current_epoch)

@@ -64,6 +64,7 @@ class ModelSettingsManager:
             "--flip-training-images", action="store_true", default=False
         )
         parser.add_argument("--deterministic", action="store_true", default=False)
+        parser.add_argument("--max-run-hours", action="store", default=0.0, type=float)
 
         args: dict = vars(parser.parse_args())
 
