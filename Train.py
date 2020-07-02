@@ -1,5 +1,6 @@
 import os
-from typing import Optional
+from typing import Tuple, Any, Optional
+from PIL.Image import Image
 from tqdm import tqdm
 from pickle import dump as p_dump
 from pickle import dumps as p_dumps
