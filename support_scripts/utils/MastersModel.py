@@ -22,6 +22,7 @@ class MastersModel(ABC):
         use_input_noise: bool,
         sample_only: bool,
         use_amp: Union[str, bool],
+        log_evey_n_steps: int,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -40,6 +41,7 @@ class MastersModel(ABC):
         self.use_input_noise: bool = use_input_noise
         self.sample_only: bool = sample_only
         self.use_amp: Union[str, bool] = use_amp
+        self.log_evey_n_steps: int = log_evey_n_steps
 
     @property
     @abstractmethod

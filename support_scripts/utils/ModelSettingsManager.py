@@ -54,6 +54,7 @@ class ModelSettingsManager:
             "--save-every-num-epochs", action="store", default=0, type=int
         )
         parser.add_argument("--load-saved-model", action="store", default=None)
+        parser.add_argument("--log-every-n-steps", action="store", default=8)
         parser.add_argument("--no-tanh", action="store_true", default=False)
         parser.add_argument("--use-amp", action="store", default=False)
         parser.add_argument("--num-workers", action="store", default=6, type=int)
