@@ -88,10 +88,12 @@ class ModelSettingsManager:
         return args
 
     def __process_model_conf__(self) -> dict:
+        with open("model_conf_default.json", "r") as model_conf_default_file:
+            model_conf: dict = json.load(model_conf_default_file)[self.model]
         with open(self.args["model_conf_file"], "r") as model_conf_file:
-            model_conf: dict = json.load(model_conf_file)
+            model_conf.update(json.load(model_conf_file)[self.model])
 
-        return model_conf[self.model]
+        return model_conf
 
     def __clean_arg_path__(self, key: str, args: dict) -> dict:
         return {key: path.abspath(args[key])}
