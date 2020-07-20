@@ -13,7 +13,7 @@ class Block(torch.nn.Module):
     def init_conv_weights(conv: nn.Module) -> None:
         nn.init.normal_(conv.weight, mean=0.0, std=0.02)
         # nn.init.xavier_uniform_(conv.weight, gain=1)
-        nn.init.constant_(conv.bias, 0)
+        # nn.init.constant_(conv.bias, 0)
 
     @property
     def get_output_filter_count(self) -> int:
@@ -29,6 +29,7 @@ class EncoderBlock(Block):
         stride: int,
         padding_size: int,
         use_reflect_pad: bool,
+        use_instance_norm: bool,
         transpose_conv: bool,
         use_relu: bool,
     ):
@@ -38,6 +39,7 @@ class EncoderBlock(Block):
         self.use_reflect_pad: bool = use_reflect_pad
         self.transpose_conv: bool = transpose_conv
         self.use_ReLU: bool = use_relu
+        self.use_instance_norm: bool = use_instance_norm
         conv_padding_size: int = padding_size
 
         if self.use_reflect_pad:
@@ -64,13 +66,14 @@ class EncoderBlock(Block):
 
         Block.init_conv_weights(conv=self.conv_1)
 
-        self.instance_norm_1 = nn.InstanceNorm2d(
-            filter_count,
-            eps=1e-05,
-            momentum=0.1,
-            affine=False,
-            track_running_stats=False,
-        )
+        if self.use_instance_norm:
+            self.instance_norm_1 = nn.InstanceNorm2d(
+                filter_count,
+                eps=1e-05,
+                momentum=0.1,
+                affine=False,
+                track_running_stats=False,
+            )
 
         if self.use_ReLU:
             self.ReLU: nn.ReLU = nn.ReLU(True)
@@ -80,7 +83,8 @@ class EncoderBlock(Block):
         if self.use_reflect_pad:
             out = self.reflect_pad(out)
         out = self.conv_1(out)
-        out = self.instance_norm_1(out)
+        if self.use_instance_norm:
+            out = self.instance_norm_1(out)
         if self.use_ReLU:
             out = self.ReLU(out)
         return out

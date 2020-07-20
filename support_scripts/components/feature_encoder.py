@@ -28,6 +28,7 @@ class FeatureEncoder(nn.Module):
                 stride=1,
                 padding_size=3,
                 use_reflect_pad=True,
+                use_instance_norm=True,
                 transpose_conv=False,
                 use_relu=True,
             )
@@ -44,6 +45,7 @@ class FeatureEncoder(nn.Module):
                     stride=2,
                     padding_size=1,
                     use_reflect_pad=False,
+                    use_instance_norm=True,
                     transpose_conv=False,
                     use_relu=True,
                 )
@@ -60,6 +62,7 @@ class FeatureEncoder(nn.Module):
                     stride=2,
                     padding_size=1,
                     use_reflect_pad=False,
+                    use_instance_norm=True,
                     transpose_conv=True,
                     use_relu=True,
                 )
@@ -74,8 +77,9 @@ class FeatureEncoder(nn.Module):
                 stride=1,
                 padding_size=3,
                 use_reflect_pad=True,
+                use_instance_norm=False,
                 transpose_conv=False,
-                use_relu=True,
+                use_relu=False,
             )
         )
 
