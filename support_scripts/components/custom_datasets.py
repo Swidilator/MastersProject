@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from os import path, listdir
 from torch.utils.data import Dataset
 from torch.nn.functional import one_hot
@@ -91,9 +92,15 @@ class BaseCityScapesDataset(Dataset):
 
         # Return single image if only one target type, else tuple
         if len(output) == 1:
-            return Image.open(self.__left_img_imgs[item]), output[0]
+            return (
+                (Image.open(self.__left_img_imgs[item]), self.__left_img_imgs[item]),
+                output[0],
+            )
         else:
-            return Image.open(self.__left_img_imgs[item]), tuple(output)
+            return (
+                (Image.open(self.__left_img_imgs[item]), self.__left_img_imgs[item]),
+                tuple(output),
+            )
 
     def __len__(self):
         return len(self.__left_img_imgs)
@@ -109,6 +116,8 @@ class CityScapesDataset(Dataset):
         subset_size: int,
         noise: bool,
         dataset_features: dict,
+        specific_model: str,
+        use_all_classes: bool = False,
     ):
         super(CityScapesDataset, self).__init__()
 
@@ -117,6 +126,8 @@ class CityScapesDataset(Dataset):
         self.should_flip: bool = should_flip
         self.subset_size: int = subset_size
         self.noise: bool = noise
+        self.specific_model: str = specific_model
+        self.use_all_classes: bool = use_all_classes
 
         self.used_segmentation_classes = torch.tensor(
             [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
@@ -138,6 +149,10 @@ class CityScapesDataset(Dataset):
         # Number of classes in base CityScapes image
         num_cityscape_classes: int = 34
 
+        self.num_output_classes: int = len(
+            self.used_segmentation_classes + 1
+        ) if not self.use_all_classes else num_cityscape_classes + 1
+
         # Recreation of the normal CityScapes dataset
         self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(
             root=root, split=split, target_type=["semantic", "color", "instance"],
@@ -156,50 +171,97 @@ class CityScapesDataset(Dataset):
         if self.dataset_features_dict["instance_map_processed"]:
             self.instance_map_processor: InstanceMapProcessor = InstanceMapProcessor()
 
-        # Image transforms
-        self.image_resize_transform = transforms.Compose(
-            [
-                transforms.Resize(output_image_height_width, Image.BILINEAR),
-                transforms.ToTensor(),
-            ]
-        )
-        self.instance_resize_transform = transforms.Compose(
-            [
-                transforms.Resize(output_image_height_width, Image.NEAREST),
-                transforms.ToTensor(),
-                transforms.Lambda(lambda x: x.float()),
-            ]
-        )
-        self.mask_resize_transform = transforms.Compose(
-            [
-                transforms.Resize(
-                    output_image_height_width,
-                    Image.NEAREST,  # NEAREST as the values are categories and are not continuous
-                ),
-                transforms.ToTensor(),
-                transforms.Lambda(lambda x: (x * 255).long()[0]),
-                transforms.Lambda(lambda x: one_hot(x, num_cityscape_classes)),
-                transforms.Lambda(
-                    lambda x: torch.index_select(x, 2, self.used_segmentation_classes)
-                ),
-                transforms.Lambda(lambda x: x.transpose(0, 2).transpose(1, 2)),
-                transforms.Lambda(
-                    lambda x: CityScapesDataset.__add_remaining_layer__(x)
-                ),
-                transforms.Lambda(lambda x: x.float()),
-            ]
-        )
+        if self.specific_model == "pix2pixHD":
+            (
+                self.mask_resize_transform,
+                self.image_resize_transform,
+                self.instance_resize_transform,
+            ) = self.create_pix2pix_hd_transforms(output_image_height_width)
+        else:
+            # Image transforms
+            self.image_resize_transform = transforms.Compose(
+                [
+                    transforms.Resize(output_image_height_width, Image.BILINEAR),
+                    transforms.Lambda(lambda img: np.array(img)),
+                    transforms.ToTensor(),
+                ]
+            )
+            self.instance_resize_transform = transforms.Compose(
+                [
+                    transforms.Resize(output_image_height_width, Image.NEAREST),
+                    transforms.Lambda(lambda img: np.array(img)),
+                    transforms.ToTensor(),
+                    transforms.Lambda(lambda x: x.float()),
+                ]
+            )
+
+            def onehot_scatter(input: torch.Tensor, num_classes: int) -> torch.Tensor:
+                input_size: list = list(input.shape)
+                input_size[0] = num_classes
+                label: torch.Tensor = torch.zeros(input_size)
+                label = label.scatter_(0, input.long(), 1.0)
+                return label
+
+            self.mask_resize_transform = transforms.Compose(
+                [
+                    transforms.Resize(
+                        output_image_height_width,
+                        Image.NEAREST,  # NEAREST as the values are categories and are not continuous
+                    ),
+                    transforms.Lambda(lambda img: np.array(img)),
+                    transforms.ToTensor(),
+                    transforms.Lambda(lambda x: (x * 255).long()),
+                    transforms.Lambda(
+                        lambda x: onehot_scatter(x, num_cityscape_classes)
+                    ),
+                    # transforms.Lambda(lambda x: one_hot(x, num_cityscape_classes)),
+                    transforms.Lambda(
+                        lambda x: torch.index_select(
+                            x, 0, self.used_segmentation_classes
+                        )
+                        if not self.use_all_classes
+                        else x
+                    ),
+                    # transforms.Lambda(lambda x: x.transpose(0, 2).transpose(1, 2)),
+                    transforms.Lambda(
+                        lambda x: CityScapesDataset.__add_remaining_layer__(x)
+                    ),
+                    transforms.Lambda(lambda x: x.float()),
+                ]
+            )
+
+    def create_pix2pix_hd_transforms(self, height_width) -> tuple:
+        # Mask
+        mask_transform_list = [
+            transforms.Resize(height_width, Image.NEAREST),
+            transforms.Lambda(lambda img: np.array(img)),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda img: img * 255),
+        ]
+        mask_transform = transforms.Compose(mask_transform_list)
+
+        # Real image
+        real_image_transform_list = [
+            transforms.Lambda(lambda img: img.convert("RGB")),
+            transforms.Resize(height_width, Image.BICUBIC),
+            transforms.Lambda(lambda img: np.array(img)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
+        real_image_transform = transforms.Compose(real_image_transform_list)
+
+        # Instance Maps
+        instance_transform = mask_transform
+        return mask_transform, real_image_transform, instance_transform
 
     def __getitem__(self, index: int, output_feature_extractions: bool = False):
-        img, (msk, msk_colour, instance) = self.dataset.__getitem__(index)
+        (img, img_path), (msk, msk_colour, instance) = self.dataset.__getitem__(index)
         img = img
         msk = msk
         msk_colour = msk_colour
         instance = instance
 
-        flip: bool = random()
-
-        if self.should_flip and flip > 0.5:
+        if self.should_flip and random() > 0.5:
             img = transforms.functional.hflip(img)
             msk = transforms.functional.hflip(msk)
             msk_colour = transforms.functional.hflip(msk_colour)
@@ -241,7 +303,17 @@ class CityScapesDataset(Dataset):
         if not self.dataset_features_dict["instance_map"]:
             instance = torch.empty(0)
 
-        return img, msk, msk_colour, instance, instance_processed, feature_selection
+        if self.specific_model == "pix2pixHD":
+            input_dict = {
+                "label": msk,
+                "inst": instance,
+                "image": img,
+                "feat": feature_selection,
+                "path": img_path,
+            }
+            return input_dict
+        else:
+            return img, msk, msk_colour, instance, instance_processed, feature_selection
 
     def __len__(self):
         # Set length of dataset to subset size intelligently

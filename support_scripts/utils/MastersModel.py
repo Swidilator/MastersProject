@@ -14,7 +14,7 @@ class MastersModel(ABC):
         data_path: str,
         input_image_height_width: tuple,
         batch_size: int,
-        num_classes: int,
+        use_all_classes: bool,
         num_loader_workers: int,
         subset_size: int,
         should_flip_train: bool,
@@ -33,7 +33,7 @@ class MastersModel(ABC):
         self.data_path: str = data_path
         self.input_image_height_width: tuple = input_image_height_width
         self.batch_size: int = batch_size
-        self.num_classes: int = num_classes
+        self.use_all_classes: bool = use_all_classes
         self.num_loader_workers: int = num_loader_workers
         self.subset_size: int = subset_size
         self.should_flip_train: bool = should_flip_train
