@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
         # Have WandB watch the components of the model
         for val in model_frame.wandb_trainable_model:
-            wandb.watch(val)
+            wandb.watch(val, log='all', log_freq=50)
 
         # Indices list for sampling
         final_chosen: list = [
