@@ -58,7 +58,7 @@ class ModelSettingsManager:
         parser.add_argument("--no-tanh", action="store_true", default=False)
         parser.add_argument("--use-amp", action="store", default=False)
         parser.add_argument("--num-workers", action="store", default=6, type=int)
-        parser.add_argument("--use-all-classes", action="store", default=20, type=int)
+        parser.add_argument("--use-all-classes", action="store_true", default=False)
         parser.add_argument("--input-image-noise", action="store_true", default=False)
         parser.add_argument(
             "--flip-training-images", action="store_true", default=False
