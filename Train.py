@@ -1,12 +1,11 @@
 import os
-from typing import Tuple, Any, Optional
-from PIL.Image import Image
-from tqdm import tqdm
 from pickle import dump as p_dump
 from pickle import dumps as p_dumps
-from zstd import dumps as z_dumps
+from typing import Optional
 
 import wandb
+from tqdm import tqdm
+from zstd import dumps as z_dumps
 
 from support_scripts.sampling import sample_from_model
 from support_scripts.utils import MastersModel
@@ -76,7 +75,7 @@ if __name__ == "__main__":
 
         # Have WandB watch the components of the model
         for val in model_frame.wandb_trainable_model:
-            wandb.watch(val, log='all', log_freq=50)
+            wandb.watch(val, log="all", log_freq=50)
 
         # Indices list for sampling
         final_chosen: list = [

@@ -1,7 +1,8 @@
 import argparse
 import json
-import torch
 from os import path
+
+import torch
 
 
 class ModelSettingsManager:

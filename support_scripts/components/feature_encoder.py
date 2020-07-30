@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import numpy as np
 
 from support_scripts.components.blocks import EncoderBlock
 
@@ -88,11 +89,14 @@ class FeatureEncoder(nn.Module):
         self.encoder_model: nn.Sequential = nn.Sequential(*encoder)
         self.decoder_model: nn.Sequential = nn.Sequential(*decoder)
 
-    def forward(self, input: torch.Tensor, instance_map: torch.Tensor) -> torch.Tensor:
-        output: torch.Tensor = self.encoder_model(input)
+    def forward(
+        self, input_tensor: torch.Tensor, instance_map: torch.Tensor
+    ) -> torch.Tensor:
+        output: torch.Tensor = self.encoder_model(input_tensor)
         output = self.decoder_model(output)
         output = self.tan_h(output).clone()
-        output = FeatureEncoder.average_pool(output, instance_map)
+        # output = FeatureEncoder.average_pool(output, instance_map)
+        output = self.average_pool_original(output, instance_map)
         return output
 
     def encode(self, image_input: torch.Tensor) -> torch.Tensor:
@@ -100,6 +104,33 @@ class FeatureEncoder(nn.Module):
 
     def decode(self, encoded_input: torch.Tensor) -> torch.Tensor:
         return self.decoder_model(encoded_input)
+
+    def average_pool_original(
+        self, decoded_input: torch.Tensor, instance_map: torch.Tensor
+    ) -> torch.Tensor:
+        # Taken from original source code
+        outputs_mean = decoded_input.clone()
+        inst_list = np.unique(instance_map.cpu().numpy().astype(int))
+        for i in inst_list:
+            for b in range(outputs_mean.size()[0]):
+                indices = torch.nonzero(
+                    (instance_map[b : b + 1] == int(i)), as_tuple=False
+                )  # n x 4
+                for j in range(self.output_channel_count):
+                    output_ins = decoded_input[
+                        indices[:, 0] + b,
+                        indices[:, 1] + j,
+                        indices[:, 2],
+                        indices[:, 3],
+                    ]
+                    mean_feat = torch.mean(output_ins).expand_as(output_ins)
+                    outputs_mean[
+                        indices[:, 0] + b,
+                        indices[:, 1] + j,
+                        indices[:, 2],
+                        indices[:, 3],
+                    ] = mean_feat
+        return outputs_mean
 
     @staticmethod
     def average_pool(
@@ -109,11 +140,6 @@ class FeatureEncoder(nn.Module):
 
         # Define tensor to hold output
         output_map: torch.Tensor = torch.zeros_like(decoded_input)
-
-        # Stack instance map into same shape as decoded_input, allowing easy comparison
-        # instance_stacked: torch.Tensor = torch.cat(
-        #     (instance_map, instance_map, instance_map), dim=1
-        # )
 
         for bat in range(batch_size):
             # Generate list of unique values per instance map
@@ -131,11 +157,6 @@ class FeatureEncoder(nn.Module):
                     mean_val: torch.Tensor = matching_vals.mean()
                     # Set output for individual object to mean value
                     output_map[bat][channel][matching_indices] = mean_val
-                # Diagnostic printing
-                # print(
-                #     "{bat}.{i}. Value: {val}, Mean: {mean}, Count: {count}".format(
-                #         bat=bat, i=i, val=val, mean=mean_val, count=output_map[bat][matching_indices[0]].numel()
-                #     )
-                # )
+
         # Return the average pooled output
         return output_map
