@@ -151,9 +151,11 @@ class CityScapesDataset(Dataset):
         # Number of classes in base CityScapes image
         num_cityscape_classes: int = 34
 
-        self.num_output_classes: int = len(
-            self.used_segmentation_classes + 1
-        ) if not self.use_all_classes else num_cityscape_classes + 1
+        self.num_output_classes: int = (
+            self.num_segmentation_output_channels
+            if not self.use_all_classes
+            else num_cityscape_classes + 1
+        )
 
         # Recreation of the normal CityScapes dataset
         self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(
@@ -183,7 +185,8 @@ class CityScapesDataset(Dataset):
             # Image transforms
             self.image_resize_transform = transforms.Compose(
                 [
-                    transforms.Resize(output_image_height_width, Image.BILINEAR),
+                    transforms.Lambda(lambda img: img.convert("RGB")),
+                    transforms.Resize(output_image_height_width, Image.BICUBIC),
                     transforms.Lambda(lambda img: np.array(img)),
                     transforms.ToTensor(),
                 ]
@@ -193,7 +196,7 @@ class CityScapesDataset(Dataset):
                     transforms.Resize(output_image_height_width, Image.NEAREST),
                     transforms.Lambda(lambda img: np.array(img)),
                     transforms.ToTensor(),
-                    transforms.Lambda(lambda x: x.float()),
+                    transforms.Lambda(lambda img: img.float()),
                 ]
             )
 
@@ -212,35 +215,35 @@ class CityScapesDataset(Dataset):
                     ),
                     transforms.Lambda(lambda img: np.array(img)),
                     transforms.ToTensor(),
-                    transforms.Lambda(lambda x: (x * 255).long()),
+                    transforms.Lambda(lambda img: (img * 255).long()),
                     transforms.Lambda(
-                        lambda x: onehot_scatter(x, num_cityscape_classes)
+                        lambda img: onehot_scatter(img, num_cityscape_classes)
                     ),
                     # transforms.Lambda(lambda x: one_hot(x, num_cityscape_classes)),
                     transforms.Lambda(
-                        lambda x: torch.index_select(
-                            x, 0, self.used_segmentation_classes
+                        lambda img: torch.index_select(
+                            img, 0, self.used_segmentation_classes
                         )
                         if not self.use_all_classes
-                        else x
+                        else img
                     ),
                     # transforms.Lambda(lambda x: x.transpose(0, 2).transpose(1, 2)),
                     transforms.Lambda(
-                        lambda x: CityScapesDataset.__add_remaining_layer__(x)
+                        lambda img: CityScapesDataset.__add_remaining_layer__(img)
                     ),
-                    transforms.Lambda(lambda x: x.float()),
+                    transforms.Lambda(lambda img: img.float()),
                 ]
             )
 
     def create_pix2pix_hd_transforms(self, height_width) -> tuple:
         # Mask
-        mask_transform_list = [
+        mask_inst_transform_list = [
             transforms.Resize(height_width, Image.NEAREST),
             transforms.Lambda(lambda img: np.array(img)),
             transforms.ToTensor(),
-            transforms.Lambda(lambda img: img * 255),
         ]
-        mask_transform = transforms.Compose(mask_transform_list)
+        # Multiply by 255
+        mask_transform = transforms.Compose([*mask_inst_transform_list, transforms.Lambda(lambda img: img * 255.0)])
 
         # Real image
         real_image_transform_list = [
@@ -253,7 +256,7 @@ class CityScapesDataset(Dataset):
         real_image_transform = transforms.Compose(real_image_transform_list)
 
         # Instance Maps
-        instance_transform = mask_transform
+        instance_transform = transforms.Compose(mask_inst_transform_list)
         return mask_transform, real_image_transform, instance_transform
 
     def __getitem__(self, index: int, output_feature_extractions: bool = False):
@@ -276,10 +279,9 @@ class CityScapesDataset(Dataset):
 
         if self.dataset_features_dict["instance_map_processed"]:
             instance_processed: Optional[torch.Tensor]
-            instance_pil: Optional[Image.Image]
-            instance_processed, instance_pil = self.instance_map_processor(instance)
+            instance_processed = self.instance_map_processor(instance)
         else:
-            instance_processed, instance_pil = torch.empty(0), None
+            instance_processed = torch.empty(0)
 
         if self.noise and torch.rand(1).item() > 0.5:
             img = img + torch.normal(0, 0.02, img.size())
@@ -325,10 +327,10 @@ class CityScapesDataset(Dataset):
             return self.subset_size
 
     @staticmethod
-    def __add_remaining_layer__(x: torch.Tensor):
-        layer: torch.Tensor = torch.zeros_like(x[0])
-        layer[x.sum(dim=0) == 0] = 1
-        return torch.cat((x, layer.unsqueeze(dim=0)), dim=0)
+    def __add_remaining_layer__(img: torch.Tensor):
+        layer: torch.Tensor = torch.zeros_like(img[0])
+        layer[img.sum(dim=0) == 0] = 1
+        return torch.cat((img, layer.unsqueeze(dim=0)), dim=0)
 
     def set_clustered_means(self, clustered_means: torch.Tensor):
         if self.feature_extractions_sampler:
@@ -341,7 +343,6 @@ class CityScapesDataset(Dataset):
 
 class InstanceMapProcessor:
     def __init__(self):
-
         cross_element: list = [[0, -1, 0], [-1, 4, -1], [0, -1, 0]]
         cross_element_tensor: torch.Tensor = torch.tensor(
             cross_element, requires_grad=False, dtype=torch.float32
@@ -349,8 +350,6 @@ class InstanceMapProcessor:
         self.object_separator: torch.nn.Conv2d = torch.nn.Conv2d(1, 1, 3, 1, bias=False)
         self.object_separator.weight.data = cross_element_tensor[(None,) * 2]
         self.object_separator.weight.requires_grad = False
-
-        self.pil_transform = transforms.Compose([transforms.ToPILImage()])
 
     def __call__(self, instance_map: torch.Tensor):
         assert len(instance_map.shape) == 3, "Invalid tensor shape"
@@ -363,7 +362,7 @@ class InstanceMapProcessor:
             edge_shape = torch.Size((1, edge_shape[1] + 2, edge_shape[2] + 2))
             edge_border_pad: torch.Tensor = torch.zeros(edge_shape)
             edge_border_pad[0, 1:-1, 1:-1] = edge_border
-            return edge_border_pad, self.pil_transform(edge_border_pad)
+            return edge_border_pad
 
 
 class FeatureExtractionsSampler:
