@@ -2,7 +2,6 @@ from datetime import timedelta, datetime
 
 
 class RunTimer:
-
     __zero_time: timedelta = timedelta()
 
     def __init__(self, max_hours: float):

@@ -1,7 +1,8 @@
-from PIL import Image
-import random
 import os
+import random
 from typing import Tuple, List
+
+from PIL import Image
 from tqdm import tqdm
 
 from GAN import GANFramework
@@ -75,7 +76,6 @@ def sample_from_model(
     num_images: int = 1,
     indices: tuple = (0,),
 ) -> Tuple[List, List]:
-
     if mode == "random":
         sample_list: list = random.sample(
             range(len(model.__data_set_val__)), num_images

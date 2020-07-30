@@ -1,14 +1,16 @@
-import torch
-import numpy as np
+import itertools
 from os import path, listdir
+from random import random
+from typing import Optional, Union
+
+import numpy as np
+import torch
+from PIL import Image
 from torch.utils.data import Dataset
 from torch.nn.functional import one_hot
 from torchvision import transforms
 from torchvision.transforms.functional import hflip
-from PIL import Image
-from random import random
-from typing import Optional, Union
-import itertools
+
 
 
 class BaseCityScapesDataset(Dataset):

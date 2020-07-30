@@ -1,9 +1,10 @@
-import torch
 import time
-from typing import Union, Tuple, List, Any
-from support_scripts.utils import ModelSettingsManager
-
 from abc import ABC, abstractmethod
+from typing import Union, Tuple, List, Any
+
+import torch
+
+from support_scripts.utils import ModelSettingsManager
 
 
 class MastersModel(ABC):
