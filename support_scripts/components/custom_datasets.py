@@ -148,12 +148,12 @@ class CityScapesDataset(Dataset):
         self.dataset_features_dict.update(dataset_features)
 
         # Number of classes in base CityScapes image
-        num_cityscape_classes: int = 34
+        self.num_cityscape_classes: int = 34
 
         self.num_output_classes: int = (
             self.num_segmentation_output_channels
             if not self.use_all_classes
-            else num_cityscape_classes + 1
+            else self.num_cityscape_classes + 1
         )
 
         # Recreation of the normal CityScapes dataset
@@ -199,13 +199,6 @@ class CityScapesDataset(Dataset):
                 ]
             )
 
-            def onehot_scatter(input: torch.Tensor, num_classes: int) -> torch.Tensor:
-                input_size: list = list(input.shape)
-                input_size[0] = num_classes
-                label: torch.Tensor = torch.zeros(input_size)
-                label = label.scatter_(0, input.long(), 1.0)
-                return label
-
             self.mask_resize_transform = transforms.Compose(
                 [
                     transforms.Resize(
@@ -214,23 +207,7 @@ class CityScapesDataset(Dataset):
                     ),
                     transforms.Lambda(lambda img: np.array(img)),
                     transforms.ToTensor(),
-                    transforms.Lambda(lambda img: (img * 255).long()),
-                    transforms.Lambda(
-                        lambda img: onehot_scatter(img, num_cityscape_classes)
-                    ),
-                    # transforms.Lambda(lambda x: one_hot(x, num_cityscape_classes)),
-                    transforms.Lambda(
-                        lambda img: torch.index_select(
-                            img, 0, self.used_segmentation_classes
-                        )
-                        if not self.use_all_classes
-                        else img
-                    ),
-                    # transforms.Lambda(lambda x: x.transpose(0, 2).transpose(1, 2)),
-                    transforms.Lambda(
-                        lambda img: CityScapesDataset.__add_remaining_layer__(img)
-                    ),
-                    transforms.Lambda(lambda img: img.float()),
+                    transforms.Lambda(lambda img: self.onehot_scatter(img)),
                 ]
             )
 
@@ -326,6 +303,31 @@ class CityScapesDataset(Dataset):
             return self.dataset.__len__()
         else:
             return self.subset_size
+
+    def onehot_scatter(self, img: torch.Tensor) -> torch.Tensor:
+        input_size: list = list(img.shape)
+        input_size[0] = self.num_cityscape_classes
+        label: torch.Tensor = torch.zeros(input_size)
+
+        # Scale data into integers
+        img = (img * 255).long()
+
+        # Scatter into one-hot format
+        label = label.scatter_(0, img.long(), 1.0)
+
+        # Select layers based on official guidelines if requested
+        label = (
+            torch.index_select(label, 0, self.used_segmentation_classes)
+            if not self.use_all_classes
+            else label
+        )
+
+        layer: torch.Tensor = torch.zeros_like(label[0])
+        layer[label.sum(dim=0) == 0] = 1
+
+        label = torch.cat((label, layer.unsqueeze(dim=0)), dim=0)
+
+        return label.float()
 
     @staticmethod
     def __add_remaining_layer__(img: torch.Tensor):
