@@ -12,7 +12,6 @@ from torchvision import transforms
 from torchvision.transforms.functional import hflip
 
 
-
 class BaseCityScapesDataset(Dataset):
     def __init__(self, root: str, split: str, target_type: Union[str, tuple, list]):
         super(BaseCityScapesDataset, self).__init__()
@@ -243,7 +242,9 @@ class CityScapesDataset(Dataset):
             transforms.ToTensor(),
         ]
         # Multiply by 255
-        mask_transform = transforms.Compose([*mask_inst_transform_list, transforms.Lambda(lambda img: img * 255.0)])
+        mask_transform = transforms.Compose(
+            [*mask_inst_transform_list, transforms.Lambda(lambda img: img * 255.0)]
+        )
 
         # Real image
         real_image_transform_list = [
