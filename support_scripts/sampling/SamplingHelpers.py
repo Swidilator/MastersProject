@@ -5,11 +5,11 @@ from typing import Tuple, List
 from PIL import Image
 from tqdm import tqdm
 
-from GAN import GANFramework
+from support_scripts.utils import MastersModel
 
 
 # When sampling, this combines images for saving as side-by-side comparisons
-def process_sampled_image(img_dict: dict) -> Image:
+def __process_sampled_image__(img_dict: dict) -> Image:
     img_width: int = img_dict["original_img"].size[0]
     img_height: int = img_dict["original_img"].size[1]
 
@@ -70,7 +70,7 @@ def create_image_directories(image_output_dir: str, model_name: str) -> str:
 
 
 def sample_from_model(
-    model: GANFramework,
+    model: MastersModel,
     sample_args: dict,
     mode: str,
     num_images: int = 1,
@@ -78,19 +78,19 @@ def sample_from_model(
 ) -> Tuple[List, List]:
     if mode == "random":
         sample_list: list = random.sample(
-            range(len(model.__data_set_val__)), num_images
+            range(len(model.data_set_val)), num_images
         )
     elif mode == "fixed":
         sample_list = list(indices)
     else:
         raise ValueError("Please choose from the following modes: 'random', 'fixed'.")
 
-    img_list: List[dict,] = [model.sample(x, **sample_args) for x in sample_list]
+    img_list: List[dict] = [model.sample(x, **sample_args) for x in sample_list]
 
     output_dicts: list = []
 
     img_dict: dict
     for j, img_dict in enumerate(tqdm(img_list, desc="Sampling")):
-        output_dicts.append(process_sampled_image(img_dict))
+        output_dicts.append(__process_sampled_image__(img_dict))
 
     return output_dicts, sample_list

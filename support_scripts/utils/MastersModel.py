@@ -46,6 +46,16 @@ class MastersModel(ABC):
 
     @property
     @abstractmethod
+    def data_set_train(self) -> torch.utils.data.Dataset:
+        pass
+
+    @property
+    @abstractmethod
+    def data_set_val(self) -> torch.utils.data.Dataset:
+        pass
+
+    @property
+    @abstractmethod
     def wandb_trainable_model(self) -> tuple:
         """
         Expose model components that WandB can track.
@@ -164,7 +174,7 @@ class MastersModel(ABC):
         pass
 
     @abstractmethod
-    def sample(self, k: int, **kwargs) -> List[Tuple[Any, Any]]:
+    def sample(self, k: int, **kwargs) -> dict:
         """
         Sample k random images from dataset, forward through network.
 
