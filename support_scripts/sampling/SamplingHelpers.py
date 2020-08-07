@@ -9,7 +9,7 @@ from support_scripts.utils import MastersModel
 
 
 # When sampling, this combines images for saving as side-by-side comparisons
-def process_sampled_image(img_dict: dict) -> Image:
+def __process_sampled_image__(img_dict: dict) -> Image:
     img_width: int = img_dict["original_img"].size[0]
     img_height: int = img_dict["original_img"].size[1]
 
@@ -91,6 +91,6 @@ def sample_from_model(
 
     img_dict: dict
     for j, img_dict in enumerate(tqdm(img_list, desc="Sampling")):
-        output_dicts.append(process_sampled_image(img_dict))
+        output_dicts.append(__process_sampled_image__(img_dict))
 
     return output_dicts, sample_list
