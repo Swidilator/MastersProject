@@ -78,7 +78,7 @@ def sample_from_model(
 ) -> Tuple[List, List]:
     if mode == "random":
         sample_list: list = random.sample(
-            range(len(model.__data_set_val__)), num_images
+            range(len(model.data_set_val)), num_images
         )
     elif mode == "fixed":
         sample_list = list(indices)

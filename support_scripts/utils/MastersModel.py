@@ -46,6 +46,16 @@ class MastersModel(ABC):
 
     @property
     @abstractmethod
+    def data_set_train(self) -> torch.utils.data.Dataset:
+        pass
+
+    @property
+    @abstractmethod
+    def data_set_val(self) -> torch.utils.data.Dataset:
+        pass
+
+    @property
+    @abstractmethod
     def wandb_trainable_model(self) -> tuple:
         """
         Expose model components that WandB can track.
