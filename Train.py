@@ -75,7 +75,7 @@ if __name__ == "__main__":
             wandb.watch(val, log="all", log_freq=50)
 
         # Indices list for sampling
-        final_chosen: list = [
+        sample_indices_list: list = [
             9,
             11,
             26,
@@ -93,12 +93,12 @@ if __name__ == "__main__":
             322,
         ]
 
-        # Select a subset of final_chosen
-        indices_list: tuple = final_chosen[
+        # Select a subset of sample_indices_list
+        indices_list: tuple = sample_indices_list[
             0 : manager.args["sample"]
-            if manager.args["sample"] <= len(final_chosen)
-            else len(final_chosen)
-        ]
+            if manager.args["sample"] <= len(sample_indices_list)
+            else len(sample_indices_list)
+                              ]
 
         for current_epoch in range(
             manager.args["starting_epoch"], manager.args["train"] + 1
