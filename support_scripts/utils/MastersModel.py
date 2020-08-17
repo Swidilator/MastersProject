@@ -127,12 +127,11 @@ class MastersModel(ABC):
         return model_snapshot
 
     @abstractmethod
-    def save_model(self, model_dir: str, epoch: int = -1) -> None:
+    def save_model(self, epoch: int = -1) -> None:
         """
         Save the current model state. Defaults to only overwriting last file.
 
         Args:
-            model_dir: Directory in which to save the model
             epoch: Save an extra version every epoch
 
         Returns:
@@ -141,12 +140,11 @@ class MastersModel(ABC):
         assert self.model_name is not None
 
     @abstractmethod
-    def load_model(self, model_dir: str, model_file_name: str) -> None:
+    def load_model(self, model_file_name: str, ) -> None:
         """
         Inplace load a snapshot of a model.
 
         Args:
-            model_dir: Path to saved model folder
             model_file_name: Filename of saved model file
 
         Returns:

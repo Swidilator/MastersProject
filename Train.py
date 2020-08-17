@@ -54,11 +54,13 @@ if __name__ == "__main__":
 
     # Load model
     if manager.args["load_saved_model"]:
-        model_frame.load_model(full_save_path, manager.args["load_saved_model"])
+        model_frame.load_model(manager.args["load_saved_model"])
 
     if not manager.args["wandb"]:
         os.environ["WANDB_MODE"] = "dryrun"
 
+    # Profiling
+    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
     # Training
     if manager.args["train"]:
         wandb.init(
@@ -193,10 +195,10 @@ if __name__ == "__main__":
             if not run_timer.update_and_predict_interval_security():
                 print("Stopping due to run timer.")
                 print("Saving model: {}".format(current_epoch))
-                model_frame.save_model(full_save_path, current_epoch)
+                model_frame.save_model(current_epoch)
                 break
 
             # Save model
             if save_this_epoch:
                 print("Saving model: {}".format(current_epoch))
-                model_frame.save_model(full_save_path, current_epoch)
+                model_frame.save_model(current_epoch)
