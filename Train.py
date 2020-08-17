@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     run_timer: RunTimer = RunTimer(manager.args["max_run_hours"])
 
-    if manager.model == "CRN":
+    if manager.args["model"] == "CRN":
         from CRN import CRNFramework
 
         model_frame: CRNFramework = CRNFramework.from_model_settings_manager(manager)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         #     else:
         #         rms.final_conv.register_forward_hook(eigenvector_visualisation)
         # pass
-    elif manager.model == "GAN":
+    elif manager.args["model"] == "GAN":
         from GAN import GANFramework
 
         model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
@@ -46,14 +46,11 @@ if __name__ == "__main__":
         raise SystemExit
 
     # Generate folder for run
-    full_save_path: str = os.path.join(
-        manager.args["model_save_dir"], manager.args["run_folder_name"]
-    )
+    if not os.path.exists(manager.args["base_model_save_dir"]):
+        os.makedirs(manager.args["base_model_save_dir"])
+
     if not os.path.exists(manager.args["model_save_dir"]):
         os.makedirs(manager.args["model_save_dir"])
-
-    if not os.path.exists(full_save_path):
-        os.makedirs(full_save_path)
 
     # Load model
     if manager.args["load_saved_model"]:
@@ -65,7 +62,7 @@ if __name__ == "__main__":
     # Training
     if manager.args["train"]:
         wandb.init(
-            project=manager.model.lower(),
+            project=manager.args["model"].lower(),
             config={**manager.args, **manager.model_conf},
             name=manager.args["run_name"],
             group=manager.args["run_name"],
@@ -114,7 +111,7 @@ if __name__ == "__main__":
             ) or (current_epoch == manager.args["train"])
 
             # Decay learning rate
-            if manager.model == "GAN" and manager.model_conf["GAN_DECAY_LEARNING_RATE"]:
+            if manager.args["model"] == "GAN" and manager.model_conf["GAN_DECAY_LEARNING_RATE"]:
                 model_frame.adjust_learning_rate(
                     current_epoch,
                     manager.model_conf["GAN_DECAY_STARTING_EPOCH"],
@@ -142,14 +139,11 @@ if __name__ == "__main__":
 
                 wandb_img_list: list = []
 
-                if not os.path.exists(manager.args["image_output_dir"]):
-                    os.makedirs(manager.args["image_output_dir"])
+                if not os.path.exists(manager.args["base_image_save_dir"]):
+                    os.makedirs(manager.args["base_image_save_dir"])
 
-                model_image_dir: str = os.path.join(
-                    manager.args["image_output_dir"], manager.args["run_folder_name"]
-                )
-                if not os.path.exists(model_image_dir):
-                    os.makedirs(model_image_dir)
+                if not os.path.exists(manager.args["image_save_dir"]):
+                    os.makedirs(manager.args["image_save_dir"])
 
                 img_dict: dict
                 for image_dict_index, img_dict in enumerate(
@@ -157,7 +151,7 @@ if __name__ == "__main__":
                 ):
                     # Create base filename for saving images and pickle files
                     filename_no_extension = os.path.join(
-                        model_image_dir,
+                        manager.args["image_save_dir"],
                         "{model_name}_{run_name}_figure_{_figure_}_epoch_{epoch}".format(
                             model_name=manager.args["model"].replace(" ", "_"),
                             run_name=manager.args["run_name"].replace(" ", "_"),
