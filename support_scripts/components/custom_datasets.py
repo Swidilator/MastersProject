@@ -10,6 +10,8 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.transforms.functional import hflip
 
+# from support_scripts.components.feature_encoder import FeatureExtractionsSampler
+
 
 class BaseCityScapesDataset(Dataset):
     def __init__(self, root: str, split: str, target_type: Union[str, tuple, list]):
@@ -142,7 +144,6 @@ class CityScapesDataset(Dataset):
         self.dataset_features_dict: dict = {
             "instance_map": False,
             "instance_map_processed": False,
-            "feature_extractions": {"use": False, "file_path": None},
         }
         self.dataset_features_dict.update(dataset_features)
 
@@ -161,15 +162,6 @@ class CityScapesDataset(Dataset):
         )
 
         # Add features based on feature_dict
-        if self.dataset_features_dict["feature_extractions"]["use"]:
-            if self.dataset_features_dict["feature_extractions"]["file_path"]:
-                self.feature_extractions_sampler = FeatureExtractionsSampler.from_file(
-                    self.dataset_features_dict["feature_extractions"]["file_path"]
-                )
-            else:
-                raise ValueError(
-                    'dataset_features["feature_extractions"]["file_path"] cannot be None.'
-                )
         if self.dataset_features_dict["instance_map_processed"]:
             self.instance_map_processor: InstanceMapProcessor = InstanceMapProcessor()
 
@@ -206,18 +198,22 @@ class CityScapesDataset(Dataset):
                     ),
                     transforms.Lambda(lambda img: np.array(img)),
                     transforms.ToTensor(),
-                    transforms.Lambda(lambda img: self.onehot_scatter(img)),
+                    transforms.Lambda(lambda img: self.__onehot_scatter__(img)),
                 ]
             )
 
     def __getitem__(self, index: int):
         (img, img_path), (msk, msk_colour, instance) = self.dataset.__getitem__(index)
-        img = img
-        msk = msk
-        msk_colour = msk_colour
-        instance = instance
 
-        if self.should_flip and random() > 0.5:
+        # Extract the useful info from the name of the image for use later
+        img_id: list = img_path.split("/")[-3:]
+        img_id[-1] = "_".join(img_id[-1].split("_")[:3])
+
+        img_id_dict = {"split": img_id[0], "town": img_id[1], "name": img_id[2]}
+
+        should_flip = random() > 0.5
+
+        if self.should_flip and should_flip:
             img = transforms.functional.hflip(img)
             msk = transforms.functional.hflip(msk)
             msk_colour = transforms.functional.hflip(msk_colour)
@@ -232,7 +228,7 @@ class CityScapesDataset(Dataset):
             instance_processed: Optional[torch.Tensor]
             instance_processed = self.instance_map_processor(instance)
         else:
-            instance_processed = torch.empty(0)
+            instance_processed = torch.empty(0, requires_grad=False)
 
         if self.noise and torch.rand(1).item() > 0.5:
             img = img + torch.normal(0, 0.02, img.size())
@@ -245,16 +241,6 @@ class CityScapesDataset(Dataset):
             # print(msk_noise.sum() / self.num_classes)
             msk = msk + msk_noise
 
-        # If the feature is not being used, the output will be None
-        if self.dataset_features_dict["feature_extractions"]["use"]:
-            feature_selection: Optional[torch.Tensor] = (
-                self.feature_extractions_sampler(msk, instance)
-            )
-        else:
-            feature_selection: Optional[torch.Tensor] = torch.empty(
-                0, requires_grad=False
-            )
-
         if not self.dataset_features_dict["instance_map"]:
             instance = torch.empty(0)
 
@@ -263,12 +249,22 @@ class CityScapesDataset(Dataset):
                 "label": msk,
                 "inst": instance,
                 "image": img,
-                "feat": feature_selection,
+                "feat": torch.empty(0, requires_grad=False),
                 "path": img_path,
             }
             return input_dict
         else:
-            return img, msk, msk_colour, instance, instance_processed, feature_selection
+            input_dict: dict = {
+                "img": img,
+                "img_path": img_path,
+                "img_id": img_id_dict,
+                "img_flipped": should_flip,
+                "msk": msk,
+                "msk_colour": msk_colour,
+                "inst": instance,
+                "edge_map": instance_processed,
+            }
+            return input_dict
 
     def __len__(self):
         # Set length of dataset to subset size intelligently
@@ -277,7 +273,7 @@ class CityScapesDataset(Dataset):
         else:
             return self.subset_size
 
-    def onehot_scatter(self, img: torch.Tensor) -> torch.Tensor:
+    def __onehot_scatter__(self, img: torch.Tensor) -> torch.Tensor:
         input_size: list = list(img.shape)
         input_size[0] = self.num_cityscape_classes
         label: torch.Tensor = torch.zeros(input_size)
@@ -334,14 +330,6 @@ class CityScapesDataset(Dataset):
         layer[img.sum(dim=0) == 0] = 1
         return torch.cat((img, layer.unsqueeze(dim=0)), dim=0)
 
-    def set_clustered_means(self, clustered_means: torch.Tensor):
-        if self.feature_extractions_sampler:
-            self.feature_extractions_sampler.clustered_means = clustered_means
-        else:
-            self.feature_extractions_sampler = FeatureExtractionsSampler(
-                clustered_means
-            )
-
 
 class InstanceMapProcessor:
     def __init__(self):
@@ -365,55 +353,3 @@ class InstanceMapProcessor:
             edge_border_pad: torch.Tensor = torch.zeros(edge_shape)
             edge_border_pad[0, 1:-1, 1:-1] = edge_border
             return edge_border_pad
-
-
-class FeatureExtractionsSampler:
-    def __init__(self, cluster_means: torch.Tensor):
-
-        self.clustered_means = cluster_means
-
-    @classmethod
-    def from_file(cls, feature_extractions_file_path: str):
-        import pickle
-
-        with open(feature_extractions_file_path, "rb") as f:
-            clustered_means: torch.Tensor = pickle.load(f)
-        return cls(clustered_means)
-
-    def __call__(self, msk: torch.Tensor, instance_map: torch.Tensor) -> torch.Tensor:
-        # Number of output channels
-        num_output_channels: int = 3
-
-        # Get all unique instances for the given image
-        instance_unique: torch.Tensor = torch.unique(instance_map)
-
-        # Flatten the one-hot encoded mask into a single channel image
-        msk_argmax: torch.Tensor = torch.argmax(msk, dim=0).float()
-
-        # Define the output so that it may be filled in gradually
-        output_tensor: torch.Tensor = torch.zeros(
-            (num_output_channels, instance_map.shape[1], instance_map.shape[2])
-        )
-        # Loop through every unique instance and fill in it's contribution
-        for i, val in enumerate(instance_unique):
-
-            # Generate a boolean tensor matching the location of the unique instance
-            matching_indices_instance: torch.Tensor = (instance_map[0] == val)
-
-            # Extract the class that the unique instance belongs to
-            matching_class: torch.tensor = msk_argmax[
-                matching_indices_instance
-            ].mean().round()
-
-            # Sample a random setting from the clustered means pertaining to the class of the instance
-            valid_settings = self.clustered_means[
-                self.clustered_means[:, 0] == matching_class
-            ]
-            num_means: int = valid_settings.shape[0]
-            index: int = ((torch.rand(1) * num_means).int()).item()
-            random_setting: torch.Tensor = valid_settings[index][1:]
-
-            for j in range(num_output_channels):
-                output_tensor[j, matching_indices_instance] = random_setting[j].item()
-
-        return output_tensor
