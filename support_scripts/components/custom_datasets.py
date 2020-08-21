@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from torch.nn.functional import one_hot
 from torchvision import transforms
 from torchvision.transforms.functional import hflip
 
@@ -179,7 +178,7 @@ class CityScapesDataset(Dataset):
                 self.mask_resize_transform,
                 self.image_resize_transform,
                 self.instance_resize_transform,
-            ) = self.create_pix2pix_hd_transforms(output_image_height_width)
+            ) = self.__create_pix2pix_hd_transforms__(output_image_height_width)
         else:
             # Image transforms
             self.image_resize_transform = transforms.Compose(
@@ -211,33 +210,7 @@ class CityScapesDataset(Dataset):
                 ]
             )
 
-    def create_pix2pix_hd_transforms(self, height_width) -> tuple:
-        # Mask
-        mask_inst_transform_list = [
-            transforms.Resize(height_width, Image.NEAREST),
-            transforms.Lambda(lambda img: np.array(img)),
-            transforms.ToTensor(),
-        ]
-        # Multiply by 255
-        mask_transform = transforms.Compose(
-            [*mask_inst_transform_list, transforms.Lambda(lambda img: img * 255.0)]
-        )
-
-        # Real image
-        real_image_transform_list = [
-            transforms.Lambda(lambda img: img.convert("RGB")),
-            transforms.Resize(height_width, Image.BICUBIC),
-            transforms.Lambda(lambda img: np.array(img)),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ]
-        real_image_transform = transforms.Compose(real_image_transform_list)
-
-        # Instance Maps
-        instance_transform = transforms.Compose(mask_inst_transform_list)
-        return mask_transform, real_image_transform, instance_transform
-
-    def __getitem__(self, index: int, output_feature_extractions: bool = False):
+    def __getitem__(self, index: int):
         (img, img_path), (msk, msk_colour, instance) = self.dataset.__getitem__(index)
         img = img
         msk = msk
@@ -328,6 +301,32 @@ class CityScapesDataset(Dataset):
         label = torch.cat((label, layer.unsqueeze(dim=0)), dim=0)
 
         return label.float()
+
+    def __create_pix2pix_hd_transforms__(self, height_width) -> tuple:
+        # Mask
+        mask_inst_transform_list = [
+            transforms.Resize(height_width, Image.NEAREST),
+            transforms.Lambda(lambda img: np.array(img)),
+            transforms.ToTensor(),
+        ]
+        # Multiply by 255
+        mask_transform = transforms.Compose(
+            [*mask_inst_transform_list, transforms.Lambda(lambda img: img * 255.0)]
+        )
+
+        # Real image
+        real_image_transform_list = [
+            transforms.Lambda(lambda img: img.convert("RGB")),
+            transforms.Resize(height_width, Image.BICUBIC),
+            transforms.Lambda(lambda img: np.array(img)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
+        real_image_transform = transforms.Compose(real_image_transform_list)
+
+        # Instance Maps
+        instance_transform = transforms.Compose(mask_inst_transform_list)
+        return mask_transform, real_image_transform, instance_transform
 
     @staticmethod
     def __add_remaining_layer__(img: torch.Tensor):
