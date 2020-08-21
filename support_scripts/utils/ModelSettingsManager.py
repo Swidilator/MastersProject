@@ -23,6 +23,7 @@ class ModelSettingsManager:
 
     def __process_args__(self) -> dict:
         # Parse settings
+        # fmt: off
         parser = argparse.ArgumentParser(description="Masters model main file")
 
         parser.add_argument("model", action="store")
@@ -33,9 +34,7 @@ class ModelSettingsManager:
         parser.add_argument("training_machine_name", action="store")
         parser.add_argument("run_name", action="store")
 
-        parser.add_argument(
-            "--model-conf-file", action="store", default="model_conf.json"
-        )
+        parser.add_argument("--model-conf-file", action="store", default="model_conf.json")
         parser.add_argument("--wandb", action="store_true", default=False)
         parser.add_argument("--train", action="store", default=0, type=int)
         parser.add_argument("--starting-epoch", action="store", default=1, type=int)
@@ -48,9 +47,7 @@ class ModelSettingsManager:
         parser.add_argument("--base-image-save-dir", action="store", default="./Images/")
         parser.add_argument("--cpu", action="store_true", default=False)
         parser.add_argument("--gpu-no", action="store", default=0)
-        parser.add_argument(
-            "--save-every-num-epochs", action="store", default=0, type=int
-        )
+        parser.add_argument("--save-every-num-epochs", action="store", default=0, type=int)
         parser.add_argument("--load-saved-model", action="store", default=None)
         parser.add_argument("--log-every-n-steps", action="store", default=8)
         parser.add_argument("--use-tanh", action="store_true", default=False)
@@ -58,9 +55,7 @@ class ModelSettingsManager:
         parser.add_argument("--num-data-workers", action="store", default=6, type=int)
         parser.add_argument("--use-all-classes", action="store_true", default=False)
         parser.add_argument("--use-input-image-noise", action="store_true", default=False)
-        parser.add_argument(
-            "--flip-training-images", action="store_true", default=False
-        )
+        parser.add_argument("--flip-training-images", action="store_true", default=False)
         parser.add_argument("--deterministic", action="store_true", default=False)
         parser.add_argument("--max-run-hours", action="store", default=0.0, type=float)
 
@@ -96,6 +91,7 @@ class ModelSettingsManager:
         if (args["sample_mode"] != "random") and (args["sample_mode"] != "fixed"):
             raise ValueError("--sample-mode should be 'random' or 'fixed'.")
 
+        # fmt: on
         return args
 
     def __process_model_conf__(self) -> dict:

@@ -100,7 +100,7 @@ if __name__ == "__main__":
             0 : manager.args["sample"]
             if manager.args["sample"] <= len(sample_indices_list)
             else len(sample_indices_list)
-                              ]
+        ]
 
         for current_epoch in range(
             manager.args["starting_epoch"], manager.args["train"] + 1
@@ -113,7 +113,10 @@ if __name__ == "__main__":
             ) or (current_epoch == manager.args["train"])
 
             # Decay learning rate
-            if manager.args["model"] == "GAN" and manager.model_conf["GAN_DECAY_LEARNING_RATE"]:
+            if (
+                manager.args["model"] == "GAN"
+                and manager.model_conf["GAN_DECAY_LEARNING_RATE"]
+            ):
                 model_frame.adjust_learning_rate(
                     current_epoch,
                     manager.model_conf["GAN_DECAY_STARTING_EPOCH"],
