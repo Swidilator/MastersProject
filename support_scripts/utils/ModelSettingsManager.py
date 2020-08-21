@@ -10,7 +10,7 @@ class ModelSettingsManager:
 
         # Process generic input arguments
         self.args: dict = self.__process_args__()
-        self.model: str = self.args["model"]
+        self.args["device"] = self.__set_torch_device__()
 
         # Process model specific configuration
         self.model_conf: dict = self.__process_model_conf__()
@@ -18,14 +18,12 @@ class ModelSettingsManager:
         # Set torch / nvidia determinism based on args
         self.__set_determinism__()
 
-        # Set torch device
-        self.device: torch.device = self.__set_torch_device__()
-
         for arg, val in {**self.args, **self.model_conf}.items():
             print("{arg}: {val}".format(arg=arg, val=val))
 
     def __process_args__(self) -> dict:
         # Parse settings
+        # fmt: off
         parser = argparse.ArgumentParser(description="Masters model main file")
 
         parser.add_argument("model", action="store")
@@ -36,63 +34,71 @@ class ModelSettingsManager:
         parser.add_argument("training_machine_name", action="store")
         parser.add_argument("run_name", action="store")
 
-        parser.add_argument(
-            "--model-conf-file", action="store", default="model_conf.json"
-        )
+        parser.add_argument("--model-conf-file", action="store", default="model_conf.json")
+        parser.add_argument("--wandb", action="store_true", default=False)
         parser.add_argument("--train", action="store", default=0, type=int)
         parser.add_argument("--starting-epoch", action="store", default=1, type=int)
         parser.add_argument("--sample", action="store", default=0, type=int)
         parser.add_argument("--sample-mode", action="store", default="random")
         parser.add_argument("--sample-only", action="store_true", default=False)
-        parser.add_argument("--training-subset", action="store", default=0, type=int)
-        parser.add_argument("--wandb", action="store_true", default=False)
-        parser.add_argument("--model-save-dir", action="store", default="./Models/")
+        parser.add_argument("--training-subset-size", action="store", default=0, type=int)
+        parser.add_argument("--base-model-save-dir", action="store", default="./Models/")
         parser.add_argument("--model-save-prefix", action="store", default="Epoch_")
-        parser.add_argument("--image-output-dir", action="store", default="./Images/")
+        parser.add_argument("--base-image-save-dir", action="store", default="./Images/")
         parser.add_argument("--cpu", action="store_true", default=False)
         parser.add_argument("--gpu-no", action="store", default=0)
-        parser.add_argument(
-            "--save-every-num-epochs", action="store", default=0, type=int
-        )
+        parser.add_argument("--save-every-num-epochs", action="store", default=0, type=int)
         parser.add_argument("--load-saved-model", action="store", default=None)
         parser.add_argument("--log-every-n-steps", action="store", default=8)
-        parser.add_argument("--no-tanh", action="store_true", default=False)
+        parser.add_argument("--use-tanh", action="store_true", default=False)
         parser.add_argument("--use-amp", action="store", default=False)
-        parser.add_argument("--num-workers", action="store", default=6, type=int)
+        parser.add_argument("--num-data-workers", action="store", default=6, type=int)
         parser.add_argument("--use-all-classes", action="store_true", default=False)
-        parser.add_argument("--input-image-noise", action="store_true", default=False)
-        parser.add_argument(
-            "--flip-training-images", action="store_true", default=False
-        )
+        parser.add_argument("--use-input-image-noise", action="store_true", default=False)
+        parser.add_argument("--flip-training-images", action="store_true", default=False)
         parser.add_argument("--deterministic", action="store_true", default=False)
         parser.add_argument("--max-run-hours", action="store", default=0.0, type=float)
 
         args: dict = vars(parser.parse_args())
 
-        # Add folder name for ease of access and standardisation
+        args.update(self.__clean_arg_path__("dataset_path", args))
+        args.update(self.__clean_arg_path__("model_conf_file", args))
+        args.update(self.__clean_arg_path__("base_model_save_dir", args))
+        args.update(self.__clean_arg_path__("base_image_save_dir", args))
+
+        # Add folder names for ease of access and standardisation
         args.update(
             {
-                "run_folder_name": "{model}_{run_name}".format(
-                    model=args["model"], run_name=args["run_name"].replace(" ", "_")
+                "model_save_dir": path.join(
+                    args["base_model_save_dir"],
+                    "{model}_{run_name}".format(
+                        model=args["model"], run_name=args["run_name"].replace(" ", "_")
+                    ),
+                )
+            }
+        )
+        args.update(
+            {
+                "image_save_dir": path.join(
+                    args["base_image_save_dir"],
+                    "{model}_{run_name}".format(
+                        model=args["model"], run_name=args["run_name"].replace(" ", "_")
+                    ),
                 )
             }
         )
 
-        args.update(self.__clean_arg_path__("dataset_path", args))
-        args.update(self.__clean_arg_path__("model_conf_file", args))
-        args.update(self.__clean_arg_path__("model_save_dir", args))
-        args.update(self.__clean_arg_path__("image_output_dir", args))
-
         if (args["sample_mode"] != "random") and (args["sample_mode"] != "fixed"):
             raise ValueError("--sample-mode should be 'random' or 'fixed'.")
 
+        # fmt: on
         return args
 
     def __process_model_conf__(self) -> dict:
         with open("model_conf_default.json", "r") as model_conf_default_file:
-            model_conf: dict = json.load(model_conf_default_file)[self.model]
+            model_conf: dict = json.load(model_conf_default_file)[self.args["model"]]
         with open(self.args["model_conf_file"], "r") as model_conf_file:
-            model_conf.update(json.load(model_conf_file)[self.model])
+            model_conf.update(json.load(model_conf_file)[self.args["model"]])
 
         return model_conf
 

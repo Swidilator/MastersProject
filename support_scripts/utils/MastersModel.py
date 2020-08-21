@@ -1,6 +1,6 @@
 import time
 from abc import ABC, abstractmethod
-from typing import Union, Tuple, List, Any
+from typing import Union, Tuple, List, Any, Optional
 
 import torch
 
@@ -12,37 +12,41 @@ class MastersModel(ABC):
     def __init__(
         self,
         device: torch.device,
-        data_path: str,
+        dataset_path: str,
         input_image_height_width: tuple,
         batch_size: int,
         use_all_classes: bool,
-        num_loader_workers: int,
-        subset_size: int,
-        should_flip_train: bool,
+        num_data_workers: int,
+        training_subset_size: int,
+        flip_training_images: bool,
         use_tanh: bool,
-        use_input_noise: bool,
+        use_input_image_noise: bool,
         sample_only: bool,
         use_amp: Union[str, bool],
-        log_evey_n_steps: int,
+        log_every_n_steps: int,
+        model_save_dir: str,
+        image_save_dir: str,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
 
-        self.model_name: Union[str, None] = None
+        self.model_name: Optional[str] = None
 
         self.device: torch.device = device
-        self.data_path: str = data_path
+        self.dataset_path: str = dataset_path
         self.input_image_height_width: tuple = input_image_height_width
         self.batch_size: int = batch_size
         self.use_all_classes: bool = use_all_classes
-        self.num_loader_workers: int = num_loader_workers
-        self.subset_size: int = subset_size
-        self.should_flip_train: bool = should_flip_train
+        self.num_data_workers: int = num_data_workers
+        self.training_subset_size: int = training_subset_size
+        self.flip_training_images: bool = flip_training_images
         self.use_tanh: bool = use_tanh
-        self.use_input_noise: bool = use_input_noise
+        self.use_input_image_noise: bool = use_input_image_noise
         self.sample_only: bool = sample_only
         self.use_amp: Union[str, bool] = use_amp
-        self.log_evey_n_steps: int = log_evey_n_steps
+        self.log_every_n_steps: int = log_every_n_steps
+        self.model_save_dir: str = model_save_dir
+        self.image_save_dir: str = image_save_dir
 
     @property
     @abstractmethod
@@ -123,12 +127,11 @@ class MastersModel(ABC):
         return model_snapshot
 
     @abstractmethod
-    def save_model(self, model_dir: str, epoch: int = -1) -> None:
+    def save_model(self, epoch: int = -1) -> None:
         """
         Save the current model state. Defaults to only overwriting last file.
 
         Args:
-            model_dir: Directory in which to save the model
             epoch: Save an extra version every epoch
 
         Returns:
@@ -137,12 +140,11 @@ class MastersModel(ABC):
         assert self.model_name is not None
 
     @abstractmethod
-    def load_model(self, model_dir: str, model_file_name: str) -> None:
+    def load_model(self, model_file_name: str,) -> None:
         """
         Inplace load a snapshot of a model.
 
         Args:
-            model_dir: Path to saved model folder
             model_file_name: Filename of saved model file
 
         Returns:
