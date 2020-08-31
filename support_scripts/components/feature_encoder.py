@@ -121,8 +121,6 @@ class FeatureEncoder(nn.Module):
             output: torch.Tensor = self.encoder_model(input_tensor)
             output = self.decoder_model(output)
             output = self.tan_h(output).clone()
-            output = (output + 1) / 2
-            # output = FeatureEncoder.average_pool(output, instance_map)
             output = self.average_pool(output, instance_map)
             return output
         else:
