@@ -1,6 +1,7 @@
 import os
 import random
-from typing import Tuple, List
+import torch
+from typing import Tuple, List, Union
 
 from PIL import Image
 from tqdm import tqdm
@@ -83,7 +84,8 @@ def sample_from_model(
     else:
         raise ValueError("Please choose from the following modes: 'random', 'fixed'.")
 
-    img_list: List[dict] = [model.sample(x, **sample_args) for x in sample_list]
+    with torch.no_grad():
+        img_list: List[dict] = [model.sample(x, **sample_args) for x in sample_list]
 
     output_dicts: list = []
 
