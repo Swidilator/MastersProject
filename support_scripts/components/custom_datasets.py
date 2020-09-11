@@ -130,6 +130,15 @@ class CityScapesDataset(Dataset):
         self.noise: bool = noise
         self.specific_model: str = specific_model
         self.use_all_classes: bool = use_all_classes
+        self.split = split
+
+        # Number of classes in base CityScapes image
+        self.num_cityscape_classes: int = 34
+
+        # Segmentation network only outputs the 19 train classes
+        if self.split == "demoVideo":
+            self.use_all_classes = True
+            self.num_cityscape_classes = 20
 
         self.used_segmentation_classes = torch.tensor(
             [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
@@ -146,9 +155,6 @@ class CityScapesDataset(Dataset):
             "instance_map_processed": False,
         }
         self.dataset_features_dict.update(dataset_features)
-
-        # Number of classes in base CityScapes image
-        self.num_cityscape_classes: int = 34
 
         self.num_output_classes: int = (
             self.num_segmentation_output_channels
@@ -290,11 +296,11 @@ class CityScapesDataset(Dataset):
             if not self.use_all_classes
             else label
         )
+        if self.split != "demoVideo":
+            layer: torch.Tensor = torch.zeros_like(label[0])
+            layer[label.sum(dim=0) == 0] = 1
 
-        layer: torch.Tensor = torch.zeros_like(label[0])
-        layer[label.sum(dim=0) == 0] = 1
-
-        label = torch.cat((label, layer.unsqueeze(dim=0)), dim=0)
+            label = torch.cat((label, layer.unsqueeze(dim=0)), dim=0)
 
         return label.float()
 
