@@ -176,15 +176,17 @@ class MastersModel(ABC):
         pass
 
     @abstractmethod
-    def sample(self, k: int, **kwargs) -> dict:
+    def sample(
+        self, image_numbers: Union[int, tuple], video_dataset: bool = False
+    ) -> Union[dict, List[dict]]:
         """
         Sample k random images from dataset, forward through network.
 
         Args:
-            k: number of images to sample
-            kwargs: any model-specific arguments
+            image_numbers: number of images to sample
+            video_dataset: use video dataset instead.
 
         Returns:
-            List[Tuple[Any, Any]]
+            Union[dict, List[dict]]
         """
         pass

@@ -60,7 +60,8 @@ if __name__ == "__main__":
         os.environ["WANDB_MODE"] = "dryrun"
 
     # Profiling
-    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+    # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
     # Training
     if manager.args["train"]:
         wandb.init(
@@ -131,8 +132,6 @@ if __name__ == "__main__":
             if manager.args["sample"]:
 
                 sample_args: dict = {}
-                # if manager.args["model"] == "GAN":
-                sample_args.update({"use_extracted_features": False})
 
                 output_dicts, sample_list = sample_from_model(
                     model=model_frame,

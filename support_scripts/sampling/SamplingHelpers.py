@@ -1,6 +1,7 @@
 import os
 import random
-from typing import Tuple, List
+import torch
+from typing import Tuple, List, Union
 
 from PIL import Image
 from tqdm import tqdm
@@ -83,7 +84,8 @@ def sample_from_model(
     else:
         raise ValueError("Please choose from the following modes: 'random', 'fixed'.")
 
-    img_list: List[dict] = [model.sample(x, **sample_args) for x in sample_list]
+    with torch.no_grad():
+        img_list: List[dict] = [model.sample(x, **sample_args) for x in sample_list]
 
     output_dicts: list = []
 
@@ -92,3 +94,34 @@ def sample_from_model(
         output_dicts.append(__process_sampled_image__(img_dict))
 
     return output_dicts, sample_list
+
+
+def sample_video_from_model(
+    model: MastersModel,
+    index_range: tuple,
+    output_image_dir: str,
+    output_image_number: int = 0,
+    batch_size=2,
+):
+    # Tuples of indices
+    batched_indices: list = []
+
+    for i in range(*index_range, batch_size):
+        start_range_index = i
+        end_range_index = i + batch_size
+        if end_range_index > index_range[1]:
+            end_range_index = index_range[1]
+        batched_indices.append(tuple(range(start_range_index, end_range_index)))
+
+    for tup_num, tup in enumerate(batched_indices):
+        base_index: int = batch_size * tup_num + index_range[0]
+        with torch.no_grad():
+            image_dict_list: Union[list, dict] = model.sample(tup, video_dataset=True)
+        if isinstance(image_dict_list, dict):
+            image_dict_list = [image_dict_list]
+        for dict_num, img_dict in enumerate(image_dict_list):
+            img_dict["output_img_dict"][f"output_img_{output_image_number}"].save(
+                os.path.join(
+                    output_image_dir, f"{base_index + dict_num}".zfill(5) + ".png"
+                )
+            )

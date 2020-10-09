@@ -121,8 +121,6 @@ class FeatureEncoder(nn.Module):
             output: torch.Tensor = self.encoder_model(input_tensor)
             output = self.decoder_model(output)
             output = self.tan_h(output).clone()
-            output = (output + 1) / 2
-            # output = FeatureEncoder.average_pool(output, instance_map)
             output = self.average_pool(output, instance_map)
             return output
         else:
@@ -332,35 +330,50 @@ class FeatureExtractionsSampler:
         return cls(clustered_means, device)
 
     def __call__(self, instance_map: torch.Tensor) -> torch.Tensor:
+
         # Number of output channels
         num_output_channels: int = 3
 
-        # Get all unique instances for the given image
-        instance_unique: torch.Tensor = torch.unique(instance_map)
+        # Batch size handling
+        batch_size: int = instance_map.shape[0]
 
         # Define the output so that it may be filled in gradually
         output_tensor: torch.Tensor = torch.zeros(
-            (num_output_channels, instance_map.shape[2], instance_map.shape[3]),
+            (
+                batch_size,
+                num_output_channels,
+                instance_map.shape[2],
+                instance_map.shape[3],
+            ),
             device=self.device,
         )
-        # Loop through every unique instance and fill in it's contribution
-        for i, val in enumerate(instance_unique):
-            val_class = val
-            if val > 1000:
-                val_class = val // 1000
 
-            # Generate a boolean tensor matching the location of the unique instance
-            matching_indices_instance: torch.Tensor = (instance_map[0][0] == val)
+        for batch_no in range(batch_size):
+            # Get all unique instances for the given image
+            instance_unique: torch.Tensor = torch.unique(instance_map[batch_no])
 
-            # Sample a random setting from the clustered means pertaining to the class of the instance
-            valid_settings = self.clustered_means[
-                self.clustered_means[:, 0] == val_class
-            ]
-            num_means: int = valid_settings.shape[0]
-            index: int = (torch.rand(1) * num_means).int().item()
-            random_setting: torch.Tensor = valid_settings[index][1:]
+            # Loop through every unique instance and fill in it's contribution
+            for i, val in enumerate(instance_unique):
+                val_class = val
+                if val > 1000:
+                    val_class = val // 1000
 
-            for j in range(num_output_channels):
-                output_tensor[j, matching_indices_instance] = random_setting[j]
+                # Generate a boolean tensor matching the location of the unique instance
+                matching_indices_instance: torch.Tensor = (
+                    instance_map[batch_no][0] == val
+                )
 
-        return output_tensor.unsqueeze(0)
+                # Sample a random setting from the clustered means pertaining to the class of the instance
+                valid_settings = self.clustered_means[
+                    self.clustered_means[:, 0] == val_class
+                ]
+                num_means: int = valid_settings.shape[0]
+                index: int = (torch.rand(1) * num_means).int().item()
+                random_setting: torch.Tensor = valid_settings[index][1:]
+
+                for j in range(num_output_channels):
+                    output_tensor[
+                        batch_no, j, matching_indices_instance
+                    ] = random_setting[j]
+
+        return output_tensor
