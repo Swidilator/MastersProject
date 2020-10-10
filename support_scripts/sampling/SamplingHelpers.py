@@ -60,13 +60,8 @@ def __process_sampled_image__(img_dict: dict) -> Image:
 
 
 def create_image_directories(image_output_dir: str, model_name: str) -> str:
-    if not os.path.exists(image_output_dir):
-        os.makedirs(image_output_dir)
-
     model_image_dir: str = os.path.join(image_output_dir, model_name)
-    if not os.path.exists(model_image_dir):
-        os.makedirs(model_image_dir)
-
+    os.makedirs(model_image_dir, exist_ok=True)
     return model_image_dir
 
 
