@@ -208,69 +208,95 @@ class CityScapesDataset(Dataset):
                 ]
             )
 
-    def __getitem__(self, index: int):
-        (img, img_path), (msk, msk_colour, instance) = self.dataset.__getitem__(index)
+    def __getitem__(self, index: Union[int, tuple]):
 
-        # Extract the useful info from the name of the image for use later
-        img_id: list = img_path.split("/")[-3:]
-        img_id[-1] = "_".join(img_id[-1].split("_")[:3])
-
-        img_id_dict = {"split": img_id[0], "town": img_id[1], "name": img_id[2]}
-
-        should_flip = random() > 0.5
-
-        if self.should_flip and should_flip:
-            img = transforms.functional.hflip(img)
-            msk = transforms.functional.hflip(msk)
-            msk_colour = transforms.functional.hflip(msk_colour)
-            instance = transforms.functional.hflip(instance)
-
-        img: torch.Tensor = self.image_resize_transform(img)
-        msk: torch.Tensor = self.mask_resize_transform(msk)
-        msk_colour: torch.Tensor = self.image_resize_transform(msk_colour)
-        instance: Optional[torch.Tensor] = self.instance_resize_transform(instance)
-
-        if self.dataset_features_dict["instance_map_processed"]:
-            instance_processed: Optional[torch.Tensor]
-            instance_processed = self.instance_map_processor(instance)
+        if type(index) is tuple:
+            if len(index) == 1:
+                num_images = 1
+            else:
+                num_images = index[1]
+            index = index[0]
         else:
-            instance_processed = torch.empty(0, requires_grad=False)
+            num_images = 1
 
-        if self.noise and torch.rand(1).item() > 0.5:
-            img = img + torch.normal(0, 0.02, img.size())
-            img[img > 1] = 1
-            img[img < -1] = -1
-        if self.noise and torch.rand(1).item() > 0.5:
-            mean_range: float = (torch.rand(1).item() * 0.2) + 0.7
-            msk_noise = torch.normal(mean_range, 0.1, msk.size())
-            msk_noise = msk_noise.int().float()
-            # print(msk_noise.sum() / self.num_classes)
-            msk = msk + msk_noise
+        input_dict_list: list = []
 
-        if not self.dataset_features_dict["instance_map"]:
-            instance = torch.empty(0)
+        if (index + 1) - num_images < 0:
+            index = num_images - 1
 
-        if self.specific_model == "pix2pixHD":
-            input_dict = {
-                "label": msk,
-                "inst": instance,
-                "image": img,
-                "feat": torch.empty(0, requires_grad=False),
-                "path": img_path,
-            }
-            return input_dict
+        for image_no in range((index + 1) - num_images, (index + 1)):
+            # print(image_no)
+            (img, img_path), (msk, msk_colour, instance) = self.dataset.__getitem__(
+                image_no
+            )
+
+            # Extract the useful info from the name of the image for use later
+            img_id: list = img_path.split("/")[-3:]
+            img_id[-1] = "_".join(img_id[-1].split("_")[:3])
+
+            img_id_dict = {"split": img_id[0], "town": img_id[1], "name": img_id[2]}
+
+            should_flip = random() > 0.5
+
+            if self.should_flip and should_flip:
+                img = transforms.functional.hflip(img)
+                msk = transforms.functional.hflip(msk)
+                msk_colour = transforms.functional.hflip(msk_colour)
+                instance = transforms.functional.hflip(instance)
+
+            img: torch.Tensor = self.image_resize_transform(img)
+            msk: torch.Tensor = self.mask_resize_transform(msk)
+            msk_colour: torch.Tensor = self.image_resize_transform(msk_colour)
+            instance: Optional[torch.Tensor] = self.instance_resize_transform(instance)
+
+            if self.dataset_features_dict["instance_map_processed"]:
+                instance_processed: Optional[torch.Tensor]
+                instance_processed = self.instance_map_processor(instance)
+            else:
+                instance_processed = torch.empty(0, requires_grad=False)
+
+            if self.noise and torch.rand(1).item() > 0.5:
+                img = img + torch.normal(0, 0.02, img.size())
+                img[img > 1] = 1
+                img[img < -1] = -1
+            if self.noise and torch.rand(1).item() > 0.5:
+                mean_range: float = (torch.rand(1).item() * 0.2) + 0.7
+                msk_noise = torch.normal(mean_range, 0.1, msk.size())
+                msk_noise = msk_noise.int().float()
+                # print(msk_noise.sum() / self.num_classes)
+                msk = msk + msk_noise
+
+            if not self.dataset_features_dict["instance_map"]:
+                instance = torch.empty(0)
+
+            if self.specific_model == "pix2pixHD":
+                input_dict = {
+                    "label": msk,
+                    "inst": instance,
+                    "image": img,
+                    "feat": torch.empty(0, requires_grad=False),
+                    "path": img_path,
+                }
+                # return input_dict
+            else:
+                input_dict: dict = {
+                    "img": img,
+                    "img_path": img_path,
+                    "img_id": img_id_dict,
+                    "img_flipped": should_flip,
+                    "msk": msk,
+                    "msk_colour": msk_colour,
+                    "inst": instance,
+                    "edge_map": instance_processed,
+                }
+                # return input_dict
+
+            input_dict_list.append(input_dict)
+
+        if len(input_dict_list) == 1:
+            return input_dict_list[0]
         else:
-            input_dict: dict = {
-                "img": img,
-                "img_path": img_path,
-                "img_id": img_id_dict,
-                "img_flipped": should_flip,
-                "msk": msk,
-                "msk_colour": msk_colour,
-                "inst": instance,
-                "edge_map": instance_processed,
-            }
-            return input_dict
+            return input_dict_list
 
     def __len__(self):
         # Set length of dataset to subset size intelligently
