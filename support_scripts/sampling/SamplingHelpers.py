@@ -1,9 +1,11 @@
 import os
 import random
 import torch
+import numpy as np
 from typing import Tuple, List, Union
 
 from PIL import Image
+from dominate.tags import output
 from tqdm import tqdm
 
 from support_scripts.utils import MastersModel
@@ -94,12 +96,18 @@ def sample_from_model(
 def sample_video_from_model(
     model: MastersModel,
     index_range: tuple,
-    output_image_dir: str,
+    output_image_dir: str = None,
     output_image_number: int = 0,
     batch_size=2,
-):
+) -> Tuple[np.ndarray, np.ndarray]:
     # Tuples of indices
     batched_indices: list = []
+
+    original_img_np: np.ndarray = None
+    output_img_np: np.ndarray = None
+
+    # TODO add support for vertical images.
+    # standard_scale: int = 256
 
     for i in range(*index_range, batch_size):
         start_range_index = i
@@ -108,15 +116,31 @@ def sample_video_from_model(
             end_range_index = index_range[1]
         batched_indices.append(tuple(range(start_range_index, end_range_index)))
 
-    for tup_num, tup in enumerate(batched_indices):
+    for tup_num, tup in enumerate(tqdm(batched_indices)):
         base_index: int = batch_size * tup_num + index_range[0]
         with torch.no_grad():
             image_dict_list: Union[list, dict] = model.sample(tup, video_dataset=True)
         if isinstance(image_dict_list, dict):
             image_dict_list = [image_dict_list]
         for dict_num, img_dict in enumerate(image_dict_list):
-            img_dict["output_img_dict"][f"output_img_{output_image_number}"].save(
-                os.path.join(
-                    output_image_dir, f"{base_index + dict_num}".zfill(5) + ".png"
+            if output_image_dir is not None:
+                img_dict["output_img_dict"][f"output_img_{output_image_number}"].save(
+                    os.path.join(
+                        output_image_dir, f"{base_index + dict_num}".zfill(5) + ".png"
+                    ), "PNG"
                 )
-            )
+            if output_img_np is None:
+                output_img_np = np.array(
+                    img_dict["output_img_dict"][f"output_img_{output_image_number}"].resize((512, 256), Image.BILINEAR)
+                )[np.newaxis, :]
+                original_img_np = np.array(img_dict["original_img"].resize((512, 256), Image.BILINEAR))[np.newaxis, :]
+            else:
+                tmp_output = np.array(
+                    img_dict["output_img_dict"][f"output_img_{output_image_number}"].resize((512, 256), Image.BILINEAR)
+                )[np.newaxis, :]
+                output_img_np = np.append(output_img_np, tmp_output, axis=0)
+
+                tmp_original = np.array(img_dict["original_img"].resize((512, 256), Image.BILINEAR))[np.newaxis, :]
+                original_img_np = np.append(original_img_np, tmp_original, axis=0)
+
+    return original_img_np, output_img_np
