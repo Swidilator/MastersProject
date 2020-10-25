@@ -192,7 +192,10 @@ class CityScapesDataset(Dataset):
                     transforms.Resize(output_image_height_width, Image.NEAREST),
                     transforms.Lambda(lambda img: np.array(img)),
                     transforms.ToTensor(),
-                    transforms.Lambda(lambda img: img.float() * (255 if self.split == "demoVideo" else 1)),
+                    transforms.Lambda(
+                        lambda img: img.float()
+                        * (255 if self.split == "demoVideo" else 1)
+                    ),
                 ]
             )
 
