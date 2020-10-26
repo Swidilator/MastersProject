@@ -107,7 +107,9 @@ class FeatureEncoder(nn.Module):
         self.encoder_model: nn.Sequential = nn.Sequential(*encoder)
         self.decoder_model: nn.Sequential = nn.Sequential(*decoder)
 
-    def sample_using_means(self, instance_map: torch.Tensor, msk: torch.Tensor) -> torch.Tensor:
+    def sample_using_means(
+        self, instance_map: torch.Tensor, msk: torch.Tensor
+    ) -> torch.Tensor:
         return self.feature_extractions_sampler(instance_map, msk)
 
     def forward(

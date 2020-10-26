@@ -127,20 +127,29 @@ def sample_video_from_model(
                 img_dict["output_img_dict"][f"output_img_{output_image_number}"].save(
                     os.path.join(
                         output_image_dir, f"{base_index + dict_num}".zfill(5) + ".png"
-                    ), "PNG"
+                    ),
+                    "PNG",
                 )
             if output_img_np is None:
                 output_img_np = np.array(
-                    img_dict["output_img_dict"][f"output_img_{output_image_number}"].resize((512, 256), Image.BILINEAR)
+                    img_dict["output_img_dict"][
+                        f"output_img_{output_image_number}"
+                    ].resize((512, 256), Image.BILINEAR)
                 )[np.newaxis, :]
-                original_img_np = np.array(img_dict["original_img"].resize((512, 256), Image.BILINEAR))[np.newaxis, :]
+                original_img_np = np.array(
+                    img_dict["original_img"].resize((512, 256), Image.BILINEAR)
+                )[np.newaxis, :]
             else:
                 tmp_output = np.array(
-                    img_dict["output_img_dict"][f"output_img_{output_image_number}"].resize((512, 256), Image.BILINEAR)
+                    img_dict["output_img_dict"][
+                        f"output_img_{output_image_number}"
+                    ].resize((512, 256), Image.BILINEAR)
                 )[np.newaxis, :]
                 output_img_np = np.append(output_img_np, tmp_output, axis=0)
 
-                tmp_original = np.array(img_dict["original_img"].resize((512, 256), Image.BILINEAR))[np.newaxis, :]
+                tmp_original = np.array(
+                    img_dict["original_img"].resize((512, 256), Image.BILINEAR)
+                )[np.newaxis, :]
                 original_img_np = np.append(original_img_np, tmp_original, axis=0)
 
     return original_img_np, output_img_np
