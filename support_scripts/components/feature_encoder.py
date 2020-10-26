@@ -287,7 +287,9 @@ class FeatureEncoder(nn.Module):
                             instance_original[bat][0] == val
                         )
 
-                        semantic_class: int = msk_flat[matching_indices_instance].median().int().item()
+                        semantic_class: int = msk_flat[
+                            matching_indices_instance
+                        ].median().int().item()
 
                         for channel in range(encoded_img.shape[1]):
                             mean_val_instance: torch.Tensor = encoded_img[bat][channel][
@@ -322,7 +324,9 @@ class FeatureEncoder(nn.Module):
 
         return (
             output_tensor,
-            output_dataframe.sort_values(["Semantic Class"]).round({"Semantic Class": 0}),
+            output_dataframe.sort_values(["Semantic Class"]).round(
+                {"Semantic Class": 0}
+            ),
         )
 
 
@@ -372,7 +376,9 @@ class FeatureExtractionsSampler:
                     instance_map[batch_no][0] == val
                 )
 
-                semantic_class: int = msk_flat[matching_indices_instance].median().int().item()
+                semantic_class: int = msk_flat[
+                    matching_indices_instance
+                ].median().int().item()
 
                 # Sample a random setting from the clustered means pertaining to the class of the instance
                 valid_settings = self.clustered_means[
