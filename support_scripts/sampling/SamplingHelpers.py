@@ -5,7 +5,6 @@ import numpy as np
 from typing import Tuple, List, Union
 
 from PIL import Image
-from dominate.tags import output
 from tqdm import tqdm
 
 from support_scripts.utils import MastersModel
