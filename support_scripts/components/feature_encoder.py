@@ -107,8 +107,10 @@ class FeatureEncoder(nn.Module):
         self.encoder_model: nn.Sequential = nn.Sequential(*encoder)
         self.decoder_model: nn.Sequential = nn.Sequential(*decoder)
 
-    def sample_using_means(self, instance_map: torch.Tensor) -> torch.Tensor:
-        return self.feature_extractions_sampler(instance_map)
+    def sample_using_means(
+        self, instance_map: torch.Tensor, msk: torch.Tensor
+    ) -> torch.Tensor:
+        return self.feature_extractions_sampler(instance_map, msk)
 
     def forward(
         self,
@@ -194,9 +196,10 @@ class FeatureEncoder(nn.Module):
         for i, val in enumerate(
             tqdm(features[:, 0].unique(), desc="Processing raw features")
         ):
-            if val > 1000:
-                val_class = val // 1000
-            subset: torch.Tensor = features[features[:, 0] == val][:, 1:4]
+            # if val > 1000:
+            #     val_class = val // 1000
+
+            subset: torch.Tensor = features[features[:, 0] == val][:, 2:5]
 
             num_centres: int = (10 if subset.shape[0] >= 10 else subset.shape[0])
 
@@ -220,7 +223,7 @@ class FeatureEncoder(nn.Module):
         output_dataframe = pd.DataFrame(
             data=np.float_(np_clustered_means),
             index=np.arange(0, np_clustered_means.shape[0]),
-            columns=["Class", "Mean_1", "Mean_2", "Mean_3"],
+            columns=["Semantic Class", "Mean_1", "Mean_2", "Mean_3"],
         )
         return clustered_means, output_dataframe
 
@@ -231,7 +234,7 @@ class FeatureEncoder(nn.Module):
         self.eval()
 
         with torch.no_grad():
-            output_tensor: torch.Tensor = torch.empty(0, 4, device=self.device)
+            output_tensor: torch.Tensor = torch.empty(0, 5, device=self.device)
 
             for (batch_idx, input_dict,) in enumerate(
                 tqdm(data_loader, desc="Extracting raw features")
@@ -242,6 +245,7 @@ class FeatureEncoder(nn.Module):
                         "extract_features can/should only be run with batch size 1."
                     )
                 real_img = input_dict["img"].to(self.device)
+                msk = input_dict["msk"].to(self.device)
                 instance_original = input_dict["inst"].to(self.device)
                 encoded_img: torch.Tensor = self.__call__(real_img, instance_original)
                 if save_images:
@@ -270,6 +274,7 @@ class FeatureEncoder(nn.Module):
                 for bat in range(batch_size):
 
                     instance_unique: torch.Tensor = torch.unique(instance_original[bat])
+                    msk_flat: torch.Tensor = torch.argmax(msk[bat], dim=0)
 
                     for i, val in enumerate(instance_unique):
                         val_class = val
@@ -281,6 +286,10 @@ class FeatureEncoder(nn.Module):
                         matching_indices_instance: torch.Tensor = (
                             instance_original[bat][0] == val
                         )
+
+                        semantic_class: int = msk_flat[
+                            matching_indices_instance
+                        ].median().int().item()
 
                         for channel in range(encoded_img.shape[1]):
                             mean_val_instance: torch.Tensor = encoded_img[bat][channel][
@@ -294,6 +303,7 @@ class FeatureEncoder(nn.Module):
                                 output_tensor,
                                 torch.tensor(
                                     [
+                                        semantic_class,
                                         val_class,
                                         output_encoding[0],
                                         output_encoding[1],
@@ -309,12 +319,14 @@ class FeatureEncoder(nn.Module):
         output_dataframe = pd.DataFrame(
             data=np.float_(output_table),
             index=np.arange(0, output_table.shape[0]),
-            columns=["Class", "Value_1", "Value_2", "Value_3"],
+            columns=["Semantic Class", "Class", "Value_1", "Value_2", "Value_3"],
         )
 
         return (
             output_tensor,
-            output_dataframe.sort_values(["Class"]).round({"Class": 0}),
+            output_dataframe.sort_values(["Semantic Class"]).round(
+                {"Semantic Class": 0}
+            ),
         )
 
 
@@ -329,7 +341,7 @@ class FeatureExtractionsSampler:
         clustered_means: torch.Tensor = torch.load(feature_extractions_file_path)
         return cls(clustered_means, device)
 
-    def __call__(self, instance_map: torch.Tensor) -> torch.Tensor:
+    def __call__(self, instance_map: torch.Tensor, msk: torch.Tensor) -> torch.Tensor:
 
         # Number of output channels
         num_output_channels: int = 3
@@ -351,6 +363,7 @@ class FeatureExtractionsSampler:
         for batch_no in range(batch_size):
             # Get all unique instances for the given image
             instance_unique: torch.Tensor = torch.unique(instance_map[batch_no])
+            msk_flat: torch.Tensor = torch.argmax(msk[batch_no], dim=0)
 
             # Loop through every unique instance and fill in it's contribution
             for i, val in enumerate(instance_unique):
@@ -363,9 +376,13 @@ class FeatureExtractionsSampler:
                     instance_map[batch_no][0] == val
                 )
 
+                semantic_class: int = msk_flat[
+                    matching_indices_instance
+                ].median().int().item()
+
                 # Sample a random setting from the clustered means pertaining to the class of the instance
                 valid_settings = self.clustered_means[
-                    self.clustered_means[:, 0] == val_class
+                    self.clustered_means[:, 0] == semantic_class
                 ]
                 num_means: int = valid_settings.shape[0]
                 index: int = (torch.rand(1) * num_means).int().item()
