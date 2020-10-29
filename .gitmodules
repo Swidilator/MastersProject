@@ -4,3 +4,6 @@
 [submodule "GAN"]
 	path = GAN
 	url = https://gitlab.com/Swidilator/GAN.git
+[submodule "support_scripts/flownet2_pytorch"]
+	path = support_scripts/flownet2_pytorch
+	url = https://gitlab.com/Swidilator/flownet2-pytorch.git
