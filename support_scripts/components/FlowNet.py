@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import os
 
-from support_scripts.flownet2_pytorch.models import FlowNet2
+from support_scripts.components.flownet2_pytorch.models import FlowNet2 as __FlowNet2__
 
 
 @dataclass
@@ -25,8 +25,8 @@ class FlowNetWrapper(torch.nn.Module):
             flownet_checkpoint_folder
         )
 
-        args = ArgShim(False, 255.0)
-        self.net = FlowNet2(args)
+        args = ArgShim(False, 1.0)
+        self.net = __FlowNet2__(args)
         self.net.load_state_dict(dict["state_dict"])
         for i in self.parameters():
             i.requires_grad = False
