@@ -87,6 +87,14 @@ class ModelSettingsManager:
                 )
             }
         )
+        args.update(
+            {
+                "flownet_save_path": path.join(
+                    args["base_model_save_dir"],
+                    "FlowNet2_checkpoints/FlowNet2_checkpoint.pth.tar"
+                )
+            }
+        )
 
         if (args["sample_mode"] != "random") and (args["sample_mode"] != "fixed"):
             raise ValueError("--sample-mode should be 'random' or 'fixed'.")
