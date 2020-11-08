@@ -239,9 +239,9 @@ class CityScapesDataset(Dataset):
 
             img_id_dict = {"split": img_id[0], "town": img_id[1], "name": img_id[2]}
 
-            should_flip = random() > 0.5
+            flip_list_sample = self.should_flip and random() > 0.5
 
-            if self.should_flip and should_flip:
+            if flip_list_sample:
                 img = transforms.functional.hflip(img)
                 msk = transforms.functional.hflip(msk)
                 msk_colour = transforms.functional.hflip(msk_colour)
@@ -286,7 +286,7 @@ class CityScapesDataset(Dataset):
                     "img": img,
                     "img_path": img_path,
                     "img_id": img_id_dict,
-                    "img_flipped": should_flip,
+                    "img_flipped": flip_list_sample,
                     "msk": msk,
                     "msk_colour": msk_colour,
                     "inst": instance,
