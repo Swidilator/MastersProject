@@ -26,6 +26,7 @@ class MastersModel(ABC):
         log_every_n_steps: int,
         model_save_dir: str,
         image_save_dir: str,
+        starting_epoch: int,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -47,6 +48,7 @@ class MastersModel(ABC):
         self.log_every_n_steps: int = log_every_n_steps
         self.model_save_dir: str = model_save_dir
         self.image_save_dir: str = image_save_dir
+        self.starting_epoch: int = starting_epoch
 
     @property
     @abstractmethod
