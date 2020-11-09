@@ -31,6 +31,12 @@ class MastersModel(ABC):
     ):
         super(MastersModel, self).__init__()
 
+        self.args: dict = dict(locals())
+        self.kwargs: dict = dict(kwargs)
+        self.args.pop("self", None)
+        self.args.pop("kwargs", None)
+        self.args.pop("__class__", None)
+
         self.model_name: Optional[str] = None
 
         self.device: torch.device = device
@@ -77,6 +83,20 @@ class MastersModel(ABC):
     ) -> "MastersModel":
         """
         Initialise MastersModel from ModelSettingsManager instead of input arguments.
+
+        :param manager: ModelSettingsManager to sample settings from.
+        :return: MastersModel
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def load_model_with_embedded_settings(
+        cls, manager: ModelSettingsManager
+    ) -> "MastersModel":
+        """
+        Initialise MastersModel from a saved model using manager to find the model
+        and using the model's saved arguments to initialise itself.
 
         :param manager: ModelSettingsManager to sample settings from.
         :return: MastersModel
