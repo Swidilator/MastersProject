@@ -18,6 +18,9 @@ if __name__ == "__main__":
     # Initialise settings manager to read args and set up environment
     manager: ModelSettingsManager = ModelSettingsManager()
 
+    if not manager.args["wandb"]:
+        os.environ["WANDB_MODE"] = "dryrun"
+
     wandb.init(
         project=manager.args["model"].lower(),
         config={**manager.args, **manager.model_conf},
@@ -54,9 +57,6 @@ if __name__ == "__main__":
     # Load model
     if manager.args["load_saved_model"]:
         model_frame.load_model(manager.args["load_saved_model"])
-
-    if not manager.args["wandb"]:
-        os.environ["WANDB_MODE"] = "dryrun"
 
     # Profiling
     # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
