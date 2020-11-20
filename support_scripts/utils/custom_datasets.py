@@ -388,3 +388,84 @@ class InstanceMapProcessor:
             edge_border_pad: torch.Tensor = torch.zeros(edge_shape)
             edge_border_pad[0, 1:-1, 1:-1] = edge_border
             return edge_border_pad
+
+
+class CityScapesVideoDataset(Dataset):
+    def __init__(
+        self,
+        output_image_height_width: tuple,
+        root: str,
+        split: str,
+        should_flip: bool,
+        subset_size: int,
+        noise: bool,
+        dataset_features: dict,
+        specific_model: str,
+        num_frames: int,
+        use_all_classes: bool = False,
+    ):
+        super(CityScapesVideoDataset, self).__init__()
+
+        self.dataset = CityScapesDataset(
+            output_image_height_width,
+            root,
+            split,
+            should_flip,
+            subset_size,
+            noise,
+            dataset_features,
+            specific_model,
+            use_all_classes,
+        )
+
+        # Settings
+        self.output_image_height_width = output_image_height_width
+        self.should_flip: bool = should_flip
+        self.subset_size: int = subset_size
+        self.noise: bool = noise
+        self.specific_model: str = specific_model
+        self.use_all_classes: bool = use_all_classes
+        self.split = split
+
+        self.num_frames: int = num_frames
+
+    def __len__(self):
+        # Set length of dataset to subset size intelligently
+        if self.subset_size == 0 or self.dataset.__len__() < self.subset_size:
+            return self.dataset.__len__() - self.num_frames
+        else:
+            # TODO Small margin for error at the end
+            return self.subset_size
+
+    def __getitem__(self, item: int):
+        # gets item
+        frames = (item + self.num_frames - 1, self.num_frames)
+
+        dicts = self.dataset[frames]
+
+        return self.collate_fn(dicts)
+
+    @staticmethod
+    def collate_fn(data: list, dim=1):
+
+        out_dict: dict = None
+
+        for single_dict in data:
+            if out_dict is None:
+                out_dict = single_dict
+                for k_o, v_o in out_dict.items():
+                    if type(v_o) is torch.Tensor:
+                        out_dict.update({k_o: v_o.unsqueeze(0)})
+                    elif type(v_o) in [str, int, dict, bool]:
+                        out_dict.update({k_o: [v_o]})
+                    elif type(v_o) is list:
+                        out_dict.update({k_o: [v_o]})
+            else:
+                for k_o, v_o in out_dict.items():
+                    v_s = single_dict[k_o]
+                    if type(v_o) is torch.Tensor:
+                        out_dict.update({k_o: torch.cat((v_o, v_s.unsqueeze(0)))})
+                    elif type(v_o) is list:
+                        out_dict.update({k_o: [*v_o, v_s]})
+
+        return out_dict
