@@ -10,8 +10,6 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.transforms.functional import hflip
 
-# from support_scripts.components.feature_encoder import FeatureExtractionsSampler
-
 
 class BaseCityScapesDataset(Dataset):
     def __init__(self, root: str, split: str, target_type: Union[str, tuple, list]):
@@ -117,7 +115,6 @@ class CityScapesDataset(Dataset):
         should_flip: bool,
         subset_size: int,
         noise: bool,
-        dataset_features: dict,
         specific_model: str,
         use_all_classes: bool = False,
     ):
@@ -138,29 +135,19 @@ class CityScapesDataset(Dataset):
         # Segmentation network only outputs the 19 train classes
         if self.split == "demoVideo":
             self.use_all_classes = True
-            self.num_cityscape_classes = 20
+            self.num_cityscape_classes = 19
 
         self.used_segmentation_classes = torch.tensor(
             [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
             requires_grad=False,
         )
+
         # Can be used to find number of channels segmentation image, includes cruft layer
-        self.num_segmentation_output_channels: int = len(
-            self.used_segmentation_classes
-        ) + 1
-
-        # Set up optional features and defaults
-        self.dataset_features_dict: dict = {
-            "instance_map": False,
-            "instance_map_processed": False,
-        }
-        self.dataset_features_dict.update(dataset_features)
-
-        self.num_output_classes: int = (
-            self.num_segmentation_output_channels
+        self.num_output_segmentation_classes: int = (
+            len(self.used_segmentation_classes)
             if not self.use_all_classes
-            else self.num_cityscape_classes + 1
-        )
+            else self.num_cityscape_classes
+        ) + 1
 
         # Recreation of the normal CityScapes dataset
         self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(
@@ -168,8 +155,7 @@ class CityScapesDataset(Dataset):
         )
 
         # Add features based on feature_dict
-        if self.dataset_features_dict["instance_map_processed"]:
-            self.instance_map_processor: InstanceMapProcessor = InstanceMapProcessor()
+        self.instance_map_processor: InstanceMapProcessor = InstanceMapProcessor()
 
         if self.specific_model == "pix2pixHD":
             (
@@ -190,12 +176,7 @@ class CityScapesDataset(Dataset):
             self.instance_resize_transform = transforms.Compose(
                 [
                     transforms.Resize(output_image_height_width, Image.NEAREST),
-                    transforms.Lambda(lambda img: np.array(img)),
-                    transforms.ToTensor(),
-                    transforms.Lambda(
-                        lambda img: img.float()
-                        * (255 if self.split == "demoVideo" else 1)
-                    ),
+                    transforms.Lambda(lambda img: torch.tensor(np.array(img)).unsqueeze(0).float()),
                 ]
             )
 
@@ -251,26 +232,12 @@ class CityScapesDataset(Dataset):
             msk: torch.Tensor = self.mask_resize_transform(msk)
             msk_colour: torch.Tensor = self.image_resize_transform(msk_colour)
             instance: Optional[torch.Tensor] = self.instance_resize_transform(instance)
-
-            if self.dataset_features_dict["instance_map_processed"]:
-                instance_processed: Optional[torch.Tensor]
-                instance_processed = self.instance_map_processor(instance)
-            else:
-                instance_processed = torch.empty(0, requires_grad=False)
+            edge_map: Optional[torch.Tensor] = self.instance_map_processor(instance)
 
             if self.noise and torch.rand(1).item() > 0.5:
                 img = img + torch.normal(0, 0.02, img.size())
                 img[img > 1] = 1
                 img[img < -1] = -1
-            if self.noise and torch.rand(1).item() > 0.5:
-                mean_range: float = (torch.rand(1).item() * 0.2) + 0.7
-                msk_noise = torch.normal(mean_range, 0.1, msk.size())
-                msk_noise = msk_noise.int().float()
-                # print(msk_noise.sum() / self.num_classes)
-                msk = msk + msk_noise
-
-            if not self.dataset_features_dict["instance_map"]:
-                instance = torch.empty(0)
 
             if self.specific_model == "pix2pixHD":
                 input_dict = {
@@ -290,7 +257,7 @@ class CityScapesDataset(Dataset):
                     "msk": msk,
                     "msk_colour": msk_colour,
                     "inst": instance,
-                    "edge_map": instance_processed,
+                    "edge_map": edge_map,
                 }
                 # return input_dict
 
@@ -320,16 +287,16 @@ class CityScapesDataset(Dataset):
         label = label.scatter_(0, img.long(), 1.0)
 
         # Select layers based on official guidelines if requested
-        label = (
-            torch.index_select(label, 0, self.used_segmentation_classes)
-            if not self.use_all_classes
-            else label
-        )
-        if self.split != "demoVideo":
-            layer: torch.Tensor = torch.zeros_like(label[0])
-            layer[label.sum(dim=0) == 0] = 1
+        if not self.use_all_classes:
+            label = torch.index_select(label, 0, self.used_segmentation_classes)
 
-            label = torch.cat((label, layer.unsqueeze(dim=0)), dim=0)
+        # Combine cruft and unlabeled into one layer
+        layer: torch.Tensor = torch.zeros_like(label[0])
+        layer[label.sum(dim=0) == 0] = 1
+
+        label = torch.cat((label, layer.unsqueeze(dim=0)), dim=0)
+        label[-1] = label[-1] + label[0]
+        label[0] = 0
 
         return label.float()
 
@@ -359,12 +326,6 @@ class CityScapesDataset(Dataset):
         instance_transform = transforms.Compose(mask_inst_transform_list)
         return mask_transform, real_image_transform, instance_transform
 
-    @staticmethod
-    def __add_remaining_layer__(img: torch.Tensor):
-        layer: torch.Tensor = torch.zeros_like(img[0])
-        layer[img.sum(dim=0) == 0] = 1
-        return torch.cat((img, layer.unsqueeze(dim=0)), dim=0)
-
 
 class InstanceMapProcessor:
     def __init__(self):
@@ -390,7 +351,7 @@ class InstanceMapProcessor:
             return edge_border_pad
 
 
-class CityScapesVideoDataset(Dataset):
+class CityScapesDemoVideoDataset(Dataset):
     def __init__(
         self,
         output_image_height_width: tuple,
@@ -404,7 +365,7 @@ class CityScapesVideoDataset(Dataset):
         num_frames: int,
         use_all_classes: bool = False,
     ):
-        super(CityScapesVideoDataset, self).__init__()
+        super(CityScapesDemoVideoDataset, self).__init__()
 
         self.dataset = CityScapesDataset(
             output_image_height_width,
@@ -426,6 +387,8 @@ class CityScapesVideoDataset(Dataset):
         self.specific_model: str = specific_model
         self.use_all_classes: bool = use_all_classes
         self.split = split
+
+        self.num_output_segmentation_classes = self.dataset.num_output_segmentation_classes
 
         self.num_frames: int = num_frames
 
