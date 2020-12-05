@@ -360,7 +360,6 @@ class CityScapesDemoVideoDataset(Dataset):
         should_flip: bool,
         subset_size: int,
         noise: bool,
-        dataset_features: dict,
         specific_model: str,
         num_frames: int,
         use_all_classes: bool = False,
@@ -374,7 +373,6 @@ class CityScapesDemoVideoDataset(Dataset):
             should_flip,
             subset_size,
             noise,
-            dataset_features,
             specific_model,
             use_all_classes,
         )
