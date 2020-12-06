@@ -44,6 +44,11 @@ if __name__ == "__main__":
 
         model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
 
+    elif manager.args["model"] == "CRNVideo":
+        from CRN import CRNVideoFramework
+
+        model_frame: CRNVideoFramework = CRNVideoFramework.from_model_settings_manager(manager)
+
     else:
         raise SystemExit
 
