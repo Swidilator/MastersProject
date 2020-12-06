@@ -68,5 +68,5 @@ class FlowNetWrapper(torch.nn.Module):
             dim=1,
         )
         final_grid = (grid + flow).permute(0, 2, 3, 1)
-        output = torch.nn.functional.grid_sample(image, final_grid)
+        output = torch.nn.functional.grid_sample(image, final_grid, align_corners = True)
         return output
