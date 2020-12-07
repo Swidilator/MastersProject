@@ -37,7 +37,9 @@ class FlowNetWrapper(torch.nn.Module):
             return out
 
     @staticmethod
-    def get_grid(batch_size, input_height_width: tuple, device: torch.device) -> torch.Tensor:
+    def get_grid(
+        batch_size, input_height_width: tuple, device: torch.device
+    ) -> torch.Tensor:
         rows, cols = input_height_width
 
         hor = torch.linspace(-1.0, 1.0, cols)
@@ -68,5 +70,5 @@ class FlowNetWrapper(torch.nn.Module):
             dim=1,
         )
         final_grid = (grid + flow).permute(0, 2, 3, 1)
-        output = torch.nn.functional.grid_sample(image, final_grid, align_corners = True)
+        output = torch.nn.functional.grid_sample(image, final_grid, align_corners=True)
         return output

@@ -34,7 +34,7 @@ class RunTimer:
         )
         self.last_interval_time = now_time
 
-        time_remaining: timedelta = (self.end_time - now_time)
+        time_remaining: timedelta = self.end_time - now_time
 
         # Check if there is enough time, leaving enough time for saving
         if time_remaining > self.max_interval_delta + timedelta(minutes=1):

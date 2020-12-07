@@ -25,9 +25,9 @@ class BaseCityScapesDataset(Dataset):
             raise ValueError("Invalid 'split' value.")
 
         # Target can be a single string, or an iterable, but code requires an iterable
-        self.target_type: Union[str, tuple, list] = target_type if type(
-            target_type
-        ) is list else [target_type]
+        self.target_type: Union[str, tuple, list] = (
+            target_type if type(target_type) is list else [target_type]
+        )
 
         # Create full image folder paths
         gt_fine_path: str = path.join(root, "gtFine/", split + "/")
@@ -151,7 +151,9 @@ class CityScapesDataset(Dataset):
 
         # Recreation of the normal CityScapes dataset
         self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(
-            root=root, split=split, target_type=["semantic", "color", "instance"],
+            root=root,
+            split=split,
+            target_type=["semantic", "color", "instance"],
         )
 
         # Add features based on feature_dict
@@ -176,7 +178,9 @@ class CityScapesDataset(Dataset):
             self.instance_resize_transform = transforms.Compose(
                 [
                     transforms.Resize(output_image_height_width, Image.NEAREST),
-                    transforms.Lambda(lambda img: torch.tensor(np.array(img)).unsqueeze(0).float()),
+                    transforms.Lambda(
+                        lambda img: torch.tensor(np.array(img)).unsqueeze(0).float()
+                    ),
                 ]
             )
 
@@ -386,7 +390,9 @@ class CityScapesDemoVideoDataset(Dataset):
         self.use_all_classes: bool = use_all_classes
         self.split = split
 
-        self.num_output_segmentation_classes = self.dataset.num_output_segmentation_classes
+        self.num_output_segmentation_classes = (
+            self.dataset.num_output_segmentation_classes
+        )
 
         self.num_frames: int = num_frames
 

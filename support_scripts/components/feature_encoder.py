@@ -34,8 +34,8 @@ class FeatureEncoder(nn.Module):
 
         if use_clustered_means:
             means_file_path = path.join(model_save_dir, "clustered_means.pt")
-            self.feature_extractions_sampler: FeatureExtractionsSampler = FeatureExtractionsSampler.from_file(
-                means_file_path, self.device
+            self.feature_extractions_sampler: FeatureExtractionsSampler = (
+                FeatureExtractionsSampler.from_file(means_file_path, self.device)
             )
 
         # Initial layer
@@ -164,7 +164,7 @@ class FeatureEncoder(nn.Module):
 
             for i, val in enumerate(instance_unique):
                 # Create filter from instance_stacked for finding individual object
-                matching_indices: torch.Tensor = (instance_map[bat][0] == val)
+                matching_indices: torch.Tensor = instance_map[bat][0] == val
 
                 for channel in range(decoded_input.shape[1]):
                     # Find mean of all values that occur for that individual object
@@ -201,7 +201,7 @@ class FeatureEncoder(nn.Module):
 
             subset: torch.Tensor = features[features[:, 0] == val][:, 2:5]
 
-            num_centres: int = (10 if subset.shape[0] >= 10 else subset.shape[0])
+            num_centres: int = 10 if subset.shape[0] >= 10 else subset.shape[0]
 
             cluster_ids_x, cluster_centers = kmeans_pytorch.kmeans(
                 X=subset,
@@ -236,9 +236,10 @@ class FeatureEncoder(nn.Module):
         with torch.no_grad():
             output_tensor: torch.Tensor = torch.empty(0, 5, device=self.device)
 
-            for (batch_idx, input_dict,) in enumerate(
-                tqdm(data_loader, desc="Extracting raw features")
-            ):
+            for (
+                batch_idx,
+                input_dict,
+            ) in enumerate(tqdm(data_loader, desc="Extracting raw features")):
                 batch_size: int = input_dict["img"].shape[0]
                 if batch_size > 1:
                     raise ValueError(
@@ -287,9 +288,9 @@ class FeatureEncoder(nn.Module):
                             instance_original[bat][0] == val
                         )
 
-                        semantic_class: int = msk_flat[
-                            matching_indices_instance
-                        ].median().int().item()
+                        semantic_class: int = (
+                            msk_flat[matching_indices_instance].median().int().item()
+                        )
 
                         for channel in range(encoded_img.shape[1]):
                             mean_val_instance: torch.Tensor = encoded_img[bat][channel][
@@ -376,9 +377,9 @@ class FeatureExtractionsSampler:
                     instance_map[batch_no][0] == val
                 )
 
-                semantic_class: int = msk_flat[
-                    matching_indices_instance
-                ].median().int().item()
+                semantic_class: int = (
+                    msk_flat[matching_indices_instance].median().int().item()
+                )
 
                 # Sample a random setting from the clustered means pertaining to the class of the instance
                 valid_settings = self.clustered_means[

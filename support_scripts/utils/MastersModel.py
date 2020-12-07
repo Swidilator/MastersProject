@@ -162,7 +162,10 @@ class MastersModel(ABC):
         assert self.model_name is not None
 
     @abstractmethod
-    def load_model(self, model_file_name: str,) -> None:
+    def load_model(
+        self,
+        model_file_name: str,
+    ) -> None:
         """
         Inplace load a snapshot of a model.
 

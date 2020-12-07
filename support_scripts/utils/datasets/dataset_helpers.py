@@ -111,7 +111,9 @@ def generate_edge_map(instance_map: torch.Tensor):
 
 
 def create_transforms(
-    output_image_height_width, num_cityscape_classes, use_all_classes,
+    output_image_height_width,
+    num_cityscape_classes,
+    use_all_classes,
 ):
     used_segmentation_classes = torch.tensor(
         [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],

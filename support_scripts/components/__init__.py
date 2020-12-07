@@ -1,4 +1,3 @@
-
 __all__ = ["Block", "RMBlock", "FeatureEncoder", "FlowNetWrapper", "ResNetBlock"]
 
 from support_scripts.components.blocks import Block, RMBlock
