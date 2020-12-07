@@ -42,4 +42,4 @@ class ResNetBlock(nn.Module):
         out = self.rm_block_1(x)
         out = self.rm_block_2(out, "before")
         out = self.rm_block_3(out, "before")
-        return out + x
+        return (out + x) / 2
