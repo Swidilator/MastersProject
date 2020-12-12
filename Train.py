@@ -1,4 +1,5 @@
 import os
+import sys
 from pickle import dump as p_dump
 from pickle import dumps as p_dumps
 from typing import Optional
@@ -90,6 +91,8 @@ if __name__ == "__main__":
         manager.args["starting_epoch"], manager.args["train"] + 1
     ):
         print("Epoch:", current_epoch)
+        sys.stdout.flush()
+        sys.stderr.flush()
 
         save_this_epoch = (
             manager.args["save_every_num_epochs"] > 0
