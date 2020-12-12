@@ -11,7 +11,8 @@
     "CRN_LAYER_NORM_TYPE": "half",
     "CRN_USE_SAVED_FEATURE_ENCODINGS": false,
     "CRN_LOSS_SCALING_METHOD": "official",
-    "CRN_USE_RESNET_RMS": false
+    "CRN_USE_RESNET_RMS": false,
+    "CRN_NUM_RESNET_PROCESSING_RMS": 4
   },
   "GAN": {
     "GAN_BASE_LEARNING_RATE": 0.0002,
@@ -38,6 +39,7 @@
     "CRN_LAYER_NORM_TYPE": "half",
     "CRN_USE_SAVED_FEATURE_ENCODINGS": false,
     "CRN_LOSS_SCALING_METHOD": "official",
-    "CRN_USE_RESNET_RMS": false
+    "CRN_USE_RESNET_RMS": true,
+    "CRN_NUM_RESNET_PROCESSING_RMS": 4
   }
 }
