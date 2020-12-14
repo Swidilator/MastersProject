@@ -58,6 +58,7 @@ class ModelSettingsManager:
         parser.add_argument("--flip-training-images", action="store_true", default=False)
         parser.add_argument("--deterministic", action="store_true", default=False)
         parser.add_argument("--max-run-hours", action="store", default=0.0, type=float)
+        parser.add_argument("--num-frames-per-video", action="store", default=6, type=int)
 
         args: dict = vars(parser.parse_args())
 

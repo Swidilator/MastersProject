@@ -7,9 +7,9 @@ from typing import Optional
 import wandb
 from tqdm import tqdm
 from zstd import dumps as z_dumps
-
-from support_scripts.sampling import sample_from_model
 from support_scripts.utils import MastersModel
+
+from support_scripts.sampling import sample_from_model, SampleDataHolder
 from support_scripts.utils import ModelSettingsManager
 
 # from support_scripts.utils.visualisation import eigenvector_visualisation
@@ -119,43 +119,42 @@ if __name__ == "__main__":
 
             sample_args: dict = {}
 
-            output_dicts, sample_list = sample_from_model(
+            image_data_holders, sample_list = sample_from_model(
                 model=model_frame,
-                sample_args=sample_args,
                 mode=manager.args["sample_mode"],
                 num_images=manager.args["sample"],
                 indices=indices_list,
             )
 
             wandb_img_list: list = []
+            wandb_video_list: list = []
 
-            if not os.path.exists(manager.args["base_image_save_dir"]):
-                os.makedirs(manager.args["base_image_save_dir"])
+            # Create directory if it does not already exist.
+            os.makedirs(manager.args["image_save_dir"], exist_ok=True)
 
-            if not os.path.exists(manager.args["image_save_dir"]):
-                os.makedirs(manager.args["image_save_dir"])
-
-            img_dict: dict
-            for image_dict_index, img_dict in enumerate(
-                tqdm(output_dicts, desc="Saving / Uploading Images")
+            image_data_holder: SampleDataHolder
+            for image_dict_index, image_data_holder in enumerate(
+                tqdm(image_data_holders, desc="Saving / Uploading Images")
             ):
                 # Create base filename for saving images and pickle files
                 filename_no_extension = os.path.join(
                     manager.args["image_save_dir"],
-                    "{model_name}_{run_name}_figure_{_figure_}_epoch_{epoch}".format(
+                    "{model_name}_{run_name}_figure_{figure}_epoch_{epoch}".format(
                         model_name=manager.args["model"].replace(" ", "_"),
                         run_name=manager.args["run_name"].replace(" ", "_"),
                         epoch=current_epoch,
-                        _figure_=sample_list[image_dict_index],
+                        figure=sample_list[image_dict_index],
                     ),
                 )
 
                 # Save composite image for easy viewing
-                img_dict["composite_img"].save(filename_no_extension + ".png")
+                image_data_holder.composite_image[0].save(
+                    filename_no_extension + ".png"
+                )
 
                 # Save dict with all images for advanced usage later on
                 with open(filename_no_extension + ".pickle", "wb") as pickle_file:
-                    p_dump(z_dumps(p_dumps(img_dict)), pickle_file)
+                    p_dump(z_dumps(p_dumps(image_data_holder)), pickle_file)
 
                 # Caption used for images on WandB
                 caption: str = str(
@@ -163,14 +162,24 @@ if __name__ == "__main__":
                         epoch=current_epoch, fig=image_dict_index
                     )
                 )
-
-                # Append composite images to list of images to be uploaded on WandB
-                wandb_img_list.append(
-                    wandb.Image(img_dict["composite_img"], caption=caption)
-                )
+                if not image_data_holder.video_sample:
+                    # Append composite images to list of images to be uploaded on WandB
+                    wandb_img_list.append(
+                        wandb.Image(
+                            image_data_holder.composite_image[0], caption=caption
+                        )
+                    )
+                else:
+                    # Append composite images to list of images to be uploaded on WandB
+                    wandb_video_list.append(
+                        wandb.Video(image_data_holder.final_gif, caption=caption, fps=1)
+                    )
 
             # Log sample images to wandb, do not commit yet
-            wandb.log({"Sample Images": wandb_img_list}, commit=False)
+            if len(wandb_img_list) > 0:
+                wandb.log({"Sample Images": wandb_img_list}, commit=False)
+            else:
+                wandb.log({"Sample Videos": wandb_video_list}, commit=False)
 
         # Commit epoch loss, and sample images if they exist.
         wandb.log(

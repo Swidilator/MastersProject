@@ -4,6 +4,7 @@ from typing import Union, Tuple, List, Any, Optional
 
 import torch
 
+from support_scripts.sampling import SampleDataHolder
 from support_scripts.utils import ModelSettingsManager
 
 
@@ -27,6 +28,7 @@ class MastersModel(ABC):
         model_save_dir: str,
         image_save_dir: str,
         starting_epoch: int,
+        num_frames_per_video: int,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -55,6 +57,7 @@ class MastersModel(ABC):
         self.model_save_dir: str = model_save_dir
         self.image_save_dir: str = image_save_dir
         self.starting_epoch: int = starting_epoch
+        self.num_frames_per_video: int = num_frames_per_video
 
     @property
     @abstractmethod
@@ -203,7 +206,7 @@ class MastersModel(ABC):
     @abstractmethod
     def sample(
         self, image_numbers: Union[int, tuple], video_dataset: bool = False
-    ) -> Union[dict, List[dict]]:
+    ) -> Union[SampleDataHolder, List[SampleDataHolder]]:
         """
         Sample k random images from dataset, forward through network.
 
