@@ -171,9 +171,15 @@ if __name__ == "__main__":
                     )
                 else:
                     # Append composite images to list of images to be uploaded on WandB
+                    save_stdout = sys.stdout
+                    save_stderr = sys.stderr
+                    sys.stdout = open('trash', 'w')
+                    sys.stderr = sys.stdout
                     wandb_video_list.append(
                         wandb.Video(image_data_holder.final_gif, caption=caption, fps=1)
                     )
+                    sys.stdout = save_stdout
+                    sys.stderr = save_stderr
 
             # Log sample images to wandb, do not commit yet
             if len(wandb_img_list) > 0:
