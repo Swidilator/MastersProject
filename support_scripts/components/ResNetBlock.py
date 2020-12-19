@@ -9,8 +9,12 @@ class ResNetBlock(nn.Module):
         self,
         channel_count: int,
         input_height_width: tuple,
+        no_add: bool = False
     ):
         super().__init__()
+
+        self.no_add: bool = no_add
+
         self.rm_block_1 = RMBlock(
             channel_count // 2,
             channel_count,
@@ -42,4 +46,7 @@ class ResNetBlock(nn.Module):
         out = self.rm_block_1(x)
         out = self.rm_block_2(out, "before")
         out = self.rm_block_3(out, "before")
-        return (out + x) / 2
+        if self.no_add:
+            return out
+        else:
+            return (out + x) / 2
