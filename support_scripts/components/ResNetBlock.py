@@ -6,10 +6,7 @@ from support_scripts.components import RMBlock
 
 class ResNetBlock(nn.Module):
     def __init__(
-        self,
-        channel_count: int,
-        input_height_width: tuple,
-        no_add: bool = False
+        self, channel_count: int, input_height_width: tuple, no_add: bool = False
     ):
         super().__init__()
 
