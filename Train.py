@@ -173,7 +173,7 @@ if __name__ == "__main__":
                     # Append composite images to list of images to be uploaded on WandB
                     save_stdout = sys.stdout
                     save_stderr = sys.stderr
-                    sys.stdout = open('trash', 'w')
+                    sys.stdout = open("trash", "w")
                     sys.stderr = sys.stdout
                     wandb_video_list.append(
                         wandb.Video(image_data_holder.final_gif, caption=caption, fps=1)

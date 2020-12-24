@@ -23,6 +23,7 @@ class SampleDataHolder:
     mask_colour: List[Image.Image]
     output_image: List[Image.Image]  # If not a video_sample, can hold multiple outputs
     feature_selection: List[Image.Image] = field(default_factory=list)
+    feature_selection_class_lists: List[list] = field(default_factory=list)
     composite_image: List[Image.Image] = field(default_factory=list)
 
     hallucinated_image: List[Image.Image] = field(default_factory=list)

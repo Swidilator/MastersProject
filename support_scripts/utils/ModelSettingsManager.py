@@ -59,6 +59,9 @@ class ModelSettingsManager:
         parser.add_argument("--deterministic", action="store_true", default=False)
         parser.add_argument("--max-run-hours", action="store", default=0.0, type=float)
         parser.add_argument("--num-frames-per-video", action="store", default=6, type=int)
+        parser.add_argument("--num-prior-frames", action="store", default=2, type=int)
+        parser.add_argument("--use-optical-flow", action="store_true", default=False)
+
 
         args: dict = vars(parser.parse_args())
 

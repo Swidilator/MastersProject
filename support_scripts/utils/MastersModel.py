@@ -29,6 +29,8 @@ class MastersModel(ABC):
         image_save_dir: str,
         starting_epoch: int,
         num_frames_per_video: int,
+        num_prior_frames: int,
+        use_optical_flow: bool,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -58,6 +60,8 @@ class MastersModel(ABC):
         self.image_save_dir: str = image_save_dir
         self.starting_epoch: int = starting_epoch
         self.num_frames_per_video: int = num_frames_per_video
+        self.num_prior_frames: int = num_prior_frames
+        self.use_optical_flow: bool = use_optical_flow
 
     @property
     @abstractmethod
