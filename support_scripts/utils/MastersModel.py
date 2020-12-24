@@ -31,6 +31,7 @@ class MastersModel(ABC):
         num_frames_per_video: int,
         num_prior_frames: int,
         use_optical_flow: bool,
+        prior_frame_seed_type: str,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -62,6 +63,7 @@ class MastersModel(ABC):
         self.num_frames_per_video: int = num_frames_per_video
         self.num_prior_frames: int = num_prior_frames
         self.use_optical_flow: bool = use_optical_flow
+        self.prior_frame_seed_type: str = prior_frame_seed_type
 
     @property
     @abstractmethod
