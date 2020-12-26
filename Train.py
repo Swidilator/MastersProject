@@ -78,6 +78,8 @@ if __name__ == "__main__":
     # Indices list for sampling
     # fmt: off
     sample_indices_list: list = [9, 11, 26, 34, 76, 83, 95, 100, 158, 166, 190, 227, 281, 290, 322]
+    if manager.args["model"] in ["CRNVideo", "GANVideo"]:
+        sample_indices_list: list = [int(x * 3.3) for x in range(50)]
     # fmt: on
 
     # Select a subset of sample_indices_list

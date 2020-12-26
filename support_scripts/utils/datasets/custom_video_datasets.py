@@ -11,13 +11,14 @@ from torchvision.transforms.functional import hflip
 
 import pandas as pd
 
+from support_scripts.utils import CityScapesDataset
 from support_scripts.utils.datasets.dataset_helpers import (
     generate_edge_map,
     TransformManager,
 )
 
 
-class CityScapesVideoDataset2(Dataset):
+class CityScapesVideoDataset(Dataset):
     def __init__(
         self,
         root: str,
@@ -150,7 +151,7 @@ class CityScapesVideoDataset2(Dataset):
         }
 
         self.transform_manager = TransformManager(
-            output_image_height_width, self.num_video_classes, True
+            output_image_height_width, self.num_video_classes, generated_data=True
         )
 
         self.targets_mapping: dict = {
@@ -228,8 +229,10 @@ class CityScapesVideoDataset2(Dataset):
 
             if target == "instance":
                 edge_map_frames: list = [
-                    generate_edge_map(single_frame)
-                    for single_frame in transformed_frames
+                    generate_edge_map(
+                        single_frame, output_dict[self.targets_mapping["semantic"]][i]
+                    )
+                    for i, single_frame in enumerate(transformed_frames)
                 ]
                 concatenated_edge_map_frames: torch.Tensor = self.unsqueeze_and_concat(
                     edge_map_frames
@@ -257,337 +260,82 @@ class CityScapesVideoDataset2(Dataset):
             return self.subset_size
 
 
-# class CityScapesDataset(Dataset):
-#     def __init__(
-#         self,
-#         output_image_height_width: tuple,
-#         root: str,
-#         split: str,
-#         should_flip: bool,
-#         subset_size: int,
-#         noise: bool,
-#         dataset_features: dict,
-#         specific_model: str,
-#         use_all_classes: bool = False,
-#     ):
-#         super(CityScapesDataset, self).__init__()
-#
-#         # Settings
-#         self.output_image_height_width = output_image_height_width
-#         self.should_flip: bool = should_flip
-#         self.subset_size: int = subset_size
-#         self.noise: bool = noise
-#         self.specific_model: str = specific_model
-#         self.use_all_classes: bool = use_all_classes
-#         self.split = split
-#
-#         # Number of classes in base CityScapes image
-#         self.num_cityscape_classes: int = 34
-#
-#         # Segmentation network only outputs the 19 train classes
-#         if self.split == "demoVideo":
-#             self.use_all_classes = True
-#             self.num_cityscape_classes = 19
-#
-#         self.used_segmentation_classes = torch.tensor(
-#             [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
-#             requires_grad=False,
-#         )
-#         # Can be used to find number of channels segmentation image, includes cruft layer
-#         self.num_output_segmentation_classes: int = (
-#             len(self.used_segmentation_classes)
-#             if not self.use_all_classes
-#             else self.num_cityscape_classes
-#         ) + 1
-#
-#         # Set up optional features and defaults
-#         self.dataset_features_dict: dict = {
-#             "instance_map": False,
-#             "instance_map_processed": False,
-#         }
-#         self.dataset_features_dict.update(dataset_features)
-#
-#         # Recreation of the normal CityScapes dataset
-#         self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(
-#             root=root, split=split, target_type=["semantic", "color", "instance"],
-#         )
-#
-#         # Add features based on feature_dict
-#         if self.dataset_features_dict["instance_map_processed"]:
-#             self.instance_map_processor: InstanceMapProcessor = InstanceMapProcessor()
-#
-#         if self.specific_model == "pix2pixHD":
-#             (
-#                 self.mask_resize_transform,
-#                 self.image_resize_transform,
-#                 self.instance_resize_transform,
-#             ) = self.__create_pix2pix_hd_transforms__(output_image_height_width)
-#         else:
-#             # Image transforms
-#             self.image_resize_transform = transforms.Compose(
-#                 [
-#                     transforms.Lambda(lambda img: img.convert("RGB")),
-#                     transforms.Resize(output_image_height_width, Image.BICUBIC),
-#                     transforms.Lambda(lambda img: np.array(img)),
-#                     transforms.ToTensor(),
-#                 ]
-#             )
-#             self.instance_resize_transform = transforms.Compose(
-#                 [
-#                     transforms.Resize(output_image_height_width, Image.NEAREST),
-#                     transforms.Lambda(
-#                         lambda img: torch.tensor(np.array(img)).unsqueeze(0).float()
-#                     ),
-#                 ]
-#             )
-#
-#             self.mask_resize_transform = transforms.Compose(
-#                 [
-#                     transforms.Resize(
-#                         output_image_height_width,
-#                         Image.NEAREST,  # NEAREST as the values are categories and are not continuous
-#                     ),
-#                     transforms.Lambda(lambda img: np.array(img)),
-#                     transforms.ToTensor(),
-#                     transforms.Lambda(lambda img: self.__onehot_scatter__(img)),
-#                 ]
-#             )
-#
-#     def __getitem__(self, index: Union[int, tuple]):
-#
-#         if type(index) is tuple:
-#             if len(index) == 1:
-#                 num_images = 1
-#             else:
-#                 num_images = index[1]
-#             index = index[0]
-#         else:
-#             num_images = 1
-#
-#         input_dict_list: list = []
-#
-#         if (index + 1) - num_images < 0:
-#             index = num_images - 1
-#
-#         for image_no in range((index + 1) - num_images, (index + 1)):
-#             # print(image_no)
-#             (img, img_path), (msk, msk_colour, instance) = self.dataset.__getitem__(
-#                 image_no
-#             )
-#
-#             # Extract the useful info from the name of the image for use later
-#             img_id: list = img_path.split("/")[-3:]
-#             img_id[-1] = "_".join(img_id[-1].split("_")[:3])
-#
-#             img_id_dict = {"split": img_id[0], "town": img_id[1], "name": img_id[2]}
-#
-#             flip_list_sample = self.should_flip and random() > 0.5
-#
-#             if flip_list_sample:
-#                 img = transforms.functional.hflip(img)
-#                 msk = transforms.functional.hflip(msk)
-#                 msk_colour = transforms.functional.hflip(msk_colour)
-#                 instance = transforms.functional.hflip(instance)
-#
-#             img: torch.Tensor = self.image_resize_transform(img)
-#             msk: torch.Tensor = self.mask_resize_transform(msk)
-#             msk_colour: torch.Tensor = self.image_resize_transform(msk_colour)
-#             instance: Optional[torch.Tensor] = self.instance_resize_transform(instance)
-#
-#             if self.dataset_features_dict["instance_map_processed"]:
-#                 instance_processed: Optional[torch.Tensor]
-#                 instance_processed = self.instance_map_processor(instance)
-#             else:
-#                 instance_processed = torch.empty(0, requires_grad=False)
-#
-#             if self.noise and torch.rand(1).item() > 0.5:
-#                 img = img + torch.normal(0, 0.02, img.size())
-#                 img[img > 1] = 1
-#                 img[img < -1] = -1
-#             if self.noise and torch.rand(1).item() > 0.5:
-#                 mean_range: float = (torch.rand(1).item() * 0.2) + 0.7
-#                 msk_noise = torch.normal(mean_range, 0.1, msk.size())
-#                 msk_noise = msk_noise.int().float()
-#                 # print(msk_noise.sum() / self.num_classes)
-#                 msk = msk + msk_noise
-#
-#             if not self.dataset_features_dict["instance_map"]:
-#                 instance = torch.empty(0)
-#
-#             if self.specific_model == "pix2pixHD":
-#                 input_dict = {
-#                     "label": msk,
-#                     "inst": instance,
-#                     "image": img,
-#                     "feat": torch.empty(0, requires_grad=False),
-#                     "path": img_path,
-#                 }
-#                 # return input_dict
-#             else:
-#                 input_dict: dict = {
-#                     "img": img,
-#                     "img_path": img_path,
-#                     "img_id": img_id_dict,
-#                     "img_flipped": flip_list_sample,
-#                     "msk": msk,
-#                     "msk_colour": msk_colour,
-#                     "inst": instance,
-#                     "edge_map": instance_processed,
-#                 }
-#                 # return input_dict
-#
-#             input_dict_list.append(input_dict)
-#
-#         if len(input_dict_list) == 1:
-#             return input_dict_list[0]
-#         else:
-#             return input_dict_list
-#
-#     def __len__(self):
-#         # Set length of dataset to subset size intelligently
-#         if self.subset_size == 0 or self.dataset.__len__() < self.subset_size:
-#             return self.dataset.__len__()
-#         else:
-#             return self.subset_size
-#
-#     def __onehot_scatter__(self, img: torch.Tensor) -> torch.Tensor:
-#         input_size: list = list(img.shape)
-#         input_size[0] = self.num_cityscape_classes
-#         label: torch.Tensor = torch.zeros(input_size)
-#
-#         # Scale data into integers
-#         img = (img * 255).long()
-#
-#         # Scatter into one-hot format
-#         label = label.scatter_(0, img.long(), 1.0)
-#
-#         # Select layers based on official guidelines if requested
-#         if not self.use_all_classes:
-#             label = torch.index_select(label, 0, self.used_segmentation_classes)
-#
-#         # Combine cruft and unlabeled into one layer
-#         layer: torch.Tensor = torch.zeros_like(label[0])
-#         layer[label.sum(dim=0) == 0] = 1
-#
-#         label = torch.cat((label, layer.unsqueeze(dim=0)), dim=0)
-#         label[-1] = label[-1] + label[0]
-#         label[0] = 0
-#
-#         return label.float()
-#
-#     def __create_pix2pix_hd_transforms__(self, height_width) -> tuple:
-#         # Mask
-#         mask_inst_transform_list = [
-#             transforms.Resize(height_width, Image.NEAREST),
-#             transforms.Lambda(lambda img: np.array(img)),
-#             transforms.ToTensor(),
-#         ]
-#         # Multiply by 255
-#         mask_transform = transforms.Compose(
-#             [*mask_inst_transform_list, transforms.Lambda(lambda img: img * 255.0)]
-#         )
-#
-#         # Real image
-#         real_image_transform_list = [
-#             transforms.Lambda(lambda img: img.convert("RGB")),
-#             transforms.Resize(height_width, Image.BICUBIC),
-#             transforms.Lambda(lambda img: np.array(img)),
-#             transforms.ToTensor(),
-#             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-#         ]
-#         real_image_transform = transforms.Compose(real_image_transform_list)
-#
-#         # Instance Maps
-#         instance_transform = transforms.Compose(mask_inst_transform_list)
-#         return mask_transform, real_image_transform, instance_transform
-#
-#     @staticmethod
-#     def __add_remaining_layer__(img: torch.Tensor):
-#         layer: torch.Tensor = torch.zeros_like(img[0])
-#         layer[img.sum(dim=0) == 0] = 1
-#         return torch.cat((img, layer.unsqueeze(dim=0)), dim=0)
-#
-#
-# class CityScapesDemoVideoDataset(Dataset):
-#     def __init__(
-#         self,
-#         output_image_height_width: tuple,
-#         root: str,
-#         split: str,
-#         should_flip: bool,
-#         subset_size: int,
-#         noise: bool,
-#         dataset_features: dict,
-#         specific_model: str,
-#         num_frames: int,
-#         use_all_classes: bool = False,
-#     ):
-#         super(CityScapesDemoVideoDataset, self).__init__()
-#
-#         self.dataset = CityScapesDataset(
-#             output_image_height_width,
-#             root,
-#             split,
-#             should_flip,
-#             subset_size,
-#             noise,
-#             dataset_features,
-#             specific_model,
-#             use_all_classes,
-#         )
-#
-#         # Settings
-#         self.output_image_height_width = output_image_height_width
-#         self.should_flip: bool = should_flip
-#         self.subset_size: int = subset_size
-#         self.noise: bool = noise
-#         self.specific_model: str = specific_model
-#         self.use_all_classes: bool = use_all_classes
-#         self.split = split
-#
-#         self.num_output_segmentation_classes = (
-#             self.dataset.num_output_segmentation_classes
-#         )
-#
-#         self.num_frames: int = num_frames
-#
-#     def __len__(self):
-#         # Set length of dataset to subset size intelligently
-#         if self.subset_size == 0 or self.dataset.__len__() < self.subset_size:
-#             return self.dataset.__len__() - self.num_frames
-#         else:
-#             # TODO Small margin for error at the end
-#             return self.subset_size
-#
-#     def __getitem__(self, item: int):
-#         # gets item
-#         frames = (item + self.num_frames - 1, self.num_frames)
-#
-#         dicts = self.dataset[frames]
-#
-#         return self.collate_fn(dicts)
-#
-#     @staticmethod
-#     def collate_fn(data: list, dim=1):
-#
-#         out_dict: dict = None
-#
-#         for single_dict in data:
-#             if out_dict is None:
-#                 out_dict = single_dict
-#                 for k_o, v_o in out_dict.items():
-#                     if type(v_o) is torch.Tensor:
-#                         out_dict.update({k_o: v_o.unsqueeze(0)})
-#                     elif type(v_o) in [str, int, dict, bool]:
-#                         out_dict.update({k_o: [v_o]})
-#                     elif type(v_o) is list:
-#                         out_dict.update({k_o: [v_o]})
-#             else:
-#                 for k_o, v_o in out_dict.items():
-#                     v_s = single_dict[k_o]
-#                     if type(v_o) is torch.Tensor:
-#                         out_dict.update({k_o: torch.cat((v_o, v_s.unsqueeze(0)))})
-#                     elif type(v_o) is list:
-#                         out_dict.update({k_o: [*v_o, v_s]})
-#
-#         return out_dict
+class CityScapesDemoVideoDataset(Dataset):
+    def __init__(
+        self,
+        output_image_height_width: tuple,
+        root: str,
+        split: str,
+        should_flip: bool,
+        subset_size: int,
+        noise: bool,
+        specific_model: str,
+        num_frames: int,
+    ):
+        super(CityScapesDemoVideoDataset, self).__init__()
+
+        self.dataset = CityScapesDataset(
+            output_image_height_width,
+            root,
+            split,
+            should_flip,
+            subset_size,
+            noise,
+            specific_model,
+            True,
+        )
+
+        # Settings
+        self.output_image_height_width = output_image_height_width
+        self.should_flip: bool = should_flip
+        self.subset_size: int = subset_size
+        self.noise: bool = noise
+        self.specific_model: str = specific_model
+        self.split = split
+
+        self.num_output_segmentation_classes = (
+            self.dataset.num_output_segmentation_classes
+        )
+
+        self.num_frames: int = num_frames
+
+    def __len__(self):
+        # Set length of dataset to subset size intelligently
+        if self.subset_size == 0 or self.dataset.__len__() < self.subset_size:
+            return self.dataset.__len__() - self.num_frames
+        else:
+            # TODO Small margin for error at the end
+            return self.subset_size
+
+    def __getitem__(self, item: int):
+        # gets item
+        frames = (item + self.num_frames - 1, self.num_frames)
+
+        dicts = self.dataset[frames]
+
+        return self.collate_fn(dicts)
+
+    @staticmethod
+    def collate_fn(data: list, dim=1):
+
+        out_dict: dict = None
+
+        for single_dict in data:
+            if out_dict is None:
+                out_dict = single_dict
+                for k_o, v_o in out_dict.items():
+                    if type(v_o) is torch.Tensor:
+                        out_dict.update({k_o: v_o.unsqueeze(0)})
+                    elif type(v_o) in [str, int, dict, bool]:
+                        out_dict.update({k_o: [v_o]})
+                    elif type(v_o) is list:
+                        out_dict.update({k_o: [v_o]})
+            else:
+                for k_o, v_o in out_dict.items():
+                    v_s = single_dict[k_o]
+                    if type(v_o) is torch.Tensor:
+                        out_dict.update({k_o: torch.cat((v_o, v_s.unsqueeze(0)))})
+                    elif type(v_o) is list:
+                        out_dict.update({k_o: [*v_o, v_s]})
+
+        return out_dict

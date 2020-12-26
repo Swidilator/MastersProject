@@ -6,17 +6,14 @@ from torchvision import transforms
 
 class TransformManager:
     def __init__(
-        self, output_image_height_width, num_cityscape_classes, use_all_classes
+        self, output_image_height_width, num_cityscape_classes, generated_data: bool
     ):
-        one_hot_scatter: OneHotScatter = OneHotScatter(
-            num_cityscape_classes, use_all_classes
+        self.one_hot_scatter: OneHotScatter = OneHotScatter(
+            num_cityscape_classes, generated_data
         )
 
-        # used_segmentation_classes = torch.tensor(
-        #     [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
-        #     requires_grad=False,
-        # )
-        # Image transforms
+        self.num_output_segmentation_classes: int = self.one_hot_scatter.num_output_segmentation_classes
+
         image_resize_transform = transforms.Compose(
             [
                 transforms.Lambda(lambda img: img.convert("RGB")),
@@ -34,7 +31,7 @@ class TransformManager:
                 ),
                 transforms.Lambda(lambda img: np.array(img)),
                 transforms.ToTensor(),
-                transforms.Lambda(lambda img: one_hot_scatter(img=img)),
+                transforms.Lambda(lambda img: self.one_hot_scatter(img=img)),
             ]
         )
 
@@ -56,13 +53,16 @@ class TransformManager:
 
 
 class OneHotScatter:
-    def __init__(self, num_cityscape_classes, use_all_classes):
+    def __init__(self, num_cityscape_classes, generated_data: bool):
         self.num_cityscape_classes: int = num_cityscape_classes
-        self.use_all_classes: bool = use_all_classes
+        self.generated_data: bool = generated_data
+
         self.used_segmentation_classes = torch.tensor(
             [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
             requires_grad=False,
-        )
+        ).long()
+
+        self.num_output_segmentation_classes: int = len(self.used_segmentation_classes) + 1
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         input_size: list = list(img.shape)
@@ -76,7 +76,7 @@ class OneHotScatter:
         label = label.scatter_(0, img.long(), 1.0)
 
         # Select layers based on official guidelines if requested
-        if not self.use_all_classes:
+        if not self.generated_data:
             label = torch.index_select(label, 0, self.used_segmentation_classes)
 
         # Combine cruft and unlabeled into one layer
@@ -84,13 +84,13 @@ class OneHotScatter:
         layer[label.sum(dim=0) == 0] = 1
 
         label = torch.cat((label, layer.unsqueeze(dim=0)), dim=0)
-        label[-1] = label[-1] + label[0]
-        label[0] = 0
+        # label[-1] = label[-1] + label[0]
+        # label[0] = 0
 
         return label.float()
 
 
-def generate_edge_map(instance_map: torch.Tensor):
+def generate_edge_map(instance_map: torch.Tensor, mask: torch.Tensor = None):
     assert len(instance_map.shape) == 3, "Invalid tensor shape"
     assert instance_map.shape[0] == 1, "Too many image channels"
 
@@ -107,64 +107,81 @@ def generate_edge_map(instance_map: torch.Tensor):
         edge_shape = torch.Size((1, edge_shape[1] + 2, edge_shape[2] + 2))
         edge_border_pad: torch.Tensor = torch.zeros(edge_shape)
         edge_border_pad[0, 1:-1, 1:-1] = edge_border
+
+        if mask is not None:
+            mask_flat = torch.argmax(mask, dim=0, keepdim=True).float()
+            edge_mask = torch.nn.functional.conv2d(
+                mask_flat.unsqueeze(0), cross_element_tensor[(None,) * 2]
+            )
+            # edge: torch.Tensor = self.object_separator(instance_map[(None,)])
+            edge_mask_border: torch.Tensor = (edge_mask != 0).float().squeeze(0)
+            edge_mask_shape: torch.Size = edge_mask_border.shape
+            edge_mask_shape = torch.Size(
+                (1, edge_mask_shape[1] + 2, edge_mask_shape[2] + 2)
+            )
+            edge_mask_border_pad: torch.Tensor = torch.zeros(edge_mask_shape)
+            edge_mask_border_pad[0, 1:-1, 1:-1] = edge_mask_border
+
+            edge_border_pad = (edge_border_pad + edge_mask_border_pad).clamp(0, 1)
+
         return edge_border_pad
 
 
-def create_transforms(
-    output_image_height_width,
-    num_cityscape_classes,
-    use_all_classes,
-):
-    used_segmentation_classes = torch.tensor(
-        [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
-        requires_grad=False,
-    )
-    # Image transforms
-    image_resize_transform = transforms.Compose(
-        [
-            transforms.Lambda(lambda img: img.convert("RGB")),
-            transforms.Resize(output_image_height_width, Image.BICUBIC),
-            transforms.Lambda(lambda img: np.array(img)),
-            transforms.ToTensor(),
-        ]
-    )
-
-    mask_resize_transform = transforms.Compose(
-        [
-            transforms.Resize(
-                output_image_height_width,
-                Image.NEAREST,  # NEAREST as the values are categories and are not continuous
-            ),
-            transforms.Lambda(lambda img: np.array(img)),
-            transforms.ToTensor(),
-            transforms.Lambda(
-                lambda img: onehot_scatter(
-                    img=img,
-                    num_cityscape_classes=num_cityscape_classes,
-                    use_all_classes=use_all_classes,
-                    used_segmentation_classes=used_segmentation_classes,
-                )
-            ),
-        ]
-    )
-
-    instance_resize_transform = transforms.Compose(
-        [
-            transforms.Resize(output_image_height_width, Image.NEAREST),
-            transforms.Lambda(
-                lambda img: torch.tensor(np.array(img)).unsqueeze(0).float()
-            ),
-        ]
-    )
-
-    transform_dict: dict = {
-        "semantic": mask_resize_transform,
-        "color": image_resize_transform,
-        "instance": instance_resize_transform,
-        "real": image_resize_transform,
-    }
-
-    return transform_dict
+# def create_transforms(
+#     output_image_height_width,
+#     num_cityscape_classes,
+#     use_all_classes,
+# ):
+#     used_segmentation_classes = torch.tensor(
+#         [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
+#         requires_grad=False,
+#     )
+#     # Image transforms
+#     image_resize_transform = transforms.Compose(
+#         [
+#             transforms.Lambda(lambda img: img.convert("RGB")),
+#             transforms.Resize(output_image_height_width, Image.BICUBIC),
+#             transforms.Lambda(lambda img: np.array(img)),
+#             transforms.ToTensor(),
+#         ]
+#     )
+#
+#     mask_resize_transform = transforms.Compose(
+#         [
+#             transforms.Resize(
+#                 output_image_height_width,
+#                 Image.NEAREST,  # NEAREST as the values are categories and are not continuous
+#             ),
+#             transforms.Lambda(lambda img: np.array(img)),
+#             transforms.ToTensor(),
+#             transforms.Lambda(
+#                 lambda img: onehot_scatter(
+#                     img=img,
+#                     num_cityscape_classes=num_cityscape_classes,
+#                     use_all_classes=use_all_classes,
+#                     used_segmentation_classes=used_segmentation_classes,
+#                 )
+#             ),
+#         ]
+#     )
+#
+#     instance_resize_transform = transforms.Compose(
+#         [
+#             transforms.Resize(output_image_height_width, Image.NEAREST),
+#             transforms.Lambda(
+#                 lambda img: torch.tensor(np.array(img)).unsqueeze(0).float()
+#             ),
+#         ]
+#     )
+#
+#     transform_dict: dict = {
+#         "semantic": mask_resize_transform,
+#         "color": image_resize_transform,
+#         "instance": instance_resize_transform,
+#         "real": image_resize_transform,
+#     }
+#
+#     return transform_dict
 
 
 class InstanceMapProcessor:
