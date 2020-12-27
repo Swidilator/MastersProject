@@ -12,7 +12,9 @@ class TransformManager:
             num_cityscape_classes, generated_data
         )
 
-        self.num_output_segmentation_classes: int = self.one_hot_scatter.num_output_segmentation_classes
+        self.num_output_segmentation_classes: int = (
+            self.one_hot_scatter.num_output_segmentation_classes
+        )
 
         image_resize_transform = transforms.Compose(
             [
@@ -62,7 +64,9 @@ class OneHotScatter:
             requires_grad=False,
         ).long()
 
-        self.num_output_segmentation_classes: int = len(self.used_segmentation_classes) + 1
+        self.num_output_segmentation_classes: int = (
+            len(self.used_segmentation_classes) + 1
+        )
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         input_size: list = list(img.shape)

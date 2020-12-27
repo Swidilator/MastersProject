@@ -125,29 +125,29 @@ class CityScapesVideoDataset(Dataset):
 
         print("Splitting data")
 
-        semantic_target_imgs: list = [
+        semantic_target_images: list = [
             filter_per_image(row, data_storage, "labelIds")
             for index, row in unique_image_sets.iterrows()
         ]
-        color_target_imgs: list = [
+        color_target_images: list = [
             filter_per_image(row, data_storage, "color")
             for index, row in unique_image_sets.iterrows()
         ]
-        instance_target_imgs: list = [
+        instance_target_images: list = [
             filter_per_image(row, data_storage, "instanceIds")
             for index, row in unique_image_sets.iterrows()
         ]
-        real_imgs: list = [
+        real_images: list = [
             filter_per_image(row, data_storage, "real")
             for index, row in unique_image_sets.iterrows()
         ]
         print("Done splitting data")
 
         self.image_list_dict: dict = {
-            "semantic": semantic_target_imgs,
-            "color": color_target_imgs,
-            "instance": instance_target_imgs,
-            "real": real_imgs,
+            "semantic": semantic_target_images,
+            "color": color_target_images,
+            "instance": instance_target_images,
+            "real": real_images,
         }
 
         self.transform_manager = TransformManager(
@@ -318,7 +318,7 @@ class CityScapesDemoVideoDataset(Dataset):
     @staticmethod
     def collate_fn(data: list, dim=1):
 
-        out_dict: dict = None
+        out_dict: Optional[dict] = None
 
         for single_dict in data:
             if out_dict is None:

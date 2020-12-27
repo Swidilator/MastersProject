@@ -145,7 +145,9 @@ class CityScapesDataset(Dataset):
         )
 
         # Can be used to find number of channels segmentation image, includes cruft layer
-        self.num_output_segmentation_classes: int = self.transform_manager.num_output_segmentation_classes
+        self.num_output_segmentation_classes: int = (
+            self.transform_manager.num_output_segmentation_classes
+        )
 
         # Recreation of the normal CityScapes dataset
         self.dataset: BaseCityScapesDataset = BaseCityScapesDataset(

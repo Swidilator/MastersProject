@@ -5,9 +5,9 @@ from pickle import dump as p_dump
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 
-from support_scripts.sampling import sample_video_from_model
 from support_scripts.utils import MastersModel
 from support_scripts.utils import ModelSettingsManager
+from support_scripts.sampling import sample_video_from_model
 
 
 manager: ModelSettingsManager = ModelSettingsManager()
@@ -16,12 +16,20 @@ model_frame: MastersModel
 if manager.args["model"] == "CRN":
     from CRN import CRNFramework
 
-    model_frame = CRNFramework.from_model_settings_manager(manager)
+    model_frame: CRNFramework = CRNFramework.from_model_settings_manager(manager)
+
 elif manager.args["model"] == "GAN":
     from GAN import GANFramework
 
     model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
-    print(model_frame.generator)
+
+elif manager.args["model"] == "CRNVideo":
+    from CRN import CRNVideoFramework
+
+    model_frame: CRNVideoFramework = CRNVideoFramework.from_model_settings_manager(
+        manager
+    )
+
 else:
     raise SystemExit
 
@@ -36,7 +44,7 @@ video_frame_ranges = [(0, 599), (599, 1699), (1699, 2899)]
 out_dir: str = "./test_output2"
 os.makedirs(out_dir, exist_ok=True)
 original_video_array, output_video_array = sample_video_from_model(
-    model_frame, video_frame_ranges[0], out_dir, output_image_number=0, batch_size=3
+    model_frame, video_frame_ranges[0], out_dir, output_image_number=0, batch_size=1
 )
 print(original_video_array.max(), original_video_array.min())
 with open(os.path.join(out_dir, "original_video_array.pickle"), "wb") as f:
