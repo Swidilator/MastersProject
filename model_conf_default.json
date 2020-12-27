@@ -41,6 +41,7 @@
     "CRN_LOSS_SCALING_METHOD": "official",
     "CRN_USE_RESNET_RMS": true,
     "CRN_NUM_RESNET_PROCESSING_RMS": 2,
-    "CRN_USE_EDGE_MAP": false
+    "CRN_USE_EDGE_MAP": false,
+    "CRN_USE_TWIN_NETWORK": false
   }
 }
