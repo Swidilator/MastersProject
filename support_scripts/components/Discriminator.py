@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from typing import Tuple, List
 
-from GAN.Blocks import *
+from support_scripts.components.blocks import CCILBlock
 
 Discriminator_Output = Tuple[torch.Tensor, List[torch.Tensor]]
 
@@ -11,23 +11,21 @@ class FullDiscriminator(torch.nn.Module):
     def __init__(
         self,
         device: torch.device,
-        num_classes: int,
+        input_channel_count: int,
         num_discriminators: int,
         use_sigmoid_discriminator: bool,
-        use_edge_map: bool,
     ):
         super(FullDiscriminator, self).__init__()
 
         self.device: torch.device = device
 
         self.num_discriminators: int = num_discriminators
-        self.use_edge_map: bool = use_edge_map
 
         self.discriminators: torch.nn.ModuleList = nn.ModuleList()
 
         for i in range(num_discriminators):
             disc: SingleDiscriminator = SingleDiscriminator(
-                self.device, num_classes, use_sigmoid_discriminator, self.use_edge_map
+                self.device, input_channel_count, use_sigmoid_discriminator
             )
             self.discriminators.append(disc.to(self.device))
 
@@ -46,20 +44,13 @@ class FullDiscriminator(torch.nn.Module):
         return result
 
     def forward(
-        self, inputs: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+        self, input_tuple: Tuple[torch.Tensor]
     ) -> Discriminator_Output:
 
-        mask: torch.Tensor = inputs[0]
-        edge_map: torch.Tensor = inputs[1]
-        image: torch.Tensor = inputs[2]
-
-        if self.use_edge_map:
-            input_list = [mask, edge_map, image]
-        else:
-            input_list = [mask, image]
+        filtered_input_list: list = [x for x in input_tuple if x is not None]
 
         # Concatenate input tensors together
-        input_concat: torch.Tensor = torch.cat(input_list, dim=1)
+        input_concat: torch.Tensor = torch.cat(filtered_input_list, dim=1)
 
         output: torch.Tensor = torch.tensor([], device=self.device)
         # output_split: Optional[List[Feature_Extractions]] = []
@@ -89,22 +80,13 @@ class SingleDiscriminator(torch.nn.Module):
     def __init__(
         self,
         device: torch.device,
-        num_classes: int,
+        input_channel_count: int,
         use_sigmoid_discriminator: bool,
-        use_edge_map: bool,
     ):
         super(SingleDiscriminator, self).__init__()
 
         self.device = device
         self.use_sigmoid_discriminator = use_sigmoid_discriminator
-        self.use_edge_map: bool = use_edge_map
-
-        num_edge_map_channels: int = self.use_edge_map * 1
-        num_image_channels: int = 3
-
-        input_channel_count: int = (
-                num_classes + num_edge_map_channels + num_image_channels
-        )
 
         self.cl1: CCILBlock = CCILBlock(64, input_channel_count, first_layer=True)
         self.cl2: CCILBlock = CCILBlock(128, self.cl1.get_output_filter_count, False)

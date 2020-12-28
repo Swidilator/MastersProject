@@ -1,6 +1,8 @@
 import torch
 from torch import nn as nn
 from torch.nn import modules as modules
+
+from support_scripts.utils import norm_selector
 from support_scripts.utils.norm_management import norm_selector
 
 
@@ -136,3 +138,40 @@ class RMBlock(Block):
             x = self.norm_1(x)
             x = self.leakyReLU_1(x)
         return x
+
+
+class CCILBlock(Block):
+    def __init__(self, filter_count: int, input_channel_count: int, first_layer: bool):
+        super(CCILBlock, self).__init__(filter_count, input_channel_count)
+
+        self.first_layer = first_layer
+
+        kernel_size: int = 4
+        stride: int = 2
+        padding: int = 2
+
+        # self.reflect_pad: nn.ReflectionPad2d = nn.ReflectionPad2d(padding)
+
+        self.conv_1: modules.Conv2d = nn.Conv2d(
+            self.input_channel_count,
+            self.filter_count,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+        )
+        Block.init_conv_weights(conv=self.conv_1, init_type="normal", zero_bias=False)
+
+        if not self.first_layer:
+            self.instance_norm_1, _ = norm_selector(
+                "instance", output_channel_count=self.filter_count
+            )
+
+        self.LReLU: nn.LeakyReLU = nn.LeakyReLU(0.2, inplace=True)
+
+    def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
+        # out: torch.Tensor = self.reflect_pad(input)
+        out = self.conv_1(input_tensor)
+        if not self.first_layer:
+            out = self.instance_norm_1(out)
+        out = self.LReLU(out)
+        return out
