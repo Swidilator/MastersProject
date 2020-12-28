@@ -1,6 +1,16 @@
-__all__ = ["Block", "RMBlock", "FeatureEncoder", "FlowNetWrapper", "ResNetBlock"]
+__all__ = [
+    "Block",
+    "RMBlock",
+    "FeatureEncoder",
+    "FlowNetWrapper",
+    "ResNetBlock",
+    "FullDiscriminator",
+    "feature_matching_error",
+]
 
-from support_scripts.components.blocks import Block, RMBlock
-from support_scripts.components.feature_encoder import FeatureEncoder
-from support_scripts.components.FlowNet import FlowNetWrapper
-from support_scripts.components.ResNetBlock import ResNetBlock
+from .blocks import Block, RMBlock
+from .feature_encoder import FeatureEncoder
+from .FlowNet import FlowNetWrapper
+from .ResNetBlock import ResNetBlock
+
+from .Discriminator import feature_matching_error, FullDiscriminator
