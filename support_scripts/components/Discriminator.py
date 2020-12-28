@@ -99,15 +99,11 @@ class SingleDiscriminator(torch.nn.Module):
         self.use_sigmoid_discriminator = use_sigmoid_discriminator
         self.use_edge_map: bool = use_edge_map
 
-        self.input_size: tuple = (70, 70)
-
-        self.final_kernel_size: int = 2
-
-        __num_edge_map_channels: int = self.use_edge_map * 1
-        __num_image_channels: int = 3
+        num_edge_map_channels: int = self.use_edge_map * 1
+        num_image_channels: int = 3
 
         input_channel_count: int = (
-            num_classes + __num_edge_map_channels + __num_image_channels
+                num_classes + num_edge_map_channels + num_image_channels
         )
 
         self.cl1: CCILBlock = CCILBlock(64, input_channel_count, first_layer=True)
@@ -116,7 +112,7 @@ class SingleDiscriminator(torch.nn.Module):
         self.cl4: CCILBlock = CCILBlock(512, self.cl3.get_output_filter_count, False)
 
         self.final_conv: nn.Conv2d = nn.Conv2d(
-            self.cl4.get_output_filter_count, 1, self.final_kernel_size
+            self.cl4.get_output_filter_count, out_channels=1, kernel_size=4, stride=1, padding=2
         )
         if self.use_sigmoid_discriminator:
             self.sigmoid: nn.Sigmoid = nn.Sigmoid()
