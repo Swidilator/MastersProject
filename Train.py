@@ -12,16 +12,17 @@ from support_scripts.utils import MastersModel
 from support_scripts.sampling import sample_from_model, SampleDataHolder
 from support_scripts.utils import ModelSettingsManager
 
-# from support_scripts.utils.visualisation import eigenvector_visualisation
 from support_scripts.utils import RunTimer
 
 if __name__ == "__main__":
     # Initialise settings manager to read args and set up environment
     manager: ModelSettingsManager = ModelSettingsManager()
 
+    # Set wandb to run in dryrun mode if requested
     if not manager.args["wandb"]:
         os.environ["WANDB_MODE"] = "dryrun"
 
+    # Initialise wandb
     wandb.init(
         project=manager.args["model"].lower(),
         config={**manager.args, **manager.model_conf},
@@ -29,38 +30,31 @@ if __name__ == "__main__":
         group=manager.args["run_name"],
     )
 
-    model_frame: Optional[MastersModel] = None
-
     assert "train" in manager.args
 
+    # Initialise run timer
     run_timer: RunTimer = RunTimer(manager.args["max_run_hours"])
 
+    # Create model framework
     if manager.args["model"] == "CRN":
         from CRN import CRNFramework
-
         model_frame: CRNFramework = CRNFramework.from_model_settings_manager(manager)
 
     elif manager.args["model"] == "GAN":
         from GAN import GANFramework
-
         model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
 
     elif manager.args["model"] == "CRNVideo":
         from CRN import CRNVideoFramework
-
         model_frame: CRNVideoFramework = CRNVideoFramework.from_model_settings_manager(
             manager
         )
 
     else:
-        raise SystemExit
+        raise ValueError("Invalid model name {manager.args['model']}")
 
     # Generate folder for run
-    if not os.path.exists(manager.args["base_model_save_dir"]):
-        os.makedirs(manager.args["base_model_save_dir"])
-
-    if not os.path.exists(manager.args["model_save_dir"]):
-        os.makedirs(manager.args["model_save_dir"])
+    os.makedirs(manager.args["model_save_dir"], exist_ok=True)
 
     # Load model
     if manager.args["load_saved_model"]:
@@ -118,9 +112,6 @@ if __name__ == "__main__":
 
         # Sample images from the model
         if manager.args["sample"]:
-
-            sample_args: dict = {}
-
             image_data_holders, sample_list = sample_from_model(
                 model=model_frame,
                 mode=manager.args["sample_mode"],
