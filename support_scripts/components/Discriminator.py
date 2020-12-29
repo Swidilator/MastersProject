@@ -43,9 +43,7 @@ class FullDiscriminator(torch.nn.Module):
         result: torch.Tensor = criterion(input_tensor, label_tensor)
         return result
 
-    def forward(
-        self, input_tuple: Tuple[torch.Tensor]
-    ) -> Discriminator_Output:
+    def forward(self, input_tuple: Tuple[torch.Tensor]) -> Discriminator_Output:
 
         filtered_input_list: list = [x for x in input_tuple if x is not None]
 
@@ -94,7 +92,11 @@ class SingleDiscriminator(torch.nn.Module):
         self.cl4: CCILBlock = CCILBlock(512, self.cl3.get_output_filter_count, False)
 
         self.final_conv: nn.Conv2d = nn.Conv2d(
-            self.cl4.get_output_filter_count, out_channels=1, kernel_size=4, stride=1, padding=2
+            self.cl4.get_output_filter_count,
+            out_channels=1,
+            kernel_size=4,
+            stride=1,
+            padding=2,
         )
         if self.use_sigmoid_discriminator:
             self.sigmoid: nn.Sigmoid = nn.Sigmoid()
