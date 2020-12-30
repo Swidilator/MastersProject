@@ -2,7 +2,6 @@ import torch
 from torch import nn
 import numpy as np
 import pandas as pd
-import kmeans_pytorch
 from tqdm import tqdm
 from os import path, mkdir
 
