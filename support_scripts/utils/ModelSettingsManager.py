@@ -62,6 +62,7 @@ class ModelSettingsManager:
         parser.add_argument("--num-prior-frames", action="store", default=2, type=int)
         parser.add_argument("--use-optical-flow", action="store_true", default=False)
         parser.add_argument("--prior-frame-seed-type", action="store", default="zero", type=str)
+        parser.add_argument("--use-mask-for-instances", action="store_true", default=False)
 
         args: dict = vars(parser.parse_args())
 

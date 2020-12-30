@@ -12,7 +12,9 @@ from support_scripts.components.blocks import EncoderBlock
 
 
 def get_instance_unique_map_and_flat_mask(
-    instance_map: torch.Tensor, instance_from_mask: bool, mask: Optional[torch.Tensor]
+    instance_map: torch.Tensor,
+    use_mask_for_instances: bool,
+    mask: Optional[torch.Tensor],
 ):
     assert len(instance_map.shape) == 3, "instance_map.shape != 3"
 
@@ -26,7 +28,7 @@ def get_instance_unique_map_and_flat_mask(
     else:
         single_mask_flat = None
 
-    if not instance_from_mask:
+    if not use_mask_for_instances:
         instance_unique: torch.Tensor = torch.unique(instance_map)
         complete_instance_map: torch.Tensor = instance_map
     else:
@@ -54,7 +56,7 @@ class FeatureEncoder(nn.Module):
         device: torch.device,
         model_save_dir: str,
         use_clustered_means: bool,
-        use_masks_as_instances: bool,
+        use_mask_for_instances: bool,
         num_semantic_classes: int,
     ):
         super(FeatureEncoder, self).__init__()
@@ -64,7 +66,7 @@ class FeatureEncoder(nn.Module):
         self.downsample_count: int = downsample_count
         self.device: torch.device = device
         self.model_save_dir: str = model_save_dir
-        self.use_masks_as_instances: bool = use_masks_as_instances
+        self.use_mask_for_instances: bool = use_mask_for_instances
         self.num_semantic_classes: int = num_semantic_classes
 
         featuremap_count: int = 16
@@ -75,12 +77,8 @@ class FeatureEncoder(nn.Module):
         if use_clustered_means:
             means_file_path = path.join(model_save_dir, "clustered_means.pt")
             self.feature_extractions_sampler: FeatureExtractionsSampler = (
-                FeatureExtractionsSampler.from_file(
-                    means_file_path,
-                    self.device,
-                    self.use_masks_as_instances,
-                    self.num_semantic_classes,
-                )
+                FeatureExtractionsSampler.from_file(means_file_path, self.device, self.use_mask_for_instances,
+                                                    self.num_semantic_classes)
             )
 
         # Initial layer
@@ -214,7 +212,7 @@ class FeatureEncoder(nn.Module):
         for bat in range(batch_size):
             # Generate list of unique values per instance map
 
-            if self.use_masks_as_instances:
+            if self.use_mask_for_instances:
                 mask_bat: Optional[torch.Tensor] = mask[bat]
             else:
                 mask_bat = None
@@ -224,7 +222,7 @@ class FeatureEncoder(nn.Module):
                 complete_instance_map,
                 _,
             ) = get_instance_unique_map_and_flat_mask(
-                instance_map[bat], self.use_masks_as_instances, mask_bat
+                instance_map[bat], self.use_mask_for_instances, mask_bat
             )
 
             for i, val in enumerate(instance_unique):
@@ -353,7 +351,7 @@ class FeatureEncoder(nn.Module):
                         complete_instance_map,
                         mask_flat,
                     ) = get_instance_unique_map_and_flat_mask(
-                        instance_map[bat], self.use_masks_as_instances, msk[bat]
+                        instance_map[bat], self.use_mask_for_instances, msk[bat]
                     )
 
                     for i, val in enumerate(instance_unique):
@@ -427,15 +425,13 @@ class FeatureExtractionsSampler:
         cls,
         feature_extractions_file_path: str,
         device: torch.device,
-        use_masks_as_instances: bool,
+        use_mask_for_instances: bool,
         num_semantic_classes: int,
     ):
         clustered_means: torch.Tensor = torch.load(feature_extractions_file_path)
         if clustered_means.shape[1] == 5:
             clustered_means = clustered_means[:, 2:5]
-        return cls(
-            clustered_means, device, use_masks_as_instances, num_semantic_classes
-        )
+        return cls(clustered_means, device, use_mask_for_instances, num_semantic_classes)
 
     def update_single_setting_class_list(self):
         single_setting_class_list = []
