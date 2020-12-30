@@ -1,8 +1,6 @@
 import torch
 from dataclasses import dataclass
 
-from support_scripts.components.flownet2_pytorch.models import FlowNet2 as __FlowNet2__
-
 
 @dataclass
 class ArgShim:
@@ -13,6 +11,10 @@ class ArgShim:
 class FlowNetWrapper(torch.nn.Module):
     def __init__(self, flownet_checkpoint_folder: str):
         super().__init__()
+        from support_scripts.components.flownet2_pytorch.models import (
+            FlowNet2 as __FlowNet2__,
+        )
+
         # load the state_dict
         state_dict = torch.load(flownet_checkpoint_folder)
 
