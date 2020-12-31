@@ -6,6 +6,7 @@ __all__ = [
     "ResNetBlock",
     "FullDiscriminator",
     "feature_matching_error",
+    "PerceptualLossNetwork"
 ]
 
 from .blocks import Block, RMBlock
@@ -14,3 +15,4 @@ from .FlowNet import FlowNetWrapper
 from .ResNetBlock import ResNetBlock
 
 from .Discriminator import feature_matching_error, FullDiscriminator
+from .Perceptual_Loss import PerceptualLossNetwork
