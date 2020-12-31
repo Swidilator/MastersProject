@@ -7,6 +7,7 @@ from typing import Optional
 import wandb
 from tqdm import tqdm
 from zstd import dumps as z_dumps
+
 from support_scripts.utils import MastersModel
 
 from support_scripts.sampling import sample_from_model, SampleDataHolder
@@ -38,15 +39,25 @@ if __name__ == "__main__":
     # Create model framework
     if manager.args["model"] == "CRN":
         from CRN import CRNFramework
+
         model_frame: CRNFramework = CRNFramework.from_model_settings_manager(manager)
 
     elif manager.args["model"] == "GAN":
         from GAN import GANFramework
+
         model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
 
     elif manager.args["model"] == "CRNVideo":
         from CRN import CRNVideoFramework
+
         model_frame: CRNVideoFramework = CRNVideoFramework.from_model_settings_manager(
+            manager
+        )
+
+    elif manager.args["model"] == "GANVideo":
+        from GAN import GANVideoFramework
+
+        model_frame: GANVideoFramework = GANVideoFramework.from_model_settings_manager(
             manager
         )
 
