@@ -76,8 +76,12 @@ class FeatureEncoder(nn.Module):
         if use_clustered_means:
             means_file_path = path.join(model_save_dir, "clustered_means.pt")
             self.feature_extractions_sampler: FeatureExtractionsSampler = (
-                FeatureExtractionsSampler.from_file(means_file_path, self.device, self.use_mask_for_instances,
-                                                    self.num_semantic_classes)
+                FeatureExtractionsSampler.from_file(
+                    means_file_path,
+                    self.device,
+                    self.use_mask_for_instances,
+                    self.num_semantic_classes,
+                )
             )
 
         # Initial layer
@@ -430,7 +434,9 @@ class FeatureExtractionsSampler:
         clustered_means: torch.Tensor = torch.load(feature_extractions_file_path)
         if clustered_means.shape[1] == 5:
             clustered_means = clustered_means[:, 2:5]
-        return cls(clustered_means, device, use_mask_for_instances, num_semantic_classes)
+        return cls(
+            clustered_means, device, use_mask_for_instances, num_semantic_classes
+        )
 
     def update_single_setting_class_list(self):
         single_setting_class_list = []

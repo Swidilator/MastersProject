@@ -6,7 +6,7 @@ __all__ = [
     "ResNetBlock",
     "FullDiscriminator",
     "feature_matching_error",
-    "PerceptualLossNetwork"
+    "PerceptualLossNetwork",
 ]
 
 from .blocks import Block, RMBlock
