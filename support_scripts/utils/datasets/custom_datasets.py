@@ -131,6 +131,10 @@ class CityScapesStandardDataset(Dataset):
             assert (
                 generated_data
             ), "generated_data is False, but using demoVideo dataset."
+        else:
+            assert (
+                not generated_data
+            ), "generated_data is True, but using standard dataset."
 
         # Settings
         self.output_image_height_width = output_image_height_width
