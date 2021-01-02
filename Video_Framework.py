@@ -1014,6 +1014,7 @@ class VideoFramework(MastersModel):
                             self.torch_gradient_scaler.step(self.optimizer_D_flow)
                             self.torch_gradient_scaler.update()
                 else:
+                    self.optimizer_G.zero_grad()
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 30)
                     self.optimizer_G.step()
@@ -1073,29 +1074,35 @@ class VideoFramework(MastersModel):
                     "Epoch_Fraction": current_epoch
                     + (
                         (batch_idx * self.batch_size)
-                        / len(self.data_loader_train.dataset)
+                        / len(self.dataset_train)
                     ),
                     "Batch Loss Total": video_loss,
                     "Batch Loss Final Image": video_loss_img,
-                    "Batch Loss Discriminator Image": video_loss_d,
-                    "Batch Loss Generator Image": video_loss_g_gan,
-                    "Batch Loss Feature Matching Image": video_loss_g_fm,
-                    "Output D Fake Image": video_output_d_fake_mean,
-                    "Output D Real Image": video_output_d_real_mean,
                 }
-                if self.use_optical_flow:
+
+                if self.num_discriminators > 0:
                     wandb_log_dict.update(
                         {
-                            "Batch Loss Hallucinated Image": video_loss_img_h,
-                            "Batch Loss Warp": video_loss_warp,
-                            "Batch Loss Flow": video_loss_flow,
-                            "Batch Loss Discriminator Flow": video_loss_d_flow,
-                            "Batch Loss Generator Flow": video_loss_g_gan_flow,
-                            "Batch Loss Feature Matching Flow": video_loss_g_fm_flow,
-                            "Output D Fake Flow": video_output_d_fake_mean_flow,
-                            "Output D Real Flow": video_output_d_real_mean_flow,
+                            "Batch Loss Discriminator Image": video_loss_d,
+                            "Batch Loss Generator Image": video_loss_g_gan,
+                            "Batch Loss Feature Matching Image": video_loss_g_fm,
+                            "Output D Real Image": video_output_d_real_mean,
+                            "Output D Fake Image": video_output_d_fake_mean,
                         }
                     )
+                    if self.use_optical_flow:
+                        wandb_log_dict.update(
+                            {
+                                "Batch Loss Discriminator Flow": video_loss_d_flow,
+                                "Batch Loss Generator Flow": video_loss_g_gan_flow,
+                                "Batch Loss Feature Matching Flow": video_loss_g_fm_flow,
+                                "Output D Fake Flow": video_output_d_fake_mean_flow,
+                                "Output D Real Flow": video_output_d_real_mean_flow,
+                                "Batch Loss Hallucinated Image": video_loss_img_h,
+                                "Batch Loss Warp": video_loss_warp,
+                                "Batch Loss Flow": video_loss_flow,
+                            }
+                        )
                 wandb.log(wandb_log_dict)
 
         return loss_total, None
