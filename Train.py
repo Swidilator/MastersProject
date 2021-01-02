@@ -9,6 +9,7 @@ from tqdm import tqdm
 from zstd import dumps as z_dumps
 
 from support_scripts.utils import MastersModel
+from Video_Framework import VideoFramework
 
 from support_scripts.sampling import sample_from_model, SampleDataHolder
 from support_scripts.utils import ModelSettingsManager
