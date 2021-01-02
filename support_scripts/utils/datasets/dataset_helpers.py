@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torchvision import transforms
+from typing import Optional
 
 
 class TransformManager:
@@ -131,63 +132,6 @@ def generate_edge_map(instance_map: torch.Tensor, mask: torch.Tensor = None):
         return edge_border_pad
 
 
-# def create_transforms(
-#     output_image_height_width,
-#     num_cityscape_classes,
-#     use_all_classes,
-# ):
-#     used_segmentation_classes = torch.tensor(
-#         [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33],
-#         requires_grad=False,
-#     )
-#     # Image transforms
-#     image_resize_transform = transforms.Compose(
-#         [
-#             transforms.Lambda(lambda img: img.convert("RGB")),
-#             transforms.Resize(output_image_height_width, Image.BICUBIC),
-#             transforms.Lambda(lambda img: np.array(img)),
-#             transforms.ToTensor(),
-#         ]
-#     )
-#
-#     mask_resize_transform = transforms.Compose(
-#         [
-#             transforms.Resize(
-#                 output_image_height_width,
-#                 Image.NEAREST,  # NEAREST as the values are categories and are not continuous
-#             ),
-#             transforms.Lambda(lambda img: np.array(img)),
-#             transforms.ToTensor(),
-#             transforms.Lambda(
-#                 lambda img: onehot_scatter(
-#                     img=img,
-#                     num_cityscape_classes=num_cityscape_classes,
-#                     use_all_classes=use_all_classes,
-#                     used_segmentation_classes=used_segmentation_classes,
-#                 )
-#             ),
-#         ]
-#     )
-#
-#     instance_resize_transform = transforms.Compose(
-#         [
-#             transforms.Resize(output_image_height_width, Image.NEAREST),
-#             transforms.Lambda(
-#                 lambda img: torch.tensor(np.array(img)).unsqueeze(0).float()
-#             ),
-#         ]
-#     )
-#
-#     transform_dict: dict = {
-#         "semantic": mask_resize_transform,
-#         "color": image_resize_transform,
-#         "instance": instance_resize_transform,
-#         "real": image_resize_transform,
-#     }
-#
-#     return transform_dict
-
-
 class InstanceMapProcessor:
     def __init__(self):
         cross_element: list = [[0, -1, 0], [-1, 4, -1], [0, -1, 0]]
@@ -208,3 +152,28 @@ class InstanceMapProcessor:
             edge_border_pad: torch.Tensor = torch.zeros(edge_shape)
             edge_border_pad[0, 1:-1, 1:-1] = edge_border
             return edge_border_pad
+
+
+def collate_fn(data: list, dim=1):
+
+    out_dict: Optional[dict] = None
+
+    for single_dict in data:
+        if out_dict is None:
+            out_dict = single_dict
+            for k_o, v_o in out_dict.items():
+                if type(v_o) is torch.Tensor:
+                    out_dict.update({k_o: v_o.unsqueeze(0)})
+                elif type(v_o) in [str, int, dict, bool]:
+                    out_dict.update({k_o: [v_o]})
+                elif type(v_o) is list:
+                    out_dict.update({k_o: [v_o]})
+        else:
+            for k_o, v_o in out_dict.items():
+                v_s = single_dict[k_o]
+                if type(v_o) is torch.Tensor:
+                    out_dict.update({k_o: torch.cat((v_o, v_s.unsqueeze(0)))})
+                elif type(v_o) is list:
+                    out_dict.update({k_o: [*v_o, v_s]})
+
+    return out_dict

@@ -12,6 +12,7 @@ from torchvision.transforms.functional import hflip
 from support_scripts.utils.datasets.dataset_helpers import (
     TransformManager,
     generate_edge_map,
+    collate_fn,
 )
 
 
@@ -110,37 +111,42 @@ class BaseCityScapesDataset(Dataset):
         return len(self.__left_img_imgs)
 
 
-class CityScapesDataset(Dataset):
+class CityScapesStandardDataset(Dataset):
     def __init__(
         self,
-        output_image_height_width: tuple,
         root: str,
         split: str,
         should_flip: bool,
         subset_size: int,
-        noise: bool,
-        specific_model: str,
+        output_image_height_width: tuple,
         generated_data: bool,
+        num_frames: int,
+        frame_offset: Union[int, str],
     ):
-        super(CityScapesDataset, self).__init__()
+        super(CityScapesStandardDataset, self).__init__()
+
+        assert num_frames == 1, "num_frames > 1, but using standard dataset."
+        assert frame_offset == 0, "frame_offset != 0, but using standard dataset."
+        if split == "demoVideo":
+            assert (
+                generated_data
+            ), "generated_data is False, but using demoVideo dataset."
 
         # Settings
         self.output_image_height_width = output_image_height_width
         self.should_flip: bool = should_flip
         self.subset_size: int = subset_size
-        self.noise: bool = noise
-        self.specific_model: str = specific_model
         self.generated_data: bool = generated_data
         self.split = split
 
         # Number of classes in base CityScapes image
-        self.num_cityscape_classes: int = 34
+        num_cityscape_classes: int = 34
         if self.generated_data:
-            self.num_cityscape_classes = 19
+            num_cityscape_classes = 19
 
         self.transform_manager = TransformManager(
             output_image_height_width,
-            self.num_cityscape_classes,
+            num_cityscape_classes,
             generated_data=self.generated_data,
         )
 
@@ -156,76 +162,47 @@ class CityScapesDataset(Dataset):
             target_type=["semantic", "color", "instance"],
         )
 
-    def __getitem__(self, index: Union[int, tuple]):
+    def __getitem__(self, index: int) -> dict:
+        # print(image_no)
+        (img, img_path), (msk, msk_colour, instance) = self.dataset.__getitem__(index)
+        # Extract the useful info from the name of the image for use later
+        img_id: list = img_path.split("/")[-3:]
+        img_id[-1] = "_".join(img_id[-1].split("_")[:3])
 
-        if type(index) is tuple:
-            if len(index) == 1:
-                num_images = 1
-            else:
-                num_images = index[1]
-            index = index[0]
-        else:
-            num_images = 1
+        img_id_dict = {"split": img_id[0], "town": img_id[1], "name": img_id[2]}
 
-        input_dict_list: list = []
+        flip_list_sample = self.should_flip and random() > 0.5
 
-        if (index + 1) - num_images < 0:
-            index = num_images - 1
+        if flip_list_sample:
+            img = transforms.functional.hflip(img)
+            msk = transforms.functional.hflip(msk)
+            msk_colour = transforms.functional.hflip(msk_colour)
+            instance = transforms.functional.hflip(instance)
 
-        for image_no in range((index + 1) - num_images, (index + 1)):
-            # print(image_no)
-            (img, img_path), (msk, msk_colour, instance) = self.dataset.__getitem__(
-                image_no
-            )
+        img: torch.Tensor = self.transform_manager.transform_dict["real"](img)
+        msk: torch.Tensor = self.transform_manager.transform_dict["semantic"](msk)
+        msk_colour: torch.Tensor = self.transform_manager.transform_dict["color"](
+            msk_colour
+        )
+        instance: Optional[torch.Tensor] = self.transform_manager.transform_dict[
+            "instance"
+        ](instance)
+        edge_map: Optional[torch.Tensor] = generate_edge_map(
+            instance, msk if self.generated_data else None
+        )
 
-            # Extract the useful info from the name of the image for use later
-            img_id: list = img_path.split("/")[-3:]
-            img_id[-1] = "_".join(img_id[-1].split("_")[:3])
+        input_dict: dict = {
+            "img": img,
+            "img_path": img_path,
+            "img_id": img_id_dict,
+            "img_flipped": flip_list_sample,
+            "msk": msk,
+            "msk_colour": msk_colour,
+            "inst": instance,
+            "edge_map": edge_map,
+        }
 
-            img_id_dict = {"split": img_id[0], "town": img_id[1], "name": img_id[2]}
-
-            flip_list_sample = self.should_flip and random() > 0.5
-
-            if flip_list_sample:
-                img = transforms.functional.hflip(img)
-                msk = transforms.functional.hflip(msk)
-                msk_colour = transforms.functional.hflip(msk_colour)
-                instance = transforms.functional.hflip(instance)
-
-            img: torch.Tensor = self.transform_manager.transform_dict["real"](img)
-            msk: torch.Tensor = self.transform_manager.transform_dict["semantic"](msk)
-            msk_colour: torch.Tensor = self.transform_manager.transform_dict["color"](
-                msk_colour
-            )
-            instance: Optional[torch.Tensor] = self.transform_manager.transform_dict[
-                "instance"
-            ](instance)
-            edge_map: Optional[torch.Tensor] = generate_edge_map(
-                instance, msk if self.generated_data else None
-            )
-
-            if self.noise and torch.rand(1).item() > 0.5:
-                img = img + torch.normal(0, 0.02, img.size())
-                img[img > 1] = 1
-                img[img < -1] = -1
-
-            input_dict: dict = {
-                "img": img,
-                "img_path": img_path,
-                "img_id": img_id_dict,
-                "img_flipped": flip_list_sample,
-                "msk": msk,
-                "msk_colour": msk_colour,
-                "inst": instance,
-                "edge_map": edge_map,
-            }
-
-            input_dict_list.append(input_dict)
-
-        if len(input_dict_list) == 1:
-            return input_dict_list[0]
-        else:
-            return input_dict_list
+        return collate_fn([input_dict])
 
     def __len__(self):
         # Set length of dataset to subset size intelligently
