@@ -36,33 +36,7 @@ if __name__ == "__main__":
     # Initialise run timer
     run_timer: RunTimer = RunTimer(manager.args["max_run_hours"])
 
-    # Create model framework
-    if manager.args["model"] == "CRN":
-        from CRN import CRNFramework
-
-        model_frame: CRNFramework = CRNFramework.from_model_settings_manager(manager)
-
-    elif manager.args["model"] == "GAN":
-        from GAN import GANFramework
-
-        model_frame: GANFramework = GANFramework.from_model_settings_manager(manager)
-
-    elif manager.args["model"] == "CRNVideo":
-        from CRN import CRNVideoFramework
-
-        model_frame: CRNVideoFramework = CRNVideoFramework.from_model_settings_manager(
-            manager
-        )
-
-    elif manager.args["model"] == "GANVideo":
-        from GAN import GANVideoFramework
-
-        model_frame: GANVideoFramework = GANVideoFramework.from_model_settings_manager(
-            manager
-        )
-
-    else:
-        raise ValueError("Invalid model name {manager.args['model']}")
+    model_frame: VideoFramework = VideoFramework.from_model_settings_manager(manager)
 
     # Generate folder for run
     os.makedirs(manager.args["model_save_dir"], exist_ok=True)
@@ -107,15 +81,12 @@ if __name__ == "__main__":
         ) or (current_epoch == manager.args["train"])
 
         # Decay learning rate
-        if (
-            manager.args["model"] == "GAN"
-            and manager.model_conf["GAN_DECAY_LEARNING_RATE"]
-        ):
+        if manager.model_conf["DECAY_LEARNING_RATE"]:
             model_frame.adjust_learning_rate(
                 current_epoch,
-                manager.model_conf["GAN_DECAY_STARTING_EPOCH"],
+                manager.model_conf["DECAY_STARTING_EPOCH"],
                 manager.args["train"],
-                manager.model_conf["GAN_BASE_LEARNING_RATE"],
+                manager.model_conf["BASE_LEARNING_RATE"],
             )
 
         # Perform single epoch of training

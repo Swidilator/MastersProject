@@ -1,6 +1,7 @@
 import torch
 import torch.nn.modules as modules
 import torchvision
+from torchvision import transforms
 
 
 class CircularList:
@@ -76,6 +77,10 @@ class PerceptualLossNetwork(modules.Module):
 
         self.feature_network: FeatureNet = FeatureNet(self.base_model)
 
+        self.normalise = transforms.Normalize(
+            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+        )
+
         if self.loss_scaling_method == "official":
             # Values taken from official source code, no idea how they got them
             self.loss_layer_scales: list = [1.6, 2.3, 1.8, 2.8, 0.08, 1.0]
@@ -102,10 +107,19 @@ class PerceptualLossNetwork(modules.Module):
 
     def forward(
         self,
-        input_gen: torch.Tensor,
-        input_truth: torch.Tensor,
+        input_gen_init: torch.Tensor,
+        input_truth_init: torch.Tensor,
         input_label: torch.Tensor,
     ):
+        # Normalise image data for use in perceptual loss
+        input_truth = input_truth_init.clone()
+        for b in range(input_truth_init.shape[0]):
+            input_truth[b] = self.normalise(input_truth_init[b].clone())
+
+        input_gen = input_gen_init.clone()
+        for b in range(input_gen_init.shape[0]):
+            for out_img in range(input_gen_init.shape[1]):
+                input_gen[b, out_img] = self.normalise(input_gen_init[b, out_img])
 
         # img_losses: list = []
         this_batch_size = input_gen.shape[0]

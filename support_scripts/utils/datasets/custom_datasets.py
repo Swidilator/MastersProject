@@ -126,7 +126,9 @@ class CityScapesStandardDataset(Dataset):
         super(CityScapesStandardDataset, self).__init__()
 
         assert num_frames == 1, "num_frames > 1, but using standard dataset."
-        assert frame_offset == 0, "frame_offset != 0, but using standard dataset."
+        assert (
+            frame_offset == "random"
+        ), "frame_offset != random, but using standard dataset."
         if split == "demoVideo":
             assert (
                 generated_data

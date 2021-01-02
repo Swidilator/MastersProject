@@ -1,12 +1,12 @@
-from support_scripts.utils.MastersModel import MastersModel
-from support_scripts.utils.ModelSettingsManager import ModelSettingsManager
-from support_scripts.utils.RunTimer import RunTimer
-from support_scripts.utils.datasets.custom_datasets import CityScapesStandardDataset
-from support_scripts.utils.datasets.custom_video_datasets import (
+from .MastersModel import MastersModel
+from .ModelSettingsManager import ModelSettingsManager
+from .RunTimer import RunTimer
+from .datasets.custom_datasets import CityScapesStandardDataset
+from .datasets.custom_video_datasets import (
     CityScapesVideoDataset,
-    collate_fn,
 )
-from support_scripts.utils.norm_management import norm_selector
+from .datasets.dataset_helpers import collate_fn
+from .norm_management import norm_selector
 
 __all__ = [
     "MastersModel",

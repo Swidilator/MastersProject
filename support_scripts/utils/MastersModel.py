@@ -12,27 +12,25 @@ class MastersModel(ABC):
     @abstractmethod
     def __init__(
         self,
+        model: str,
         device: torch.device,
         dataset_path: str,
         input_image_height_width: tuple,
         batch_size: int,
-        use_all_classes: bool,
         num_data_workers: int,
         training_subset_size: int,
         flip_training_images: bool,
-        use_tanh: bool,
-        use_input_image_noise: bool,
         sample_only: bool,
         use_amp: Union[str, bool],
         log_every_n_steps: int,
         model_save_dir: str,
         image_save_dir: str,
         starting_epoch: int,
-        num_frames_per_video: int,
-        num_prior_frames: int,
-        use_optical_flow: bool,
+        num_frames_per_training_video: int,
+        num_frames_per_sampling_video: int,
         prior_frame_seed_type: str,
         use_mask_for_instances: bool,
+        video_frame_offset: Union[int, str],
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -43,29 +41,27 @@ class MastersModel(ABC):
         self.args.pop("kwargs", None)
         self.args.pop("__class__", None)
 
-        self.model_name: Optional[str] = None
+        self.model: str = model
+        self.model_name: Optional[str] = self.model
 
         self.device: torch.device = device
         self.dataset_path: str = dataset_path
         self.input_image_height_width: tuple = input_image_height_width
         self.batch_size: int = batch_size
-        self.use_all_classes: bool = use_all_classes
         self.num_data_workers: int = num_data_workers
         self.training_subset_size: int = training_subset_size
         self.flip_training_images: bool = flip_training_images
-        self.use_tanh: bool = use_tanh
-        self.use_input_image_noise: bool = use_input_image_noise
         self.sample_only: bool = sample_only
         self.use_amp: Union[str, bool] = use_amp
         self.log_every_n_steps: int = log_every_n_steps
         self.model_save_dir: str = model_save_dir
         self.image_save_dir: str = image_save_dir
         self.starting_epoch: int = starting_epoch
-        self.num_frames_per_video: int = num_frames_per_video
-        self.num_prior_frames: int = num_prior_frames
-        self.use_optical_flow: bool = use_optical_flow
+        self.num_frames_per_training_video: int = num_frames_per_training_video
+        self.num_frames_per_sampling_video: int = num_frames_per_sampling_video
         self.prior_frame_seed_type: str = prior_frame_seed_type
         self.use_mask_for_instances: bool = use_mask_for_instances
+        self.video_frame_offset: Union[int, str] = video_frame_offset
 
     @property
     @abstractmethod
