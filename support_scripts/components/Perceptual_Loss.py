@@ -106,7 +106,6 @@ class PerceptualLossNetwork(modules.Module):
         Calculate diversity loss.
 
         """
-        assert len(gen.shape) == 5, "Fake image should be 5D"
         loss = torch.mean(
             label_images * torch.mean(torch.abs(truth - gen), dim=1, keepdim=True),
             dim=(2, 3),

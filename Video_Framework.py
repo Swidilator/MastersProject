@@ -1331,10 +1331,15 @@ class VideoFramework(MastersModel):
                     mask_colour_list.append(transform(mask_colour_total[0, frame_no]))
 
                     # Support for CRN 9 images
-                    for img_no in range(fake_img.shape[1]):
+                    if self.num_frames_per_sampling_video > 1:
                         output_image_list.append(
-                            transform(fake_img[0, img_no].clamp(0.0, 1.0).cpu())
+                            transform(fake_img[0, 0].clamp(0.0, 1.0).cpu())
                         )
+                    else:
+                        for img_no in range(fake_img.shape[1]):
+                            output_image_list.append(
+                                transform(fake_img[0, img_no].clamp(0.0, 1.0).cpu())
+                            )
                     if self.use_feature_encodings:
                         feature_selection_list.append(
                             transform(feature_encoding.squeeze().cpu())
