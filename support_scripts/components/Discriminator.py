@@ -23,16 +23,19 @@ class FullDiscriminator(torch.nn.Module):
 
         self.discriminators: torch.nn.ModuleList = nn.ModuleList()
 
+        # Create discriminators for multiple scales
         for i in range(num_discriminators):
             disc: SingleDiscriminator = SingleDiscriminator(
                 self.device, input_channel_count, use_sigmoid_discriminator
             )
             self.discriminators.append(disc.to(self.device))
 
+        # Downsampling for multiple scales
         self.downsample: nn.AvgPool2d = nn.AvgPool2d(
             3, stride=2, padding=[1, 1], count_include_pad=False
         )
 
+    # Discriminator loss
     def calculate_loss(self, input_tensor: torch.Tensor, label: float, criterion):
         label_tensor = torch.full(
             (input_tensor.shape[0],),
@@ -45,15 +48,18 @@ class FullDiscriminator(torch.nn.Module):
 
     def forward(self, input_tuple: Tuple[torch.Tensor]) -> Discriminator_Output:
 
+        # Takes any amount of inputs and if they exists concats them together
         filtered_input_list: list = [x for x in input_tuple if x is not None]
 
         # Concatenate input tensors together
         input_concat: torch.Tensor = torch.cat(filtered_input_list, dim=1)
 
+        # Premake output tensor
         output: torch.Tensor = torch.tensor([], device=self.device)
-        # output_split: Optional[List[Feature_Extractions]] = []
+        # Activations used for feature matching error
         output_feature_extractions: List[torch.Tensor] = []
 
+        # For each discriminator, generated ouptuts from inputs
         for i in reversed(range(self.num_discriminators)):
             if i < self.num_discriminators - 1:
                 input_concat: torch.Tensor = self.downsample(input_concat)
@@ -64,6 +70,7 @@ class FullDiscriminator(torch.nn.Module):
                 input_concat
             )
 
+            # Add outputs in flattened form
             if output is not None:
                 output = torch.cat((output, single_output.view(-1)))
             else:
@@ -98,6 +105,7 @@ class SingleDiscriminator(torch.nn.Module):
             stride=1,
             padding=2,
         )
+        # This should never be used
         if self.use_sigmoid_discriminator:
             self.sigmoid: nn.Sigmoid = nn.Sigmoid()
 
@@ -111,10 +119,9 @@ class SingleDiscriminator(torch.nn.Module):
         out = self.final_conv(out4)
         if self.use_sigmoid_discriminator:
             out = self.sigmoid(out)
-        # out = torch.mean(out, axis=(1, 2, 3))
 
+        # Return output and everything needed for feature matching error
         return out, [out1, out2, out3, out4, concat_input]
-        # return out, ((out1, n1), (out2, n2), (out3, n3), (out4, n4))
 
 
 def feature_matching_error(
@@ -126,7 +133,7 @@ def feature_matching_error(
     """
     Compute the L1 feature matching error between real and fake image network features.
 
-    :param num_discriminators:
+    :param num_discriminators: Number of discriminators to use.
     :param output_extra_real: List of network outputs generated from real image.
     :param output_extra_fake: List of network outputs generated from fake image.
     :param feature_matching_weight: Float for scaling feature matching loss.

@@ -112,7 +112,8 @@ class RMBlock(Block):
         num_conv_groups: int = 1,
     ):
         super().__init__(filter_count, input_channel_count)
-        # Module architecture
+        # Base refinement module conv > norm > relu, with extra features
+
         self.conv_1 = nn.Conv2d(
             input_channel_count,
             filter_count,
@@ -123,6 +124,7 @@ class RMBlock(Block):
         )
         Block.init_conv_weights(conv=self.conv_1, init_type="normal")
 
+        # Select desired norm
         self.norm_1, self.conv_1 = norm_selector(
             norm_type, input_height_width, input_channel_count, self.conv_1
         )
@@ -149,8 +151,6 @@ class CCILBlock(Block):
         kernel_size: int = 4
         stride: int = 2
         padding: int = 2
-
-        # self.reflect_pad: nn.ReflectionPad2d = nn.ReflectionPad2d(padding)
 
         self.conv_1: modules.Conv2d = nn.Conv2d(
             self.input_channel_count,

@@ -31,15 +31,12 @@ class MastersModel(ABC):
         prior_frame_seed_type: str,
         use_mask_for_instances: bool,
         video_frame_offset: Union[int, str],
+        use_saved_feature_encodings: bool,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
 
-        self.args: dict = dict(locals())
         self.kwargs: dict = dict(kwargs)
-        self.args.pop("self", None)
-        self.args.pop("kwargs", None)
-        self.args.pop("__class__", None)
 
         self.model: str = model
         self.model_name: Optional[str] = self.model
@@ -62,6 +59,7 @@ class MastersModel(ABC):
         self.prior_frame_seed_type: str = prior_frame_seed_type
         self.use_mask_for_instances: bool = use_mask_for_instances
         self.video_frame_offset: Union[int, str] = video_frame_offset
+        self.use_saved_feature_encodings: bool = use_saved_feature_encodings
 
     @property
     @abstractmethod
@@ -208,15 +206,13 @@ class MastersModel(ABC):
         pass
 
     @abstractmethod
-    def sample(
-        self, image_numbers: Union[int, tuple], video_dataset: bool = False
-    ) -> Union[SampleDataHolder, List[SampleDataHolder]]:
+    def sample(self, index: int, demovideo_dataset: bool = False) -> SampleDataHolder:
         """
         Sample k random images from dataset, forward through network.
 
         Args:
-            image_numbers: number of images to sample
-            video_dataset: use video dataset instead.
+            index: image index to sample
+            demovideo_dataset: use demovideo dataset instead.
 
         Returns:
             Union[dict, List[dict]]

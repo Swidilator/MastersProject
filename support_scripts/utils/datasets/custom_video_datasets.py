@@ -42,14 +42,12 @@ class CityScapesVideoDataset(Dataset):
         self.subset_size: int = subset_size
         self.should_flip: bool = should_flip
 
-        if type(frame_offset) is int:
-            self.frame_offset: int = frame_offset
-            self.random_offset: bool = False
-        elif frame_offset == "random":
+        if frame_offset == "random":
             self.frame_offset: int = 0
             self.random_offset: bool = True
         else:
-            raise ValueError("Invalid frame_offset value.")
+            self.frame_offset: int = int(frame_offset)
+            self.random_offset: bool = False
 
         if self.frame_offset + self.num_frames > 30:
             raise ValueError("num_frames too great for the given frame offset")

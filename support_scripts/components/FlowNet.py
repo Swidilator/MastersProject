@@ -10,6 +10,10 @@ class ArgShim:
 
 class FlowNetWrapper(torch.nn.Module):
     def __init__(self, flownet_checkpoint_folder: str):
+        """
+        Wrapper around flownet 2 to make it easy and convenient to use
+
+        """
         super().__init__()
         from support_scripts.components.flownet2_pytorch.models import (
             FlowNet2 as __FlowNet2__,
@@ -18,6 +22,7 @@ class FlowNetWrapper(torch.nn.Module):
         # load the state_dict
         state_dict = torch.load(flownet_checkpoint_folder)
 
+        # Base network takes args, this fills them in
         args = ArgShim(False, 1.0)
         self.net = __FlowNet2__(args)
         self.net.load_state_dict(state_dict["state_dict"])
@@ -42,6 +47,7 @@ class FlowNetWrapper(torch.nn.Module):
     def get_grid(
         batch_size, input_height_width: tuple, device: torch.device
     ) -> torch.Tensor:
+        # Taken from vid2vid code, necessary for resample to work
         rows, cols = input_height_width
 
         hor = torch.linspace(-1.0, 1.0, cols)
@@ -62,8 +68,8 @@ class FlowNetWrapper(torch.nn.Module):
     def resample(
         image: torch.Tensor, flow: torch.Tensor, grid: torch.Tensor
     ) -> torch.Tensor:
+        # Taken from vid2vid, performs correct warping using flow
         b, c, h, w = image.size()
-        # grid = self.get_grid(b, h, w, gpu_id=flow.get_device(), dtype=flow.dtype)
         flow = torch.cat(
             [
                 flow[:, 0:1, :, :] / ((w - 1.0) / 2.0),

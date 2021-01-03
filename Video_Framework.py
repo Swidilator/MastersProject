@@ -55,6 +55,7 @@ class VideoFramework(MastersModel):
         prior_frame_seed_type: str,
         use_mask_for_instances: bool,
         video_frame_offset: Union[int, str],
+        use_saved_feature_encodings: bool,
         **kwargs,
     ):
         super(VideoFramework, self).__init__(
@@ -77,6 +78,7 @@ class VideoFramework(MastersModel):
             prior_frame_seed_type,
             use_mask_for_instances,
             video_frame_offset,
+            use_saved_feature_encodings,
             **kwargs,
         )
 
@@ -86,7 +88,6 @@ class VideoFramework(MastersModel):
         self.decay_staring_epoch: int = kwargs["decay_staring_epoch"]
         self.use_noisy_labels: bool = kwargs["use_noisy_labels"]
         self.use_feature_encodings: bool = kwargs["use_feature_encodings"]
-        self.use_saved_feature_encodings: bool = kwargs["use_saved_feature_encodings"]
         self.use_edge_map: bool = kwargs["use_edge_map"]
         self.use_perceptual_loss: bool = kwargs["use_perceptual_loss"]
         self.perceptual_base_model: str = kwargs["perceptual_base_model"]
@@ -156,7 +157,6 @@ class VideoFramework(MastersModel):
             "decay_staring_epoch": manager.model_conf["DECAY_STARTING_EPOCH"],
             "use_noisy_labels": manager.model_conf["USE_NOISY_LABELS"],
             "use_feature_encodings": manager.model_conf["USE_FEATURE_ENCODINGS"],
-            "use_saved_feature_encodings": manager.model_conf["USE_SAVED_FEATURE_ENCODINGS"],
             "use_edge_map": manager.model_conf["USE_EDGE_MAP"],
             "use_perceptual_loss": manager.model_conf["USE_PERCEPTUAL_LOSS"],
             "perceptual_base_model": manager.model_conf["PERCEPTUAL_BASE_MODEL"],
@@ -192,20 +192,24 @@ class VideoFramework(MastersModel):
 
         if self.use_optical_flow:
             assert (
-                self.num_frames_per_training_video > 1
-            ), "self.use_optical_flow is True, but self.num_frames_per_training_video == 1."
+                self.num_frames_per_sampling_video > 1
+            ), "self.use_optical_flow is True, but self.num_frames_per_sampling_video == 1."
+            if not self.sample_only:
+                assert (
+                    self.num_frames_per_training_video > 1
+                ), "self.use_optical_flow is True, but self.num_frames_per_training_video == 1."
 
         skip_first_training_frame: int = (
-            self.prior_frame_seed_type == "real" or self.use_optical_flow
+            (self.prior_frame_seed_type == "real" or self.use_optical_flow) and not self.sample_only
         )
         num_frames_per_training_video = (
             self.num_frames_per_training_video + skip_first_training_frame
         )
         num_frames_per_sampling_video = (
-            self.num_frames_per_sampling_video + self.use_optical_flow
+            self.num_frames_per_sampling_video + self.num_prior_frames + self.use_optical_flow
         )
 
-        if self.num_frames_per_training_video > 1:
+        if num_frames_per_training_video > 1:
             dataset_train = CityScapesVideoDataset
             root = self.dataset_path + "/sequence"
             generated_data: bool = True
@@ -491,7 +495,6 @@ class VideoFramework(MastersModel):
         update_logs: dict = {"reordered_discriminators": True}
 
         save_dict: dict = {
-            "args": self.args,
             "kwargs": self.kwargs,
             "update_logs": update_logs,
         }
@@ -640,10 +643,13 @@ class VideoFramework(MastersModel):
             manager.args["model_save_dir"], manager.args["load_saved_model"]
         )
         checkpoint = torch.load(load_path)
-        args: dict = checkpoint["args"]
         kwargs: dict = checkpoint["kwargs"]
 
-        model_frame: VideoFramework = cls(**args, **kwargs)
+        shared_keys: list = [x for x in manager.args.keys() if x in kwargs]
+        for key in shared_keys:
+            del kwargs[key]
+
+        model_frame: VideoFramework = cls(**manager.args, **kwargs)
         model_frame.load_model(manager.args["load_saved_model"])
         return model_frame
 
@@ -1160,16 +1166,17 @@ class VideoFramework(MastersModel):
                 self.num_frames_per_sampling_video > 1
             ), "self.use_optical_flow == True, but self.num_frames_per_sampling_video <= 1."
 
-        # Extra frame only needed if optical flow is used.
+        extra_frame_count: int = self.num_prior_frames
+
         num_frames_per_sampling_video = (
-            self.num_frames_per_sampling_video + self.use_optical_flow
+                self.num_frames_per_sampling_video + self.num_prior_frames + self.use_optical_flow
         )
 
         # Set generator to eval mode
         self.generator.eval()
         if self.use_feature_encodings:
             self.feature_encoder.eval()
-        if self.num_discriminators > 0:
+        if self.num_discriminators > 0 and not self.sample_only:
             self.image_discriminator.eval()
             if self.use_optical_flow:
                 self.flow_discriminator.eval()
@@ -1208,6 +1215,8 @@ class VideoFramework(MastersModel):
             prior_mask_list: list = [
                 torch.zeros_like(mask_total[:, 0], device=self.device)
             ] * self.num_prior_frames
+
+            num_frames_generated: int = 0
 
             # Loop through each frame
             for frame_no in range(self.use_optical_flow, num_frames_per_sampling_video):
@@ -1303,31 +1312,35 @@ class VideoFramework(MastersModel):
                             / 255.0
                         )
 
-                        # Append transformed flow
-                        hallucinated_image_list.append(
-                            transform(fake_img_h.squeeze().clamp(0.0, 1.0).cpu())
-                        )
-                        warped_image_list.append(
-                            transform(fake_img_w.squeeze().clamp(0.0, 1.0).cpu())
-                        )
-                        combination_weights_list.append(
-                            transform(fake_flow_mask[0, 0].cpu())
-                        )
-                        output_flow_list.append(transform(fake_flow_viz))
-                        reference_flow_list.append(transform(real_flow_viz))
+                        if num_frames_generated >= self.num_prior_frames:
+                            # Append transformed flow
+                            hallucinated_image_list.append(
+                                transform(fake_img_h.squeeze().clamp(0.0, 1.0).cpu())
+                            )
+                            warped_image_list.append(
+                                transform(fake_img_w.squeeze().clamp(0.0, 1.0).cpu())
+                            )
+                            combination_weights_list.append(
+                                transform(fake_flow_mask[0, 0].cpu())
+                            )
+                            output_flow_list.append(transform(fake_flow_viz))
+                            reference_flow_list.append(transform(real_flow_viz))
 
-                reference_image_list.append(transform(real_img.squeeze().cpu()))
-                mask_colour_list.append(transform(mask_colour_total[0, frame_no]))
+                if num_frames_generated >= self.num_prior_frames:
+                    reference_image_list.append(transform(real_img.squeeze().cpu()))
+                    mask_colour_list.append(transform(mask_colour_total[0, frame_no]))
 
-                # Support for CRN 9 images
-                for img_no in range(fake_img.shape[1]):
-                    output_image_list.append(
-                        transform(fake_img[0, img_no].clamp(0.0, 1.0).cpu())
-                    )
-                if self.use_feature_encodings:
-                    feature_selection_list.append(
-                        transform(feature_encoding.squeeze().cpu())
-                    )
+                    # Support for CRN 9 images
+                    for img_no in range(fake_img.shape[1]):
+                        output_image_list.append(
+                            transform(fake_img[0, img_no].clamp(0.0, 1.0).cpu())
+                        )
+                    if self.use_feature_encodings:
+                        feature_selection_list.append(
+                            transform(feature_encoding.squeeze().cpu())
+                        )
+
+                num_frames_generated += 1
 
             # Data holder struct for easy referencing of data
             output_data_holder: SampleDataHolder = SampleDataHolder(

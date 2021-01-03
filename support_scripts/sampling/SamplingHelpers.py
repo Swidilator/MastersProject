@@ -4,7 +4,7 @@ import random
 import imageio
 import torch
 import numpy as np
-from typing import Tuple, List, Union, Dict
+from typing import Tuple, List, Union, Dict, Optional
 
 from PIL import Image
 from PIL import ImageFont
@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from tqdm import tqdm
 
 from support_scripts.utils import MastersModel
-
 
 @dataclass
 class SampleDataHolder:
@@ -35,8 +34,11 @@ class SampleDataHolder:
     final_gif: np.ndarray = None
 
 
-# When sampling, this combines images for saving as side-by-side comparisons
 def __process_sampled_image__(image_data_holder: SampleDataHolder) -> Image:
+    """
+    When sampling, this combines images for saving as side-by-side comparisons
+
+    """
     img_width: int = image_data_holder.reference_image[0].size[0]
     img_height: int = image_data_holder.reference_image[0].size[1]
 
@@ -47,6 +49,7 @@ def __process_sampled_image__(image_data_holder: SampleDataHolder) -> Image:
     ) as font_handle:
         font = ImageFont.truetype(font_handle, 14)
 
+    # Create composite image for each video frame
     for video_frame in range(len(image_data_holder.reference_image)):
         ordered_image_list: list = [
             image_data_holder.reference_image[video_frame],
@@ -97,12 +100,14 @@ def __process_sampled_image__(image_data_holder: SampleDataHolder) -> Image:
             draw.text((5, img_height - 20), "reference_flow", (0, 0, 0), font=font)
             ordered_image_list.append(single_image)
 
+        # Two horizontal images, and calculate vertically
         num_images_hor: int = 2
         num_images_vert: int = (len(ordered_image_list) + 1) // num_images_hor
 
         total_img_width: int = img_width * num_images_hor
         total_img_height: int = img_height * num_images_vert
 
+        # Create blank image of correct size, and paste individual images into them
         new_image: Image = Image.new("RGB", (total_img_width, total_img_height))
         for img_no_vert in range(total_img_height):
             for img_no_hor in range(total_img_width):
@@ -113,10 +118,15 @@ def __process_sampled_image__(image_data_holder: SampleDataHolder) -> Image:
                         (img_no_hor * img_width, img_no_vert * img_height),
                     )
 
+        # Update data holder with new composite image
         image_data_holder.composite_image.append(new_image)
 
 
 def create_image_directories(image_output_dir: str, model_name: str) -> str:
+    """
+    Create directory for images to be stored in
+
+    """
     model_image_dir: str = os.path.join(image_output_dir, model_name)
     os.makedirs(model_image_dir, exist_ok=True)
     return model_image_dir
@@ -128,6 +138,11 @@ def sample_from_model(
     num_images: int = 1,
     indices: tuple = (0,),
 ) -> Tuple[List[SampleDataHolder], List]:
+    """
+    Sample a set of images/unmade videos from the given model, either from a set of indices,
+    or a random number.
+
+    """
     if mode == "random":
         sample_list: list = random.sample(range(len(model.data_set_val)), num_images)
     elif mode == "fixed":
@@ -135,6 +150,7 @@ def sample_from_model(
     else:
         raise ValueError("Please choose from the following modes: 'random', 'fixed'.")
 
+    # Sample from model
     with torch.no_grad():
         image_data_holders: List[SampleDataHolder] = [
             model.sample(x) for x in sample_list
@@ -142,11 +158,17 @@ def sample_from_model(
 
     data_holder: SampleDataHolder
     for j, data_holder in enumerate(tqdm(image_data_holders, desc="Sampling")):
+
+        # Create the composite images
         __process_sampled_image__(data_holder)
+
+        # Create video if sampling for video
         if data_holder.video_sample:
             num_frames: int = len(data_holder.composite_image)
             img_shape: tuple = tuple(reversed(data_holder.composite_image[0].size))
+
             final_gif: np.ndarray = np.empty((num_frames, 3, *img_shape))
+
             for frame_no, comp_img in enumerate(data_holder.composite_image):
                 final_gif[frame_no] = np.array(comp_img).transpose(2, 0, 1)
 
@@ -159,63 +181,50 @@ def sample_video_from_model(
     model: MastersModel,
     index_range: tuple,
     output_image_dir: str = None,
-    output_image_number: int = 0,
-    batch_size=2,
 ) -> Tuple[np.ndarray, np.ndarray]:
     # Tuples of indices
-    batched_indices: list = []
-
-    original_img_np: np.ndarray = None
-    output_img_np: np.ndarray = None
+    reference_img_np: Optional[np.ndarray] = None
+    fake_img_np: Optional[np.ndarray] = None
 
     # TODO add support for vertical images.
     # standard_scale: int = 256
 
-    for i in range(*index_range, batch_size):
-        start_range_index = i
-        end_range_index = i + batch_size
-        if end_range_index > index_range[1]:
-            end_range_index = index_range[1]
-        batched_indices.append(tuple(range(start_range_index, end_range_index)))
-
-    for tup_num, tup in enumerate(tqdm(batched_indices)):
-        base_index: int = batch_size * tup_num + index_range[0]
+    for i, image_index in enumerate(tqdm(range(index_range[0], index_range[1]))):
         with torch.no_grad():
-            image_data_holders: List[SampleDataHolder] = [
-                model.sample(tup, video_dataset=True)
-            ]
-        for data_num, image_data_holder in enumerate(image_data_holders):
-            if output_image_dir is not None:
-                image_data_holder.output_image[output_image_number].save(
-                    os.path.join(
-                        output_image_dir, f"{base_index + data_num}".zfill(5) + ".png"
-                    ),
-                    "PNG",
-                )
-            if output_img_np is None:
-                output_img_np = np.array(
-                    image_data_holder.output_image[output_image_number].resize(
-                        (512, 256), Image.BILINEAR
-                    )
-                )[np.newaxis, :]
-                original_img_np = np.array(
-                    image_data_holder.reference_image[0].resize(
-                        (512, 256), Image.BILINEAR
-                    )
-                )[np.newaxis, :]
-            else:
-                tmp_output = np.array(
-                    image_data_holder.output_image[output_image_number].resize(
-                        (512, 256), Image.BILINEAR
-                    )
-                )[np.newaxis, :]
-                output_img_np = np.append(output_img_np, tmp_output, axis=0)
+            image_data_holder: SampleDataHolder = model.sample(image_index, demovideo_dataset=False)
 
-                tmp_original = np.array(
-                    image_data_holder.reference_image[0].resize(
-                        (512, 256), Image.BILINEAR
+            for frame_no in range(len(image_data_holder.output_image)):
+                if output_image_dir is not None:
+                    image_data_holder.output_image[frame_no].save(
+                        os.path.join(
+                            output_image_dir, f"{str(image_index).zfill(5)}_{str(frame_no).zfill(5)}".zfill(5) + ".png"
+                        ),
+                        "PNG",
                     )
-                )[np.newaxis, :]
-                original_img_np = np.append(original_img_np, tmp_original, axis=0)
+                if fake_img_np is None:
+                    fake_img_np = np.array(
+                        image_data_holder.output_image[frame_no].resize(
+                            (512, 256), Image.BILINEAR
+                        )
+                    )[np.newaxis, :]
+                    reference_img_np = np.array(
+                        image_data_holder.reference_image[0].resize(
+                            (512, 256), Image.BILINEAR
+                        )
+                    )[np.newaxis, :]
+                else:
+                    tmp_output = np.array(
+                        image_data_holder.output_image[frame_no].resize(
+                            (512, 256), Image.BILINEAR
+                        )
+                    )[np.newaxis, :]
+                    fake_img_np = np.append(fake_img_np, tmp_output, axis=0)
 
-    return original_img_np, output_img_np
+                    tmp_original = np.array(
+                        image_data_holder.reference_image[0].resize(
+                            (512, 256), Image.BILINEAR
+                        )
+                    )[np.newaxis, :]
+                    reference_img_np = np.append(reference_img_np, tmp_original, axis=0)
+
+    return reference_img_np, fake_img_np

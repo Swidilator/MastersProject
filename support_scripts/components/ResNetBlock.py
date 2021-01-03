@@ -8,6 +8,10 @@ class ResNetBlock(nn.Module):
     def __init__(
         self, channel_count: int, input_height_width: tuple, no_add: bool = False
     ):
+        """
+        A fancy resnext block with grouped convolutions
+
+        """
         super().__init__()
 
         self.no_add: bool = no_add

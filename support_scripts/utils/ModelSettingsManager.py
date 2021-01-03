@@ -27,7 +27,6 @@ class ModelSettingsManager:
         parser = argparse.ArgumentParser(description="Masters model main file")
 
         parser.add_argument("model", action="store")
-        parser.add_argument("dataset", action="store")
         parser.add_argument("dataset_path", action="store")
         parser.add_argument("input_image_height_width", action="store", type=eval)
         parser.add_argument("batch_size", action="store", type=int)
@@ -50,7 +49,6 @@ class ModelSettingsManager:
         parser.add_argument("--save-every-num-epochs", action="store", default=0, type=int)
         parser.add_argument("--load-saved-model", action="store", default=None)
         parser.add_argument("--log-every-n-steps", action="store", default=8)
-        #parser.add_argument("--use-tanh", action="store_true", default=False)
         parser.add_argument("--use-amp", action="store", default=False)
         parser.add_argument("--num-data-workers", action="store", default=6, type=int)
         parser.add_argument("--flip-training-images", action="store_true", default=False)
@@ -58,11 +56,10 @@ class ModelSettingsManager:
         parser.add_argument("--max-run-hours", action="store", default=0.0, type=float)
         parser.add_argument("--num-frames-per-training-video", action="store", default=1, type=int)
         parser.add_argument("--num-frames-per-sampling-video", action="store", default=16, type=int)
-        #parser.add_argument("--num-prior-frames", action="store", default=2, type=int)
-        #parser.add_argument("--use-optical-flow", action="store_true", default=False)
         parser.add_argument("--prior-frame-seed-type", action="store", default="zero", type=str)
         parser.add_argument("--video-frame-offset", action="store", default="random", type=str)
         parser.add_argument("--use-mask-for-instances", action="store_true", default=False)
+        parser.add_argument("--use-saved-feature-encodings", action="store_true", default=False)
 
         args: dict = vars(parser.parse_args())
 

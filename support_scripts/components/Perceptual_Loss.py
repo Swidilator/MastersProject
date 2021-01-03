@@ -26,6 +26,10 @@ class CircularList:
 
 class FeatureNet(modules.Module):
     def __init__(self, model: str):
+        """
+        Creates and cleans up the base model used in the perceptual loss network.
+
+        """
         super(FeatureNet, self).__init__()
         if model == "VGG":
             feature_network: torch.nn.Sequential = torchvision.models.vgg19(
@@ -73,14 +77,13 @@ class PerceptualLossNetwork(modules.Module):
         self.use_loss_output_image: bool = use_loss_output_image
         self.loss_scaling_method: str = loss_scaling_method
 
-        self.output_feature_layers: list = []
-
         self.feature_network: FeatureNet = FeatureNet(self.base_model)
 
         self.normalise = transforms.Normalize(
             mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
         )
 
+        # Various scaling methods, official should be used at all times
         if self.loss_scaling_method == "official":
             # Values taken from official source code, no idea how they got them
             self.loss_layer_scales: list = [1.6, 2.3, 1.8, 2.8, 0.08, 1.0]
@@ -99,6 +102,11 @@ class PerceptualLossNetwork(modules.Module):
     def __calculate_loss(
         gen: torch.Tensor, truth: torch.Tensor, label_images: torch.Tensor
     ) -> torch.Tensor:
+        """
+        Calculate diversity loss.
+
+        """
+        assert len(gen.shape) == 5, "Fake image should be 5D"
         loss = torch.mean(
             label_images * torch.mean(torch.abs(truth - gen), dim=1, keepdim=True),
             dim=(2, 3),
@@ -121,7 +129,6 @@ class PerceptualLossNetwork(modules.Module):
             for out_img in range(input_gen_init.shape[1]):
                 input_gen[b, out_img] = self.normalise(input_gen_init[b, out_img])
 
-        # img_losses: list = []
         this_batch_size = input_gen.shape[0]
 
         # Loss function requires multiple images per image, so 5D
@@ -139,13 +146,14 @@ class PerceptualLossNetwork(modules.Module):
             result_truth: tuple = self.feature_network(input_truth[b])
             result_gen: tuple = self.feature_network(input_gen[b])
 
+            # Direct input image comparison
             if self.use_loss_output_image:
                 input_loss: torch.Tensor = self.__calculate_loss(
                     input_gen[b], input_truth[b], input_label[b]
                 )
                 loss[b] += input_loss / self.loss_layer_scales[-1]
 
-            # VGG feature layer output comparisons
+            # Feature network layer output comparisons
             for i in range(len(result_gen)):
                 label_shape: tuple = tuple(result_truth[i][b].shape[1:])
                 label_interpolate = torch.nn.functional.interpolate(
@@ -160,6 +168,7 @@ class PerceptualLossNetwork(modules.Module):
 
                 loss[b] += layer_loss / self.loss_layer_scales[i]
 
+        # Calculate the minimum loss according to the diversity loss method
         min_loss, _ = torch.min(loss, dim=1)
 
         min_component = min_loss.sum(dim=1, keepdim=True) * 0.999
