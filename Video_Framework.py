@@ -200,13 +200,15 @@ class VideoFramework(MastersModel):
                 ), "self.use_optical_flow is True, but self.num_frames_per_training_video == 1."
 
         skip_first_training_frame: int = (
-            (self.prior_frame_seed_type == "real" or self.use_optical_flow) and not self.sample_only
-        )
+            self.prior_frame_seed_type == "real" or self.use_optical_flow
+        ) and not self.sample_only
         num_frames_per_training_video = (
             self.num_frames_per_training_video + skip_first_training_frame
         )
         num_frames_per_sampling_video = (
-            self.num_frames_per_sampling_video + self.num_prior_frames + self.use_optical_flow
+            self.num_frames_per_sampling_video
+            + self.num_prior_frames
+            + self.use_optical_flow
         )
 
         if num_frames_per_training_video > 1:
@@ -404,10 +406,10 @@ class VideoFramework(MastersModel):
             # Flownet for video training
             if self.use_optical_flow:
                 assert (
-                        self.num_prior_frames > 0
+                    self.num_prior_frames > 0
                 ), "self.use_optical_flow == True, but self.num_prior_frames == 0."
                 assert (
-                        self.num_frames_per_training_video > 0
+                    self.num_frames_per_training_video > 0
                 ), "self.use_optical_flow == True, but self.num_frames_per_training_video == 0."
 
                 self.flow_criterion = torch.nn.L1Loss()
@@ -495,6 +497,7 @@ class VideoFramework(MastersModel):
         update_logs: dict = {"reordered_discriminators": True}
 
         save_dict: dict = {
+            "model": self.model,
             "kwargs": self.kwargs,
             "update_logs": update_logs,
         }
@@ -540,6 +543,15 @@ class VideoFramework(MastersModel):
                     }
                 )
 
+        # Save optimisers
+        save_dict.update({"optimizer_G": self.optimizer_G.state_dict()})
+        if self.num_discriminators > 0:
+            save_dict.update({"optimizer_D_image": self.optimizer_D_image.state_dict()})
+            if self.use_optical_flow:
+                save_dict.update(
+                    {"optimizer_D_flow": self.optimizer_D_flow.state_dict()}
+                )
+
         if epoch >= 0:
             epoch_file_name: str = os.path.join(
                 self.model_save_dir,
@@ -561,6 +573,11 @@ class VideoFramework(MastersModel):
         print(load_path)
 
         checkpoint = torch.load(load_path, map_location=self.device)
+
+        if "model" in checkpoint:
+            assert (
+                checkpoint["model"] == self.model
+            ), "checkpoint['model'] does not match self.model."
 
         # Modifying older saves to newer standards
         update_logs: dict = {"reordered_discriminators": False}
@@ -635,7 +652,29 @@ class VideoFramework(MastersModel):
                             ],
                         ]
                     )
-        pass
+
+            # Optimisers, not my proudest code
+            try:
+                if "optimizer_G" in checkpoint:
+                    self.optimizer_G.load_state_dict(checkpoint["optimizer_G"])
+            except Exception:
+                print("optimizer_G could not load state dict")
+            if self.num_discriminators > 0:
+                try:
+                    if "optimizer_D_image" in checkpoint:
+                        self.optimizer_D_image.load_state_dict(
+                            checkpoint["optimizer_D_image"]
+                        )
+                except Exception:
+                    print("optimizer_D_image could not load state dict")
+                if self.use_optical_flow:
+                    try:
+                        if "optimizer_D_flow" in checkpoint:
+                            self.optimizer_D_flow.load_state_dict(
+                                checkpoint["optimizer_D_flow"]
+                            )
+                    except Exception:
+                        print("optimizer_D_flow could not load state dict")
 
     @classmethod
     def load_model_with_embedded_settings(cls, manager: ModelSettingsManager):
@@ -1169,7 +1208,9 @@ class VideoFramework(MastersModel):
         extra_frame_count: int = self.num_prior_frames
 
         num_frames_per_sampling_video = (
-                self.num_frames_per_sampling_video + self.num_prior_frames + self.use_optical_flow
+            self.num_frames_per_sampling_video
+            + self.num_prior_frames
+            + self.use_optical_flow
         )
 
         # Set generator to eval mode
@@ -1230,7 +1271,9 @@ class VideoFramework(MastersModel):
 
                 if self.use_feature_encodings:
                     if self.use_saved_feature_encodings:
-                        feature_encoding: Optional[torch.Tensor] = self.feature_encoder.sample_using_means(
+                        feature_encoding: Optional[
+                            torch.Tensor
+                        ] = self.feature_encoder.sample_using_means(
                             instance, mask, fixed_class_lists=True
                         )
                     else:
@@ -1274,7 +1317,7 @@ class VideoFramework(MastersModel):
                     ]
                     prior_mask_list = [
                         mask.detach(),
-                        *prior_mask_list[0: self.num_prior_frames - 1],
+                        *prior_mask_list[0 : self.num_prior_frames - 1],
                     ]
 
                     if self.use_optical_flow:
