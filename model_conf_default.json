@@ -16,6 +16,7 @@
   "USE_OPTICAL_FLOW": false,
   "USE_TANH": false,
   "NUM_PRIOR_FRAMES": 0,
+  "NORMALISE_PRIOR_FRAMES":  false,
 
   "GAN_USE_LOCAL_ENHANCER": false,
   "GAN_LOCK_GLOBAL_GENERATOR": false,

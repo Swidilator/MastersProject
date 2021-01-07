@@ -100,6 +100,7 @@ class VideoFramework(MastersModel):
         self.use_optical_flow: bool = kwargs["use_optical_flow"]
         self.use_tanh: bool = kwargs["use_tanh"]
         self.num_prior_frames: int = kwargs["num_prior_frames"]
+        self.normalise_prior_frames: int = kwargs["normalise_prior_frames"]
 
         self.use_local_enhancer: bool = kwargs["use_local_enhancer"]
         self.lock_global_generator: bool = kwargs["lock_global_generator"]
@@ -169,6 +170,7 @@ class VideoFramework(MastersModel):
             "use_optical_flow": manager.model_conf["USE_OPTICAL_FLOW"],
             "use_tanh": manager.model_conf["USE_TANH"],
             "num_prior_frames": manager.model_conf["NUM_PRIOR_FRAMES"],
+            "normalise_prior_frames": manager.model_conf["NORMALISE_PRIOR_FRAMES"],
 
             "use_local_enhancer": manager.model_conf["GAN_USE_LOCAL_ENHANCER"],
             "lock_global_generator": manager.model_conf["GAN_LOCK_GLOBAL_GENERATOR"],
@@ -1041,11 +1043,11 @@ class VideoFramework(MastersModel):
                     if self.num_prior_frames > 0:
 
                         prior_fake_image_list = [
-                            fake_img[:, 0].detach().clone().clamp(0.0, 1.0),
+                            fake_img[:, 0].detach().clone().clamp(0.0, 1.0) - (self.normalise_prior_frames * 0.5),
                             *prior_fake_image_list[0 : self.num_prior_frames - 1],
                         ]
                         prior_reference_image_list = [
-                            reference_image.detach().clone(),
+                            reference_image.detach().clone() - (self.normalise_prior_frames * 0.5),
                             *prior_reference_image_list[0 : self.num_prior_frames - 1],
                         ]
                         prior_mask_list = [
@@ -1205,7 +1207,6 @@ class VideoFramework(MastersModel):
                 self.num_frames_per_sampling_video > 1
             ), "self.use_optical_flow == True, but self.num_frames_per_sampling_video <= 1."
 
-        extra_frame_count: int = self.num_prior_frames
 
         num_frames_per_sampling_video = (
             self.num_frames_per_sampling_video
@@ -1312,7 +1313,7 @@ class VideoFramework(MastersModel):
                 # Previous outputs stored for input later
                 if self.num_prior_frames > 0:
                     prior_image_list = [
-                        fake_img[:, 0].detach().clone().clamp(0.0, 1.0),
+                        fake_img[:, 0].detach().clone().clamp(0.0, 1.0) - (self.normalise_prior_frames * 0.5),
                         *prior_image_list[0 : self.num_prior_frames - 1],
                     ]
                     prior_mask_list = [
