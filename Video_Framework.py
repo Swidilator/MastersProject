@@ -4,6 +4,7 @@ from itertools import chain
 from typing import Any, Tuple, List, Union, Optional
 
 import torch
+from torch.cuda import amp as torch_amp
 import wandb
 from PIL import ImageFile
 from torch import nn
@@ -473,16 +474,9 @@ class VideoFramework(MastersModel):
                         # weight_decay=0,
                     )
 
-            # Mixed precision
-            if self.use_amp == "torch":
-                from torch.cuda import amp as torch_amp
-
-                self.torch_gradient_scaler: torch_amp.GradScaler() = (
-                    torch_amp.GradScaler()
-                )
-                self.torch_amp_autocast = torch_amp.autocast
-            else:
-                self.torch_amp_autocast = nullcontext
+            self.torch_gradient_scaler: torch_amp.GradScaler = (
+                torch_amp.GradScaler(enabled=self.use_amp == "torch")
+            )
 
     def save_model(self, epoch: int = -1) -> None:
         super().save_model()
@@ -808,7 +802,7 @@ class VideoFramework(MastersModel):
                 )
 
                 # Autocast if using amp
-                with self.torch_amp_autocast():
+                with torch_amp.autocast(enabled=self.use_amp == "torch"):
                     # Perceptual loss
                     loss_img: torch.Tensor = torch.zeros(1, device=self.device)
                     # Image discriminator loss
@@ -1043,11 +1037,13 @@ class VideoFramework(MastersModel):
                     if self.num_prior_frames > 0:
 
                         prior_fake_image_list = [
-                            fake_img[:, 0].detach().clone().clamp(0.0, 1.0) - (self.normalise_prior_frames * 0.5),
+                            fake_img[:, 0].detach().clone().clamp(0.0, 1.0)
+                            - (self.normalise_prior_frames * 0.5),
                             *prior_fake_image_list[0 : self.num_prior_frames - 1],
                         ]
                         prior_reference_image_list = [
-                            reference_image.detach().clone() - (self.normalise_prior_frames * 0.5),
+                            reference_image.detach().clone()
+                            - (self.normalise_prior_frames * 0.5),
                             *prior_reference_image_list[0 : self.num_prior_frames - 1],
                         ]
                         prior_mask_list = [
@@ -1075,51 +1071,33 @@ class VideoFramework(MastersModel):
                     )
 
                 # Do backwards passes, if using amp, do the fancy version
-                if self.use_amp == "torch":
-                    self.optimizer_G.zero_grad()
-                    self.torch_gradient_scaler.scale(loss).backward()
-                    torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 30)
-                    self.torch_gradient_scaler.step(self.optimizer_G)
+                # if self.use_amp == "torch":
+                self.optimizer_G.zero_grad()
+                self.torch_gradient_scaler.scale(loss).backward()
+                self.torch_gradient_scaler.unscale_(self.optimizer_G)
+                torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 30)
+                self.torch_gradient_scaler.step(self.optimizer_G)
+                self.torch_gradient_scaler.update()
+
+                if self.num_discriminators > 0:
+                    self.optimizer_D_image.zero_grad()
+                    self.torch_gradient_scaler.scale(loss_d_image).backward()
+                    self.torch_gradient_scaler.unscale_(self.optimizer_D_image)
+                    torch.nn.utils.clip_grad_norm_(
+                        self.image_discriminator.parameters(), 30
+                    )
+                    self.torch_gradient_scaler.step(self.optimizer_D_image)
                     self.torch_gradient_scaler.update()
 
-                    if self.num_discriminators > 0:
-                        self.optimizer_D_image.zero_grad()
-                        self.torch_gradient_scaler.scale(loss_d_image).backward()
+                    if self.use_optical_flow:
+                        self.optimizer_D_flow.zero_grad()
+                        self.torch_gradient_scaler.scale(loss_d_flow).backward()
+                        self.torch_gradient_scaler.unscale_(self.optimizer_D_flow)
                         torch.nn.utils.clip_grad_norm_(
-                            self.image_discriminator.parameters(), 30
+                            self.flow_discriminator.parameters(), 30
                         )
-                        self.torch_gradient_scaler.step(self.optimizer_D_image)
+                        self.torch_gradient_scaler.step(self.optimizer_D_flow)
                         self.torch_gradient_scaler.update()
-
-                        if self.use_optical_flow:
-                            self.optimizer_D_flow.zero_grad()
-                            self.torch_gradient_scaler.scale(loss_d_flow).backward()
-                            torch.nn.utils.clip_grad_norm_(
-                                self.flow_discriminator.parameters(), 30
-                            )
-                            self.torch_gradient_scaler.step(self.optimizer_D_flow)
-                            self.torch_gradient_scaler.update()
-                else:
-                    self.optimizer_G.zero_grad()
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 30)
-                    self.optimizer_G.step()
-
-                    if self.num_discriminators > 0:
-                        self.optimizer_D_image.zero_grad()
-                        loss_d_image.backward()
-                        torch.nn.utils.clip_grad_norm_(
-                            self.image_discriminator.parameters(), 30
-                        )
-                        self.optimizer_D_image.step()
-
-                        if self.use_optical_flow:
-                            self.optimizer_D_flow.zero_grad()
-                            loss_d_flow.backward()
-                            torch.nn.utils.clip_grad_norm_(
-                                self.flow_discriminator.parameters(), 30
-                            )
-                            self.optimizer_D_flow.step()
 
                 # Loss scaler to scale to a per frame average
                 loss_scaler: float = self.batch_size / num_frames
@@ -1206,7 +1184,6 @@ class VideoFramework(MastersModel):
             assert (
                 self.num_frames_per_sampling_video > 1
             ), "self.use_optical_flow == True, but self.num_frames_per_sampling_video <= 1."
-
 
         num_frames_per_sampling_video = (
             self.num_frames_per_sampling_video
@@ -1313,7 +1290,8 @@ class VideoFramework(MastersModel):
                 # Previous outputs stored for input later
                 if self.num_prior_frames > 0:
                     prior_image_list = [
-                        fake_img[:, 0].detach().clone().clamp(0.0, 1.0) - (self.normalise_prior_frames * 0.5),
+                        fake_img[:, 0].detach().clone().clamp(0.0, 1.0)
+                        - (self.normalise_prior_frames * 0.5),
                         *prior_image_list[0 : self.num_prior_frames - 1],
                     ]
                     prior_mask_list = [
