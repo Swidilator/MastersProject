@@ -857,10 +857,11 @@ class VideoFramework(MastersModel):
 
                     # Generate reference optical flow if needed
                     if self.use_optical_flow:
-                        real_flow: torch.Tensor = self.flownet(
-                            reference_image,
-                            input_dict["img"][:, frame_no - 1].to(self.device),
-                        ).detach()
+                        with torch_amp.autocast(enabled=False):
+                            real_flow: torch.Tensor = self.flownet(
+                                reference_image,
+                                input_dict["img"][:, frame_no - 1].to(self.device),
+                            ).detach()
 
                     # If using discriminators, calculate losses using them
                     if self.num_discriminators > 0:
