@@ -906,7 +906,7 @@ class VideoFramework(MastersModel):
                         output_g, output_g_extra = self.image_discriminator(
                             (
                                 mask,
-                                edge_map,
+                                edge_map if self.use_edge_map else None,
                                 fake_img[:, 0],
                                 *prior_fake_image_list,
                                 *prior_mask_list,
