@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from support_scripts.utils import MastersModel
 
+
 @dataclass
 class SampleDataHolder:
     image_index: int
@@ -191,13 +192,19 @@ def sample_video_from_model(
 
     for i, image_index in enumerate(tqdm(range(index_range[0], index_range[1]))):
         with torch.no_grad():
-            image_data_holder: SampleDataHolder = model.sample(image_index, demovideo_dataset=False)
+            image_data_holder: SampleDataHolder = model.sample(
+                image_index, demovideo_dataset=False
+            )
 
             for frame_no in range(len(image_data_holder.output_image)):
                 if output_image_dir is not None:
                     image_data_holder.output_image[frame_no].save(
                         os.path.join(
-                            output_image_dir, f"{str(image_index).zfill(5)}_{str(frame_no).zfill(5)}".zfill(5) + ".png"
+                            output_image_dir,
+                            f"{str(image_index).zfill(5)}_{str(frame_no).zfill(5)}".zfill(
+                                5
+                            )
+                            + ".png",
                         ),
                         "PNG",
                     )

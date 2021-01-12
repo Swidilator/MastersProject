@@ -8,7 +8,7 @@ from support_scripts.utils import MastersModel
 from support_scripts.utils import ModelSettingsManager
 from support_scripts.sampling import sample_video_from_model
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     manager: ModelSettingsManager = ModelSettingsManager()
 
     # Create model framework

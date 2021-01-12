@@ -476,8 +476,8 @@ class VideoFramework(MastersModel):
                         # weight_decay=0,
                     )
 
-            self.torch_gradient_scaler: torch_amp.GradScaler = (
-                torch_amp.GradScaler(enabled=self.use_amp == "torch")
+            self.torch_gradient_scaler: torch_amp.GradScaler = torch_amp.GradScaler(
+                enabled=self.use_amp == "torch"
             )
 
     def save_model(self, epoch: int = -1) -> None:

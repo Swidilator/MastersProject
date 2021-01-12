@@ -351,9 +351,7 @@ class FeatureEncoder(nn.Module):
                         sub_path := path.join(self.model_save_dir, img_id["split"])
                     ):
                         mkdir(sub_path)
-                    if not path.exists(
-                        sub_path := path.join(sub_path, img_id["town"])
-                    ):
+                    if not path.exists(sub_path := path.join(sub_path, img_id["town"])):
                         mkdir(sub_path)
 
                     img_name: str = img_id["name"]
