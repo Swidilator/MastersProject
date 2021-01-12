@@ -101,7 +101,7 @@ class VideoFramework(MastersModel):
         self.use_optical_flow: bool = kwargs["use_optical_flow"]
         self.use_tanh: bool = kwargs["use_tanh"]
         self.num_prior_frames: int = kwargs["num_prior_frames"]
-        self.normalise_prior_frames: int = kwargs["normalise_prior_frames"]
+        self.normalise_prior_frames: bool = kwargs["normalise_prior_frames"]
 
         self.use_local_enhancer: bool = kwargs["use_local_enhancer"]
         self.lock_global_generator: bool = kwargs["lock_global_generator"]
@@ -321,6 +321,7 @@ class VideoFramework(MastersModel):
                 self.use_twin_network,
                 self.use_local_enhancer,
                 self.input_image_height_width,
+                self.normalise_prior_frames,
             )
         elif self.model == "CRN":
             self.generator: CRNVideo = CRNVideo(
@@ -338,6 +339,7 @@ class VideoFramework(MastersModel):
                 use_edge_map=self.use_edge_map,
                 use_twin_network=self.use_twin_network,
                 num_output_images=self.num_output_images,
+                normalised_prior_frames=self.normalise_prior_frames,
             )
         print(self.generator)
         self.generator = self.generator.to(self.device)
