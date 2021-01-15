@@ -102,6 +102,7 @@ class VideoFramework(MastersModel):
         self.use_tanh: bool = kwargs["use_tanh"]
         self.num_prior_frames: int = kwargs["num_prior_frames"]
         self.normalise_prior_frames: bool = kwargs["normalise_prior_frames"]
+        self.use_simple_warped_image_merging: bool = kwargs["use_simple_warped_image_merging"]
 
         self.use_local_enhancer: bool = kwargs["use_local_enhancer"]
         self.lock_global_generator: bool = kwargs["lock_global_generator"]
@@ -172,6 +173,7 @@ class VideoFramework(MastersModel):
             "use_tanh": manager.model_conf["USE_TANH"],
             "num_prior_frames": manager.model_conf["NUM_PRIOR_FRAMES"],
             "normalise_prior_frames": manager.model_conf["NORMALISE_PRIOR_FRAMES"],
+            "use_simple_warped_image_merging": manager.model_conf["USE_SIMPLE_WARPED_IMAGE_MERGING"],
 
             "use_local_enhancer": manager.model_conf["GAN_USE_LOCAL_ENHANCER"],
             "lock_global_generator": manager.model_conf["GAN_LOCK_GLOBAL_GENERATOR"],
@@ -340,6 +342,7 @@ class VideoFramework(MastersModel):
                 use_twin_network=self.use_twin_network,
                 num_output_images=self.num_output_images,
                 normalised_prior_frames=self.normalise_prior_frames,
+                use_simple_warped_image_merging=self.use_simple_warped_image_merging
             )
         print(self.generator)
         self.generator = self.generator.to(self.device)
@@ -1345,9 +1348,10 @@ class VideoFramework(MastersModel):
                             warped_image_list.append(
                                 transform(fake_img_w.squeeze().clamp(0.0, 1.0).cpu())
                             )
-                            combination_weights_list.append(
-                                transform(fake_flow_mask[0, 0].cpu())
-                            )
+                            if not self.use_simple_warped_image_merging:
+                                combination_weights_list.append(
+                                    transform(fake_flow_mask[0, 0].cpu())
+                                )
                             output_flow_list.append(transform(fake_flow_viz))
                             reference_flow_list.append(transform(real_flow_viz))
 
