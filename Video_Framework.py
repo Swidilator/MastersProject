@@ -324,6 +324,7 @@ class VideoFramework(MastersModel):
                 self.use_local_enhancer,
                 self.input_image_height_width,
                 self.normalise_prior_frames,
+                self.use_simple_warped_image_merging
             )
         elif self.model == "CRN":
             self.generator: CRNVideo = CRNVideo(
