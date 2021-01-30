@@ -92,7 +92,7 @@ if __name__ == "__main__":
         epoch_loss, _ = model_frame.train(current_epoch=current_epoch)
 
         # Sample images from the model
-        if manager.args["sample"] and (manager.args["sample_every_epoch"] or save_this_epoch):
+        if manager.args["sample"] and (manager.args["sample_every_epoch"] or save_this_epoch or current_epoch == 1):
             image_data_holders, sample_list = sample_from_model(
                 model=model_frame,
                 mode=manager.args["sample_mode"],
