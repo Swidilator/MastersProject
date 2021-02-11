@@ -215,7 +215,7 @@ def sample_video_from_model(
                         )
                     )[np.newaxis, :]
                     reference_img_np = np.array(
-                        image_data_holder.reference_image[0].resize(
+                        image_data_holder.reference_image[frame_no].resize(
                             (512, 256), Image.BILINEAR
                         )
                     )[np.newaxis, :]
@@ -228,7 +228,7 @@ def sample_video_from_model(
                     fake_img_np = np.append(fake_img_np, tmp_output, axis=0)
 
                     tmp_original = np.array(
-                        image_data_holder.reference_image[0].resize(
+                        image_data_holder.reference_image[frame_no].resize(
                             (512, 256), Image.BILINEAR
                         )
                     )[np.newaxis, :]
