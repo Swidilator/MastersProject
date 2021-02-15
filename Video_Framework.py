@@ -326,7 +326,7 @@ class VideoFramework(MastersModel):
                 self.use_local_enhancer,
                 self.input_image_height_width,
                 self.normalise_prior_frames,
-                self.use_simple_warped_image_merging
+                self.use_simple_warped_image_merging,
             )
         elif self.model == "CRN":
             self.generator: CRNVideo = CRNVideo(
@@ -345,7 +345,7 @@ class VideoFramework(MastersModel):
                 use_twin_network=self.use_twin_network,
                 num_output_images=self.num_output_images,
                 normalised_prior_frames=self.normalise_prior_frames,
-                use_simple_warped_image_merging=self.use_simple_warped_image_merging
+                use_simple_warped_image_merging=self.use_simple_warped_image_merging,
             )
         print(self.generator)
         self.generator = self.generator.to(self.device)
@@ -438,7 +438,11 @@ class VideoFramework(MastersModel):
                     self.num_classes
                     + num_edge_map_channels
                     + num_image_channels
-                    + (self.num_prior_frames * (self.num_classes + num_image_channels) * (not self.use_vid2vid_discriminators))
+                    + (
+                        self.num_prior_frames
+                        * (self.num_classes + num_image_channels)
+                        * (not self.use_vid2vid_discriminators)
+                    )
                 )
 
                 self.image_discriminator: FullDiscriminator = FullDiscriminator(
@@ -469,10 +473,10 @@ class VideoFramework(MastersModel):
                         )
                     else:
                         self.flow_discriminator_input_channel_count: int = (
-                                num_image_channels
-                                + num_flow_channels
-                                + ((self.num_prior_frames - 1) * num_flow_channels)
-                                + (self.num_prior_frames * num_image_channels)
+                            num_image_channels
+                            + num_flow_channels
+                            + ((self.num_prior_frames - 1) * num_flow_channels)
+                            + (self.num_prior_frames * num_image_channels)
                         )
 
                     self.flow_discriminator: FullDiscriminator = FullDiscriminator(
@@ -892,8 +896,16 @@ class VideoFramework(MastersModel):
                                 mask,
                                 edge_map if self.use_edge_map else None,
                                 fake_img[:, 0].detach(),
-                                *(prior_fake_image_list if not self.use_vid2vid_discriminators else []),
-                                *(prior_mask_list if not self.use_vid2vid_discriminators else []),
+                                *(
+                                    prior_fake_image_list
+                                    if not self.use_vid2vid_discriminators
+                                    else []
+                                ),
+                                *(
+                                    prior_mask_list
+                                    if not self.use_vid2vid_discriminators
+                                    else []
+                                ),
                             )
                         )
                         loss_d_fake: torch.Tensor = (
@@ -908,8 +920,16 @@ class VideoFramework(MastersModel):
                                 mask,
                                 edge_map if self.use_edge_map else None,
                                 reference_image,
-                                *(prior_reference_image_list if not self.use_vid2vid_discriminators else []),
-                                *(prior_mask_list if not self.use_vid2vid_discriminators else []),
+                                *(
+                                    prior_reference_image_list
+                                    if not self.use_vid2vid_discriminators
+                                    else []
+                                ),
+                                *(
+                                    prior_mask_list
+                                    if not self.use_vid2vid_discriminators
+                                    else []
+                                ),
                             )
                         )
                         loss_d_real: torch.Tensor = (
@@ -925,8 +945,16 @@ class VideoFramework(MastersModel):
                                 mask,
                                 edge_map if self.use_edge_map else None,
                                 fake_img[:, 0],
-                                *(prior_fake_image_list if not self.use_vid2vid_discriminators else []),
-                                *(prior_mask_list if not self.use_vid2vid_discriminators else []),
+                                *(
+                                    prior_fake_image_list
+                                    if not self.use_vid2vid_discriminators
+                                    else []
+                                ),
+                                *(
+                                    prior_mask_list
+                                    if not self.use_vid2vid_discriminators
+                                    else []
+                                ),
                             )
                         )
                         loss_g_gan: torch.Tensor = (
@@ -958,11 +986,13 @@ class VideoFramework(MastersModel):
                                     fake_flow.detach(),
                                     *prior_mask_list,
                                     *prior_fake_flow_list,
-                                ) if not self.use_vid2vid_discriminators else (
+                                )
+                                if not self.use_vid2vid_discriminators
+                                else (
                                     fake_img[:, 0].detach(),
                                     *prior_fake_image_list,
                                     real_flow,
-                                    *prior_real_flow_list
+                                    *prior_real_flow_list,
                                 )
                             )
                             loss_d_fake_flow: torch.Tensor = (
@@ -984,11 +1014,13 @@ class VideoFramework(MastersModel):
                                     real_flow,
                                     *prior_mask_list,
                                     *prior_real_flow_list,
-                                ) if not self.use_vid2vid_discriminators else (
+                                )
+                                if not self.use_vid2vid_discriminators
+                                else (
                                     reference_image,
                                     *prior_reference_image_list,
                                     real_flow,
-                                    *prior_real_flow_list
+                                    *prior_real_flow_list,
                                 )
                             )
                             loss_d_real_flow: torch.Tensor = (
@@ -1011,11 +1043,13 @@ class VideoFramework(MastersModel):
                                     fake_flow,
                                     *prior_mask_list,
                                     *prior_fake_flow_list,
-                                ) if not self.use_vid2vid_discriminators else (
+                                )
+                                if not self.use_vid2vid_discriminators
+                                else (
                                     fake_img[:, 0],
                                     *prior_fake_image_list,
                                     real_flow,
-                                    *prior_real_flow_list
+                                    *prior_real_flow_list,
                                 )
                             )
                             loss_g_gan_flow: torch.Tensor = (
@@ -1140,7 +1174,9 @@ class VideoFramework(MastersModel):
                         self.torch_gradient_scaler.update()
 
                 # Loss scaler to scale to a per frame average
-                loss_scaler: float = self.batch_size / self.num_frames_per_training_video
+                loss_scaler: float = (
+                    self.batch_size / self.num_frames_per_training_video
+                )
 
                 # Extract losses from tensors
                 loss_total += loss.item() * loss_scaler

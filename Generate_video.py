@@ -11,7 +11,9 @@ from support_scripts.utils import ModelSettingsManager
 from support_scripts.sampling import sample_video_from_model
 
 
-def generate_and_save_video(model_frame: VideoFramework, video_frame_range: Tuple[int, int], out_dir: str):
+def generate_and_save_video(
+    model_frame: VideoFramework, video_frame_range: Tuple[int, int], out_dir: str
+):
     # video_frame_ranges = [(0, 599), (599, 1699), (1699, 2899)]
 
     os.makedirs(out_dir, exist_ok=True)
