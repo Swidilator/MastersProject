@@ -734,7 +734,6 @@ class VideoFramework(MastersModel):
         ):
             # Batch size can be irregular at end of epoch, get this so always accurate
             this_batch_size: int = input_dict["img"].shape[0]
-            num_frames: int = input_dict["img"].shape[1]
 
             log_this_batch: bool = (batch_idx % self.log_every_n_steps == 0) or (
                 batch_idx == (len(self.data_loader_train) - 1)
@@ -1132,7 +1131,7 @@ class VideoFramework(MastersModel):
                         self.torch_gradient_scaler.update()
 
                 # Loss scaler to scale to a per frame average
-                loss_scaler: float = self.batch_size / num_frames
+                loss_scaler: float = self.batch_size / self.num_frames_per_training_video
 
                 # Extract losses from tensors
                 loss_total += loss.item() * loss_scaler
