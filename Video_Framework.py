@@ -430,7 +430,8 @@ class VideoFramework(MastersModel):
 
             if self.num_discriminators > 0:
                 # Discriminator criterion
-                self.criterion_D = nn.MSELoss()
+                self.criterion_D_image = nn.MSELoss()
+                self.criterion_D_flow = nn.MSELoss()
 
                 # Image discriminator
                 self.image_discriminator_input_channel_count: int = (
@@ -897,7 +898,7 @@ class VideoFramework(MastersModel):
                         )
                         loss_d_fake: torch.Tensor = (
                             self.image_discriminator.calculate_loss(
-                                output_d_fake, fake_label, self.criterion_D
+                                output_d_fake, fake_label, self.criterion_D_image
                             )
                         )
 
@@ -913,7 +914,7 @@ class VideoFramework(MastersModel):
                         )
                         loss_d_real: torch.Tensor = (
                             self.image_discriminator.calculate_loss(
-                                output_d_real, real_label, self.criterion_D
+                                output_d_real, real_label, self.criterion_D_image
                             )
                         )
 
@@ -930,13 +931,13 @@ class VideoFramework(MastersModel):
                         )
                         loss_g_gan: torch.Tensor = (
                             self.image_discriminator.calculate_loss(
-                                output_g, real_label_gan, self.criterion_D
+                                output_g, real_label_gan, self.criterion_D_image
                             )
                         )
 
                         # Calculate feature matching loss for image discriminator
                         loss_g_fm: torch.Tensor = feature_matching_error(
-                            output_d_real_extra,
+                            [x.detach() for x in output_d_real_extra],
                             output_g_extra,
                             self.feature_matching_weight,
                             self.num_discriminators,
@@ -966,7 +967,9 @@ class VideoFramework(MastersModel):
                             )
                             loss_d_fake_flow: torch.Tensor = (
                                 self.flow_discriminator.calculate_loss(
-                                    output_d_fake_flow, fake_label, self.criterion_D
+                                    output_d_fake_flow,
+                                    fake_label,
+                                    self.criterion_D_flow,
                                 )
                             )
 
@@ -990,7 +993,9 @@ class VideoFramework(MastersModel):
                             )
                             loss_d_real_flow: torch.Tensor = (
                                 self.flow_discriminator.calculate_loss(
-                                    output_d_real_flow, real_label, self.criterion_D
+                                    output_d_real_flow,
+                                    real_label,
+                                    self.criterion_D_flow,
                                 )
                             )
 
@@ -1015,12 +1020,12 @@ class VideoFramework(MastersModel):
                             )
                             loss_g_gan_flow: torch.Tensor = (
                                 self.flow_discriminator.calculate_loss(
-                                    output_g_flow, real_label_gan, self.criterion_D
+                                    output_g_flow, real_label_gan, self.criterion_D_flow
                                 )
                             )
 
                             loss_g_fm_flow: torch.Tensor = feature_matching_error(
-                                output_d_real_extra_flow,
+                                [x.detach() for x in output_d_real_extra_flow],
                                 output_g_extra_flow,
                                 self.feature_matching_weight,
                                 self.num_discriminators,
@@ -1033,34 +1038,38 @@ class VideoFramework(MastersModel):
                     if self.use_perceptual_loss:
                         # Calculate loss on final network output image
                         loss_img: torch.Tensor = self.loss_net(
-                            fake_img, reference_image, mask
+                            fake_img, reference_image.detach(), mask
                         )
                         if self.use_optical_flow:
                             loss_img_h: torch.Tensor = self.loss_net(
                                 fake_img_h.unsqueeze(1),  # Requires 5D tensor
-                                reference_image,
+                                reference_image.detach(),
                                 mask,
                             )
 
                     if self.use_optical_flow:
                         # Warp prior reference image and compare to current reference image
-                        warped_real_prev_image: torch.Tensor = FlowNetWrapper.resample(
-                            prior_reference_image_list[0].detach(),
-                            fake_flow,
-                            self.generator.grid,
-                        )
-                        loss_warp_scaling_factor: float = 10.0
-                        loss_warp: torch.Tensor = (
-                            self.flow_criterion(
-                                warped_real_prev_image, reference_image.detach()
+                        if prior_reference_image_list[0].detach().sum() != 0:
+                            warped_real_prev_image: torch.Tensor = (
+                                FlowNetWrapper.resample(
+                                    prior_reference_image_list[0].detach()
+                                    + (self.normalise_prior_frames * 0.5),
+                                    fake_flow,
+                                    self.generator.grid.detach(),
+                                )
                             )
-                            * loss_warp_scaling_factor
-                        )
+                            loss_warp_scaling_factor: float = 10.0
+                            loss_warp: torch.Tensor = (
+                                self.flow_criterion(
+                                    warped_real_prev_image, reference_image.detach()
+                                )
+                                * loss_warp_scaling_factor
+                            )
 
                         # Calculate direct comparison optical flow loss
                         loss_flow_scaling_factor: float = 10.0
                         loss_flow: torch.Tensor = (
-                            self.flow_criterion(fake_flow, real_flow)
+                            self.flow_criterion(fake_flow, real_flow.detach())
                             * loss_flow_scaling_factor
                         )
 
