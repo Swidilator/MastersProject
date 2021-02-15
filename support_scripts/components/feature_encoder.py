@@ -76,16 +76,10 @@ class FeatureEncoder(nn.Module):
         encoder: nn.ModuleList = nn.ModuleList()
         decoder: nn.ModuleList = nn.ModuleList()
 
+        self.feature_extractions_sampler: Optional[FeatureExtractionsSampler] = None
+
         if use_clustered_means:
-            means_file_path = path.join(model_save_dir, "clustered_means.pt")
-            self.feature_extractions_sampler: FeatureExtractionsSampler = (
-                FeatureExtractionsSampler.from_file(
-                    means_file_path,
-                    self.device,
-                    self.use_mask_for_instances,
-                    self.num_semantic_classes,
-                )
-            )
+            self.switch_to_sampled_means()
 
         # Initial layer
         encoder.append(
@@ -155,6 +149,17 @@ class FeatureEncoder(nn.Module):
 
         self.encoder_model: nn.Sequential = nn.Sequential(*encoder)
         self.decoder_model: nn.Sequential = nn.Sequential(*decoder)
+
+    def switch_to_sampled_means(self):
+        means_file_path = path.join(self.model_save_dir, "clustered_means.pt")
+        self.feature_extractions_sampler: FeatureExtractionsSampler = (
+            FeatureExtractionsSampler.from_file(
+                means_file_path,
+                self.device,
+                self.use_mask_for_instances,
+                self.num_semantic_classes,
+            )
+        )
 
     def sample_using_means(
         self,
