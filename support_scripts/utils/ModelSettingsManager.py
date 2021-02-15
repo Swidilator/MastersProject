@@ -61,6 +61,7 @@ class ModelSettingsManager:
         parser.add_argument("--use-mask-for-instances", action="store_true", default=False)
         parser.add_argument("--use-saved-feature-encodings", action="store_true", default=False)
         parser.add_argument("--sample-every-epoch", action="store_true", default=False)
+        parser.add_argument("--use-vid2vid-discriminators", action="store_true", default=False)
 
         args: dict = vars(parser.parse_args())
 

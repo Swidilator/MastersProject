@@ -32,6 +32,7 @@ class MastersModel(ABC):
         use_mask_for_instances: bool,
         video_frame_offset: Union[int, str],
         use_saved_feature_encodings: bool,
+        use_vid2vid_discriminators: bool,
         **kwargs,
     ):
         super(MastersModel, self).__init__()
@@ -60,6 +61,7 @@ class MastersModel(ABC):
         self.use_mask_for_instances: bool = use_mask_for_instances
         self.video_frame_offset: Union[int, str] = video_frame_offset
         self.use_saved_feature_encodings: bool = use_saved_feature_encodings
+        self.use_vid2vid_discriminators: bool = use_vid2vid_discriminators
 
     @property
     @abstractmethod
