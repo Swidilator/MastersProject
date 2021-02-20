@@ -1,4 +1,4 @@
-import os
+import os, sys
 import random
 
 import imageio
@@ -158,7 +158,7 @@ def sample_from_model(
         ]
 
     data_holder: SampleDataHolder
-    for j, data_holder in enumerate(tqdm(image_data_holders, desc="Sampling")):
+    for j, data_holder in enumerate(tqdm(image_data_holders, desc="Sampling", file=sys.stdout)):
 
         # Create the composite images
         __process_sampled_image__(data_holder)

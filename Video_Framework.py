@@ -1,4 +1,4 @@
-import os
+import os, sys
 from contextlib import nullcontext
 from itertools import chain
 from typing import Any, Tuple, List, Union, Optional
@@ -735,7 +735,7 @@ class VideoFramework(MastersModel):
 
         # Loop through dataset
         for batch_idx, input_dict in enumerate(
-            tqdm(self.data_loader_train, desc="Training")
+            tqdm(self.data_loader_train, desc="Training", file=sys.stdout)
         ):
             # Batch size can be irregular at end of epoch, get this so always accurate
             this_batch_size: int = input_dict["img"].shape[0]

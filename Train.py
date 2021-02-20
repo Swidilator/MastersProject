@@ -75,9 +75,13 @@ if __name__ == "__main__":
         # sys.stderr.flush()
 
         save_this_epoch = (
-            manager.args["save_every_num_epochs"] > 0
-            and current_epoch % manager.args["save_every_num_epochs"] == 0
-        ) or (current_epoch == manager.args["train"])
+            (
+                manager.args["save_every_num_epochs"] > 0
+                and current_epoch % manager.args["save_every_num_epochs"] == 0
+            )
+            or (current_epoch == manager.args["train"])
+            or (current_epoch == 1)
+        )
 
         sample_this_epoch = manager.args["sample"] and (
             (
@@ -116,7 +120,11 @@ if __name__ == "__main__":
 
             image_data_holder: SampleDataHolder
             for image_dict_index, image_data_holder in enumerate(
-                tqdm(image_data_holders, desc="Saving / Uploading Images")
+                tqdm(
+                    image_data_holders,
+                    desc="Saving / Uploading Images",
+                    file=sys.stdout,
+                )
             ):
                 # Create base filename for saving images and pickle files
                 filename_no_extension = os.path.join(
