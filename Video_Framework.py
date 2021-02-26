@@ -589,7 +589,8 @@ class VideoFramework(MastersModel):
         print("Loading model:")
         print(load_path)
 
-        checkpoint = torch.load(load_path, map_location=self.device)
+        # checkpoint = torch.load(load_path, map_location=self.device)
+        checkpoint = torch.load(load_path, map_location=torch.device("cpu"))
 
         if "model" in checkpoint:
             assert (
@@ -698,8 +699,9 @@ class VideoFramework(MastersModel):
         load_path: str = os.path.join(
             manager.args["model_save_dir"], manager.args["load_saved_model"]
         )
-        checkpoint = torch.load(load_path)
+        checkpoint = torch.load(load_path, map_location=torch.device("cpu"))
         kwargs: dict = checkpoint["kwargs"]
+        del checkpoint
 
         shared_keys: list = [x for x in manager.args.keys() if x in kwargs]
         for key in shared_keys:
@@ -1376,15 +1378,25 @@ class VideoFramework(MastersModel):
                     ]
 
                     if self.use_optical_flow:
-                        # Reference flow for comparison to generated flow
-                        real_flow: torch.Tensor = (
-                            self.flownet(
-                                real_img,
-                                real_img_total[:, frame_no - 1].to(self.device),
+                        if not self.sample_only:
+                            # Reference flow for comparison to generated flow
+                            real_flow: torch.Tensor = (
+                                self.flownet(
+                                    real_img,
+                                    real_img_total[:, frame_no - 1].to(self.device),
+                                )
+                                .detach()
+                                .permute(0, 2, 3, 1)
                             )
-                            .detach()
-                            .permute(0, 2, 3, 1)
-                        )
+
+                            real_flow_viz: torch.Tensor = (
+                                    torch.tensor(
+                                        fz.convert_from_flow(real_flow.squeeze().cpu().numpy())
+                                    )
+                                    .permute(2, 0, 1)
+                                    .float()
+                                    / 255.0
+                            )
 
                         # Visualise flow for easier inspection
                         fake_flow_viz: torch.Tensor = (
@@ -1395,15 +1407,6 @@ class VideoFramework(MastersModel):
                                     .cpu()
                                     .numpy()
                                 )
-                            )
-                            .permute(2, 0, 1)
-                            .float()
-                            / 255.0
-                        )
-
-                        real_flow_viz: torch.Tensor = (
-                            torch.tensor(
-                                fz.convert_from_flow(real_flow.squeeze().cpu().numpy())
                             )
                             .permute(2, 0, 1)
                             .float()
@@ -1423,7 +1426,8 @@ class VideoFramework(MastersModel):
                                     transform(fake_flow_mask[0, 0].cpu())
                                 )
                             output_flow_list.append(transform(fake_flow_viz))
-                            reference_flow_list.append(transform(real_flow_viz))
+                            if not self.sample_only:
+                                reference_flow_list.append(transform(real_flow_viz))
 
                 if num_frames_generated >= self.num_prior_frames:
                     reference_image_list.append(transform(real_img.squeeze().cpu()))
